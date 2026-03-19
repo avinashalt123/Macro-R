@@ -1,0 +1,139 @@
+Build a Flutter Android app called "MS Rewards Automation" for learning mobile automation.
+
+TECH STACK:
+- Flutter + Dart
+- Packages: webview_flutter, flutter_secure_storage, workmanager, flutter_local_notifications, provider, shared_preferences
+
+PROJECT STRUCTURE:
+lib/
+├── main.dart
+├── app.dart
+├── models/
+│   ├── account.dart
+│   └── run_log.dart
+├── providers/
+│   ├── accounts_provider.dart
+│   ├── settings_provider.dart
+│   └── logs_provider.dart
+├── screens/
+│   ├── home_screen.dart
+│   ├── login_screen.dart (web safe - show form on web, WebView on Android)
+│   ├── login_screen_mobile.dart
+│   ├── login_screen_web.dart
+│   ├── settings_screen.dart
+│   └── logs_screen.dart
+└── services/
+    ├── automation_service.dart
+    ├── cookie_service.dart
+    ├── notification_service.dart
+    ├── points_service.dart
+    └── scheduler_service.dart
+
+ACCOUNT MODEL:
+- id, name, email, status (idle/running/done/failed)
+- totalPoints, todayPoints, lastRun
+- searchCount (default 30, editable per account)
+- dailySetEnabled (bool)
+- cookies (Map<String, String>)
+
+AUTOMATION LOGIC:
+1. Open WebView with mobile user agent:
+   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36"
+2. Inject cookies to auto-login per account
+3. Complete Daily Set using JS:
+   - Selector: #daily-sets mee-card-group:nth-child(7) .ds-card-sec.ng-scope
+   - Click each card, wait 8-10s between cards
+4. Perform Bing searches by typing in search box:
+   - Selector: input#sb_form_q
+   - Type query character by character
+   - Press Enter
+   - Wait 5-10s between searches
+5. Scrape points after run using JS
+6. Switch to next account by clearing cookies and injecting new ones
+
+SCHEDULER (WorkManager):
+Run schedule per day:
+- 1:00 PM → First attempt all accounts
+- 10:00 PM → Retry failed accounts
+- 10:30 PM → Retry failed accounts
+- 11:00 PM → Retry failed accounts
+- 11:30 PM → Retry failed accounts
+- 12:00 AM → Final retry, mark remaining as failed
+
+ACCOUNT STATUS FLOW:
+idle → running → done (success)
+                → failed (retry at next scheduled time)
+                → failed after 12AM (try tomorrow)
+
+HOME SCREEN:
+- Show all accounts as cards
+- Each card shows: name, email, status icon, today's points
+- Status icons: ⏳ idle, 🔄 running, ✅ done, ❌ failed
+- Stats bar at top: total points today, accounts done/total
+- FAB buttons: + add account, ▶ run now
+
+LOGIN SCREEN (Android only - WebView):
+- Open https://login.live.com with mobile user agent
+- Detect when user reaches rewards.bing.com = logged in
+- Show green banner "Logged in! Tap Save Account"
+- Save button extracts cookies via CookieManager
+- Save account to storage
+
+LOGIN SCREEN (Web only - fallback):
+- Simple form with name + email fields
+- Add demo account button for testing
+
+SETTINGS SCREEN:
+- Search count slider (5-50, default 30)
+- First run time picker (default 1:00 PM)
+- Daily Set toggle
+- Retry schedule display (read only info)
+- Apply Schedule button (Android only, disabled on web)
+
+LOGS SCREEN:
+- List of recent runs (last 50)
+- Each log: account name, date/time, searches done, daily set ✅/❌, points earned, status
+- Clear logs button
+
+NOTIFICATIONS:
+- Run started: "MS Rewards Running - Starting automation for [account]"
+- Run done: "✅ [account] Done - Earned X points today!"
+- Run failed: "❌ [account] Failed - Will retry at next scheduled time"
+- All done: "🎉 All Done! X accounts completed. Total: X points today"
+- Retrying: "🔄 Retrying Failed Accounts - Retry attempt X"
+
+IMPORTANT REQUIREMENTS:
+1. Use kIsWeb checks everywhere WorkManager and WebView are used
+2. flutter_local_notifications v21 uses named parameters:
+   - initialize(settings: initSettings, onDidReceiveNotificationResponse: (d) {})
+   - show(id: 0, title: '', body: '', notificationDetails: details)
+3. WorkManager initialize() has no isInDebugMode parameter in new version
+4. All providers use ChangeNotifier and SharedPreferences for persistence
+5. Accounts stored as JSON in SharedPreferences
+6. Run logs keep last 200 entries max
+7. Cookie service uses WebViewCookieManager for inject/clear
+8. Query rotation: 30 queries shuffled randomly, no repeats per session
+
+SEARCH QUERIES (use these 30):
+what is artificial intelligence, best programming languages 2026,
+how does machine learning work, top tourist destinations in the world,
+healthy meal prep ideas, how to learn guitar for beginners,
+latest space exploration news, best budget smartphones 2026,
+how to improve memory and focus, world history timeline overview,
+best free online learning platforms, how does cryptocurrency work,
+tips for better sleep quality, most spoken languages in the world,
+how to start investing for beginners, best movies to watch this weekend,
+climate change effects on oceans, how to build muscle at home,
+top 10 richest people in the world, best productivity apps for students,
+how to make homemade pizza, what causes northern lights,
+best hiking trails in the world, how to learn a new language fast,
+history of the roman empire, how does solar energy work,
+best laptops for college students, what is quantum computing,
+tips for healthy eating on a budget, how to grow vegetables at home
+
+BUILD REQUIREMENTS:
+- Run flutter analyze with 0 errors before finishing
+- Test on Chrome with flutter run -d chrome (web fallback mode)
+- All web-only crashes must be handled with kIsWeb guards
+- No deprecated APIs
+- Clean architecture with separation of concerns
