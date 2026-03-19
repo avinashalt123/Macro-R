@@ -109,7 +109,10 @@ export default function HomeScreen() {
           <EmptyState
             icon="users"
             title="No accounts yet"
-            subtitle="Tap the + button above to add your first Microsoft Rewards account"
+            subtitle="Add a Microsoft Rewards account to start automating Bing searches and tracking your points."
+            actionLabel="Add Account"
+            actionIcon="plus"
+            onAction={() => router.push("/add-account")}
           />
         }
         contentInsetAdjustmentBehavior="automatic"
