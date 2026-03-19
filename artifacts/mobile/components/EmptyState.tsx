@@ -24,7 +24,7 @@ export function EmptyState({ icon, title, subtitle, actionLabel, actionIcon, onA
         <Feather name={icon} size={32} color={colors.textMuted} />
       </View>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+      {!!subtitle && <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>}
 
       {actionLabel && onAction && (
         <Pressable
