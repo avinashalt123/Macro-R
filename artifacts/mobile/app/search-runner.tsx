@@ -19,7 +19,7 @@ import { Account, useAccounts } from "@/context/AccountsContext";
 import { useQueries } from "@/context/QueriesContext";
 import { useSettings } from "@/context/SettingsContext";
 
-// ─── Network helpers ──────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const BING_UA =
   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
@@ -41,8 +41,7 @@ function randomHex(len: number): string {
   ).join("");
 }
 
-// Real search request — sent with the account's explicit cookies, independent
-// of the WebView's shared cookie store.
+// Bing search via fetch — uses the account's explicit cookies, bypasses OS jar
 async function performBingSearch(
   query: string,
   cookies: Record<string, string>
@@ -70,6 +69,7 @@ async function performBingSearch(
   }
 }
 
+// Points via fetch — best-effort, limited by httpOnly cookie availability
 async function fetchRewardsPoints(
   cookies: Record<string, string>
 ): Promise<number> {
@@ -100,160 +100,58 @@ async function fetchRewardsPoints(
   }
 }
 
-// ─── Daily Set helpers ────────────────────────────────────────────────────────
+// ─── JS injected into the Rewards WebView to extract activity links ───────────
+//
+// The WebView holds the FULL device cookie store (httpOnly included), so any
+// navigation it performs is properly authenticated. We scrape the activity
+// links from the DOM and post them back to React Native, then navigate the
+// WebView through each one to credit the activity.
 
-interface DailyActivity {
-  id: string;
-  title: string;
-  type: string;
-  destinationUrl: string;
-  pointValue: number;
-  complete: boolean;
-}
-
-async function fetchDailyActivities(
-  cookies: Record<string, string>
-): Promise<DailyActivity[]> {
-  const cookieStr = buildCookieHeader(cookies);
+const EXTRACT_ACTIVITIES_JS = `
+(function() {
   try {
-    const resp = await fetch(
-      "https://rewards.bing.com/api/getuserinfo?type=1&X-Requested-With=XMLHttpRequest",
-      {
-        credentials: "omit",
-        headers: {
-          Cookie: cookieStr,
-          "User-Agent": BING_UA,
-          Accept: "application/json, text/javascript, */*",
-          Referer: "https://rewards.bing.com/",
-          "X-Requested-With": "XMLHttpRequest",
-        },
+    var seen = new Set();
+    var links = [];
+
+    // Grab every <a> on the page and filter for likely activity destinations
+    document.querySelectorAll('a[href]').forEach(function(a) {
+      var href = a.href;
+      if (!href || seen.has(href) || href === window.location.href) return;
+      if (href.startsWith('javascript:') || href.startsWith('mailto:')) return;
+
+      // Rewards activity URLs: quiz pages, bing search activities, offer pages
+      var isActivity = (
+        href.includes('rewardschallenges') ||
+        href.includes('/go/') ||
+        (href.includes('bing.com/search') && (
+          href.includes('rewards') || href.includes('QFCT') || href.includes('QBRE')
+        )) ||
+        href.includes('microsoft.com/en-us/rewards/') ||
+        href.includes('rewards.microsoft.com')
+      );
+
+      // Also grab anything inside a known daily-set card container
+      var inCard = (
+        !!a.closest('[class*="daily"]') ||
+        !!a.closest('[class*="activity"]') ||
+        !!a.closest('[class*="punchcard"]') ||
+        !!a.closest('[class*="offer"]') ||
+        !!a.closest('[data-m]')
+      );
+
+      if (isActivity || inCard) {
+        seen.add(href);
+        var text = (a.textContent || a.title || a.getAttribute('aria-label') || '').trim().replace(/\\s+/g,' ').slice(0, 50);
+        links.push({ url: href, text: text || 'Activity' });
       }
-    );
-    if (!resp.ok) return [];
-    const json = await resp.json();
-
-    const activities: DailyActivity[] = [];
-
-    // Daily set promotions are keyed by date string inside dashboard
-    const rawPromotions: any[] = [];
-
-    // Collect from top-level promotions array
-    if (Array.isArray(json?.dashboard?.promotions)) {
-      rawPromotions.push(...json.dashboard.promotions);
-    }
-
-    // Also collect from dailySetPromotions (some API versions use this key)
-    const dsp = json?.dashboard?.dailySetPromotions;
-    if (dsp && typeof dsp === "object") {
-      for (const dateKey of Object.keys(dsp)) {
-        const arr = dsp[dateKey];
-        if (Array.isArray(arr)) rawPromotions.push(...arr);
-      }
-    }
-
-    // Collect punch cards / streak bonuses
-    if (Array.isArray(json?.dashboard?.punchCards)) {
-      for (const pc of json.dashboard.punchCards) {
-        if (Array.isArray(pc?.childPromotion)) {
-          rawPromotions.push(...pc.childPromotion);
-        }
-      }
-    }
-
-    for (const promo of rawPromotions) {
-      const dest =
-        promo?.attributes?.destination ??
-        promo?.destinationUrl ??
-        promo?.linkUrl;
-      if (!dest) continue;
-
-      activities.push({
-        id: promo.id ?? promo.offerId ?? String(Math.random()),
-        title: promo.attributes?.title ?? promo.title ?? "Activity",
-        type: promo.promotionType ?? promo.type ?? "urlreward",
-        destinationUrl: dest,
-        pointValue: promo.pointValue ?? promo.points ?? 0,
-        complete: promo.complete ?? promo.isComplete ?? false,
-      });
-    }
-
-    return activities;
-  } catch {
-    return [];
-  }
-}
-
-async function completeActivity(
-  activity: DailyActivity,
-  cookies: Record<string, string>
-): Promise<boolean> {
-  if (activity.complete) return true;
-  const cookieStr = buildCookieHeader(cookies);
-
-  try {
-    // For urlreward and simple click-type activities, a GET to the destination
-    // URL with the account cookies is enough to credit the points.
-    // Quiz/poll types are more complex and will at minimum open the activity
-    // page — partial credit may still apply on some quiz types.
-    const resp = await fetch(activity.destinationUrl, {
-      method: "GET",
-      credentials: "omit",
-      headers: {
-        Cookie: cookieStr,
-        "User-Agent": BING_UA,
-        Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        Referer: "https://rewards.bing.com/",
-        "Cache-Control": "no-cache",
-      },
     });
-    return resp.ok || resp.status === 302 || resp.status === 301;
-  } catch {
-    return false;
+
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'daily_links', links: links.slice(0, 20) }));
+  } catch(e) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'daily_links', links: [], error: String(e) }));
   }
-}
-
-async function performDailySet(
-  cookies: Record<string, string>,
-  onStatus: (msg: string) => void
-): Promise<{ completed: number; total: number; alreadyDone: boolean }> {
-  onStatus("Daily Set: fetching activities…");
-
-  const activities = await fetchDailyActivities(cookies);
-  const pending = activities.filter((a) => !a.complete);
-
-  if (activities.length === 0) {
-    onStatus("Daily Set: no activities found (session may need re-login)");
-    await sleep(3000);
-    return { completed: 0, total: 0, alreadyDone: false };
-  }
-
-  if (pending.length === 0) {
-    onStatus("Daily Set: already completed ✓");
-    await sleep(2000);
-    return { completed: activities.length, total: activities.length, alreadyDone: true };
-  }
-
-  onStatus(`Daily Set: found ${pending.length} activities`);
-  await sleep(1000);
-
-  let completed = 0;
-  for (let i = 0; i < pending.length; i++) {
-    const activity = pending[i];
-    const label = activity.title || activity.type;
-    onStatus(`Daily Set [${i + 1}/${pending.length}]: ${label}…`);
-
-    const ok = await completeActivity(activity, cookies);
-    if (ok) completed++;
-
-    await sleep(1500 + Math.random() * 1000);
-  }
-
-  onStatus(`Daily Set: ${completed}/${pending.length} activities completed`);
-  await sleep(2000);
-
-  return { completed, total: pending.length, alreadyDone: false };
-}
+})(); true;
+`;
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -267,7 +165,7 @@ export default function SearchRunnerScreen() {
   const { pickQueries } = useQueries();
   const { settings } = useSettings();
 
-  // mode: "both" (default) = searches + daily set | "dailyset" = daily set only
+  // mode: "both" = searches + daily set  |  "dailyset" = daily set only
   const mode = (rawMode === "dailyset" ? "dailyset" : "both") as "both" | "dailyset";
 
   const accountIds: string[] = rawIds ? JSON.parse(rawIds) : [];
@@ -278,17 +176,21 @@ export default function SearchRunnerScreen() {
   const webViewRef = useRef<any>(null);
   const abortRef = useRef(false);
 
+  // WebView event bridges — used to turn event-driven WebView into async/await
+  const webViewLoadResolverRef = useRef<(() => void) | null>(null);
+  const webViewMsgHandlerRef = useRef<((data: any) => void) | null>(null);
+
   const [webViewUrl, setWebViewUrl] = useState("https://www.bing.com");
 
   // Status display
   const [currentAccountIdx, setCurrentAccountIdx] = useState(0);
-  const [currentAccountName, setCurrentAccountName] = useState(
-    targetAccounts[0]?.name ?? ""
-  );
+  const [currentAccountName, setCurrentAccountName] = useState(targetAccounts[0]?.name ?? "");
   const [currentSearchIdx, setCurrentSearchIdx] = useState(0);
   const [totalSearches, setTotalSearches] = useState(settings.defaultSearchCount);
   const [statusLine, setStatusLine] = useState("Starting…");
-  const [phase, setPhase] = useState<"searching" | "dailyset" | "done">("searching");
+  const [phase, setPhase] = useState<"searching" | "dailyset" | "done">(
+    mode === "dailyset" ? "dailyset" : "searching"
+  );
   const [dailySetResult, setDailySetResult] = useState<{ completed: number; total: number } | null>(null);
   const [isFinished, setIsFinished] = useState(false);
   const [networkError, setNetworkError] = useState(false);
@@ -298,10 +200,7 @@ export default function SearchRunnerScreen() {
 
   // Elapsed timer
   useEffect(() => {
-    const t = setInterval(
-      () => setElapsedMs(Date.now() - startTime.current),
-      1000
-    );
+    const t = setInterval(() => setElapsedMs(Date.now() - startTime.current), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -311,11 +210,127 @@ export default function SearchRunnerScreen() {
     return `${m}:${(s % 60).toString().padStart(2, "0")}`;
   };
 
+  // Navigate the WebView to a new URL
   const navigateTo = useCallback((url: string) => {
     webViewRef.current?.injectJavaScript(
       `window.location.href = ${JSON.stringify(url)}; true;`
     );
   }, []);
+
+  // ─── WebView event handlers ────────────────────────────────────────────────
+
+  const handleWebViewLoadEnd = useCallback(() => {
+    if (webViewLoadResolverRef.current) {
+      webViewLoadResolverRef.current();
+      webViewLoadResolverRef.current = null;
+    }
+  }, []);
+
+  const handleWebViewMessage = useCallback((event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (webViewMsgHandlerRef.current) {
+        webViewMsgHandlerRef.current(data);
+      }
+    } catch {}
+  }, []);
+
+  // Returns a promise that resolves when the next WebView load completes (or times out)
+  const waitForLoad = useCallback((timeoutMs = 12000): Promise<void> => {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        webViewLoadResolverRef.current = null;
+        resolve();
+      }, timeoutMs);
+      webViewLoadResolverRef.current = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+  }, []);
+
+  // Returns a promise that resolves when the WebView posts a message of the given type (or times out)
+  const waitForMessage = useCallback((type: string, timeoutMs = 8000): Promise<any> => {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        webViewMsgHandlerRef.current = null;
+        resolve(null);
+      }, timeoutMs);
+      webViewMsgHandlerRef.current = (data: any) => {
+        if (data.type === type) {
+          clearTimeout(timer);
+          webViewMsgHandlerRef.current = null;
+          resolve(data);
+        }
+      };
+    });
+  }, []);
+
+  // ─── WebView-based Daily Set ───────────────────────────────────────────────
+  //
+  // The WebView holds the real OS cookie store including httpOnly auth tokens,
+  // so navigating it to rewards.bing.com gives us a fully-authenticated page.
+  // We inject JS to extract activity links then navigate through each one.
+
+  const runDailySetViaWebView = useCallback(async (
+    onStatus: (msg: string) => void
+  ): Promise<{ completed: number; total: number; alreadyDone: boolean }> => {
+    onStatus("Daily Set: loading Rewards page…");
+
+    // Navigate WebView to the Rewards dashboard (uses full httpOnly session)
+    setWebViewUrl("https://rewards.bing.com/");
+    await waitForLoad(15000);
+    // Give the page's JS a moment to render the activity cards
+    await sleep(3000);
+
+    onStatus("Daily Set: scanning for activities…");
+
+    // Inject the extraction script and wait for the postMessage reply
+    webViewRef.current?.injectJavaScript(EXTRACT_ACTIVITIES_JS);
+    const msgData = await waitForMessage("daily_links", 8000);
+    const activityLinks: { url: string; text: string }[] = msgData?.links ?? [];
+
+    if (activityLinks.length === 0) {
+      onStatus("Daily Set: no activities found — try re-logging in");
+      await sleep(3000);
+      return { completed: 0, total: 0, alreadyDone: false };
+    }
+
+    onStatus(`Daily Set: found ${activityLinks.length} activities`);
+    await sleep(800);
+
+    let completed = 0;
+
+    for (let i = 0; i < activityLinks.length; i++) {
+      if (abortRef.current) break;
+
+      const activity = activityLinks[i];
+      const label = activity.text || `Activity ${i + 1}`;
+      onStatus(`Daily Set [${i + 1}/${activityLinks.length}]: ${label}…`);
+      setDailySetResult({ completed, total: activityLinks.length });
+
+      // Navigate the WebView to the activity URL — the full authenticated
+      // session (httpOnly cookies included) means Microsoft sees a real visit
+      navigateTo(activity.url);
+      await waitForLoad(10000);
+      await sleep(2500); // let the activity register server-side
+
+      completed++;
+      setDailySetResult({ completed, total: activityLinks.length });
+
+      // Navigate back to the Rewards dashboard before the next activity
+      if (i < activityLinks.length - 1 && !abortRef.current) {
+        navigateTo("https://rewards.bing.com/");
+        await waitForLoad(10000);
+        await sleep(2000);
+      }
+    }
+
+    onStatus(`Daily Set: ${completed}/${activityLinks.length} activities visited`);
+    await sleep(2000);
+
+    return { completed, total: activityLinks.length, alreadyDone: false };
+  }, [navigateTo, waitForLoad, waitForMessage]);
 
   // ─── Main automation loop ─────────────────────────────────────────────────
 
@@ -359,7 +374,7 @@ export default function SearchRunnerScreen() {
           continue;
         }
 
-        // ── Bing searches (skipped in dailyset-only mode) ────────────────────
+        // ── Bing searches (skipped in dailyset-only mode) ──────────────────
         let searchesDone = 0;
         let networkLost = false;
 
@@ -368,9 +383,7 @@ export default function SearchRunnerScreen() {
             if (cancelled || abortRef.current) break;
 
             const query = queries[si] ?? `microsoft rewards tip ${si + 1}`;
-            const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(
-              query
-            )}&form=QBLH&cvid=${randomHex(32).toUpperCase()}`;
+            const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&form=QBLH&cvid=${randomHex(32).toUpperCase()}`;
 
             setCurrentSearchIdx(si + 1);
             setStatusLine(`[${account.name}]  "${query}"`);
@@ -407,11 +420,11 @@ export default function SearchRunnerScreen() {
 
         if (cancelled || abortRef.current) break;
 
-        // ── Daily Set ────────────────────────────────────────────────────────
+        // ── Daily Set via WebView ──────────────────────────────────────────
+        // WebView uses the full OS cookie store (httpOnly included) so
+        // navigating it to rewards.bing.com gives a properly authenticated page.
         let dailySetDone = false;
-        // In dailyset-only mode always run regardless of per-account toggle.
-        // In "both" mode respect both the global and per-account settings.
-        // account.dailySetEnabled may be undefined for old accounts → default true.
+
         const shouldRunDailySet =
           !networkLost &&
           (mode === "dailyset"
@@ -420,22 +433,14 @@ export default function SearchRunnerScreen() {
 
         if (shouldRunDailySet) {
           setPhase("dailyset");
-          // Navigate WebView to Rewards for visual context
-          navigateTo("https://rewards.bing.com/");
 
-          const ds = await performDailySet(account.cookies, setStatusLine);
-          dailySetDone = ds.alreadyDone || ds.completed > 0;
+          const ds = await runDailySetViaWebView(setStatusLine);
+          dailySetDone = ds.completed > 0 || ds.alreadyDone;
           setDailySetResult({ completed: ds.completed, total: ds.total });
-
-          if (!ds.alreadyDone) {
-            setStatusLine(
-              `[${account.name}]  Daily Set: ${ds.completed}/${ds.total} completed`
-            );
-          }
           await sleep(1000);
         }
 
-        // ── Points ───────────────────────────────────────────────────────────
+        // ── Points ─────────────────────────────────────────────────────────
         setStatusLine(`[${account.name}]  Fetching points…`);
         const points = await fetchRewardsPoints(account.cookies ?? {});
         const prevPoints = account.todayPoints ?? 0;
@@ -459,8 +464,7 @@ export default function SearchRunnerScreen() {
           searchesDone,
           dailySetDone,
           pointsEarned,
-          errorMessage:
-            finalStatus === "failed" ? "Network unavailable" : undefined,
+          errorMessage: finalStatus === "failed" ? "Network unavailable" : undefined,
         });
 
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -496,7 +500,7 @@ export default function SearchRunnerScreen() {
   }, [isFinished]);
 
   const handleStop = () => {
-    Alert.alert("Stop Automation?", "Searches will be interrupted.", [
+    Alert.alert("Stop Automation?", "This will interrupt the current run.", [
       { text: "Keep Running", style: "cancel" },
       {
         text: "Stop",
@@ -517,7 +521,7 @@ export default function SearchRunnerScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background, justifyContent: "center", alignItems: "center", gap: 16 }]}>
         <Text style={{ color: colors.text, fontSize: 16, textAlign: "center", paddingHorizontal: 32 }}>
-          WebView searches only work on a real Android or iOS device.
+          WebView automation only works on a real Android or iOS device.
         </Text>
         <Pressable onPress={() => router.back()}>
           <Text style={{ color: colors.tint, fontSize: 15 }}>Go Back</Text>
@@ -579,7 +583,7 @@ export default function SearchRunnerScreen() {
         </View>
       </View>
 
-      {/* Phase pill — shows when in daily set phase */}
+      {/* Daily Set phase pill */}
       {phase === "dailyset" && (
         <View style={styles.phasePill}>
           <CheckCircle size={13} color="#A78BFA" />
@@ -611,10 +615,10 @@ export default function SearchRunnerScreen() {
               : "#60A5FA",
           },
         ]} />
-        <Text style={styles.statusText} numberOfLines={1}>{statusLine}</Text>
+        <Text style={styles.statusText} numberOfLines={2}>{statusLine}</Text>
       </View>
 
-      {/* Live Bing / Rewards WebView */}
+      {/* WebView — navigated through Bing searches and Rewards activities */}
       <WebViewComponent
         ref={webViewRef}
         source={{ uri: webViewUrl }}
@@ -626,6 +630,8 @@ export default function SearchRunnerScreen() {
         domStorageEnabled
         allowsBackForwardNavigationGestures={false}
         startInLoadingState
+        onLoadEnd={handleWebViewLoadEnd}
+        onMessage={handleWebViewMessage}
       />
     </View>
   );
@@ -698,7 +704,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingVertical: 8,
   },
   statusDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
   statusText: { color: "#CBD5E1", fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
