@@ -24,6 +24,8 @@ const WINDOW_HEIGHT = Dimensions.get("window").height;
 const MOBILE_USER_AGENT =
   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
 
+const BING_HOME = "https://www.bing.com";
+
 type SearchTask = {
   accountId: string;
   accountName: string;
@@ -31,8 +33,48 @@ type SearchTask = {
   queries: string[];
 };
 
-function makeBingUrl(query: string) {
-  return `https://www.bing.com/search?q=${encodeURIComponent(query)}&PC=U316&FORM=CHROMN`;
+function getTypingScript(query: string): string {
+  const escaped = query
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, " ");
+  return `
+(function() {
+  function tryType() {
+    var input = document.querySelector('#sb_form_q')
+      || document.querySelector('input[name="q"]')
+      || document.querySelector('input[type="search"]');
+    if (!input) { setTimeout(tryType, 400); return; }
+    input.focus();
+    input.value = '';
+    var query = '${escaped}';
+    var idx = 0;
+    function typeNext() {
+      if (idx >= query.length) {
+        setTimeout(function() {
+          var form = document.querySelector('#sb_form') || input.closest('form');
+          if (form) { form.submit(); }
+          else {
+            input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',keyCode:13,which:13,bubbles:true}));
+            input.dispatchEvent(new KeyboardEvent('keyup',  {key:'Enter',keyCode:13,which:13,bubbles:true}));
+          }
+        }, 350);
+        return;
+      }
+      var ch = query[idx];
+      input.value += ch;
+      input.dispatchEvent(new Event('input',   { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keyup',   { key: ch, bubbles: true }));
+      idx++;
+      setTimeout(typeNext, 55 + Math.random() * 55);
+    }
+    setTimeout(typeNext, 200);
+  }
+  setTimeout(tryType, 700);
+})();
+true;
+`;
 }
 
 export default function SearchRunnerScreen() {
@@ -110,10 +152,8 @@ export default function SearchRunnerScreen() {
       currentQueryIdxRef.current = nextQIdx;
       setCurrentQueryIdx(nextQIdx);
       setCurrentQuery(task.queries[nextQIdx]);
-      const url = makeBingUrl(task.queries[nextQIdx]);
-      webViewRef.current?.injectJavaScript(`window.location.href = '${url.replace(/'/g, "\\'")}'; true;`);
-
       updateAccount(task.accountId, { searchesCompleted: nextQIdx });
+      webViewRef.current?.injectJavaScript(`window.location.href = '${BING_HOME}'; true;`);
     } else {
       const pointsEarned = Math.floor(Math.random() * 20) + task.queries.length * 3;
       updateAccount(task.accountId, {
@@ -139,9 +179,8 @@ export default function SearchRunnerScreen() {
         setCurrentQueryIdx(0);
         const nextTask = allTasks[nextTIdx];
         setCurrentQuery(nextTask.queries[0]);
-        const url = makeBingUrl(nextTask.queries[0]);
-        webViewRef.current?.injectJavaScript(`window.location.href = '${url.replace(/'/g, "\\'")}'; true;`);
         updateAccount(nextTask.accountId, { status: "running", searchesCompleted: 0 });
+        webViewRef.current?.injectJavaScript(`window.location.href = '${BING_HOME}'; true;`);
       } else {
         setIsDone(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -149,12 +188,40 @@ export default function SearchRunnerScreen() {
     }
   }, [updateAccount, addLog]);
 
-  const handleLoadEnd = useCallback(() => {
-    if (pageLoadedRef.current || stoppedRef.current) return;
-    pageLoadedRef.current = true;
-    const delay = 2800 + Math.random() * 2200;
-    delayTimerRef.current = setTimeout(goNext, delay);
-  }, [goNext]);
+  const handleLoadEnd = useCallback(
+    (e?: any) => {
+      if (stoppedRef.current) return;
+      const url: string = e?.nativeEvent?.url ?? "";
+
+      const isResultsPage =
+        url.includes("bing.com/search") ||
+        url.includes("bing.com/Search") ||
+        url.includes("bing.com/?q=");
+
+      const isHomePage =
+        !isResultsPage &&
+        (url.includes("bing.com") || url === "" || url === BING_HOME);
+
+      if (isResultsPage) {
+        if (pageLoadedRef.current) return;
+        pageLoadedRef.current = true;
+        const delay = 3000 + Math.random() * 2000;
+        delayTimerRef.current = setTimeout(goNext, delay);
+      } else if (isHomePage) {
+        pageLoadedRef.current = false;
+        const task = tasksRef.current[currentTaskIdxRef.current];
+        const query = task?.queries[currentQueryIdxRef.current];
+        if (query && !stoppedRef.current) {
+          setTimeout(() => {
+            if (!stoppedRef.current) {
+              webViewRef.current?.injectJavaScript(getTypingScript(query));
+            }
+          }, 800);
+        }
+      }
+    },
+    [goNext]
+  );
 
   const handleStop = () => {
     stoppedRef.current = true;
@@ -252,7 +319,7 @@ export default function SearchRunnerScreen() {
             <View style={styles.headerDot} />
             <View>
               <Text style={styles.headerTitle}>
-                {isDone ? "Done!" : `Searching Bing`}
+                {isDone ? "All done!" : "Searching Bing"}
               </Text>
               {currentTask && !isDone && (
                 <Text style={styles.headerSub} numberOfLines={1}>
@@ -321,7 +388,7 @@ export default function SearchRunnerScreen() {
           ) : (
             <WebViewComponent
               ref={webViewRef}
-              source={{ uri: makeBingUrl(tasks[0].queries[0]) }}
+              source={{ uri: BING_HOME }}
               userAgent={MOBILE_USER_AGENT}
               sharedCookiesEnabled
               thirdPartyCookiesEnabled
@@ -329,7 +396,13 @@ export default function SearchRunnerScreen() {
               style={styles.webview}
               onLoadEnd={handleLoadEnd}
               onShouldStartLoadWithRequest={(req: any) => {
-                return req.url.includes("bing.com") || req.url.includes("microsoft.com") || req.url.includes("live.com");
+                const u: string = req.url;
+                return (
+                  u.includes("bing.com") ||
+                  u.includes("microsoft.com") ||
+                  u.includes("live.com") ||
+                  u.startsWith("about:")
+                );
               }}
             />
           )}
