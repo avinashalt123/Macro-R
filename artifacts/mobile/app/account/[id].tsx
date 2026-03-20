@@ -55,6 +55,7 @@ export default function AccountDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(account?.name ?? "");
   const [editEmail, setEditEmail] = useState(account?.email ?? "");
+  const [editSearchCount, setEditSearchCount] = useState(account?.searchCount ?? 30);
 
   if (!account) {
     return (
@@ -88,7 +89,11 @@ export default function AccountDetailScreen() {
 
   const handleSave = () => {
     if (!editName.trim()) return;
-    updateAccount(account.id, { name: editName.trim(), email: editEmail.trim().toLowerCase() });
+    updateAccount(account.id, {
+      name: editName.trim(),
+      email: editEmail.trim().toLowerCase(),
+      searchCount: editSearchCount,
+    });
     setEditing(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
@@ -121,7 +126,14 @@ export default function AccountDetailScreen() {
           </Pressable>
           <View style={styles.heroActions}>
             <Pressable
-              onPress={() => setEditing(!editing)}
+              onPress={() => {
+                if (!editing) {
+                  setEditName(account.name);
+                  setEditEmail(account.email);
+                  setEditSearchCount(account.searchCount);
+                }
+                setEditing(!editing);
+              }}
               style={({ pressed }) => [styles.actionBtn, { backgroundColor: colors.surface, opacity: pressed ? 0.7 : 1 }]}
             >
               <Feather name={editing ? "x" : "edit-2"} size={18} color={colors.text} />
@@ -159,6 +171,24 @@ export default function AccountDetailScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
+              <View style={[styles.searchCountRow, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.searchCountLabel, { color: colors.text }]}>Search Count</Text>
+                <View style={styles.searchCountStepper}>
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEditSearchCount(Math.max(5, editSearchCount - 1)); }}
+                    style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                  >
+                    <Feather name="minus" size={14} color={colors.text} />
+                  </Pressable>
+                  <Text style={[styles.stepVal, { color: colors.text }]}>{editSearchCount}</Text>
+                  <Pressable
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEditSearchCount(Math.min(50, editSearchCount + 1)); }}
+                    style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                  >
+                    <Feather name="plus" size={14} color={colors.text} />
+                  </Pressable>
+                </View>
+              </View>
               <Pressable
                 onPress={handleSave}
                 style={({ pressed }) => [styles.saveBtn, { backgroundColor: colors.tint, opacity: pressed ? 0.8 : 1 }]}
@@ -464,6 +494,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   saveBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  searchCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    width: "100%",
+  },
+  searchCountLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  searchCountStepper: { flexDirection: "row", alignItems: "center", gap: 14 },
+  stepBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepVal: { fontSize: 16, fontFamily: "Inter_700Bold", minWidth: 24, textAlign: "center" },
   statsGrid: {
     flexDirection: "row",
     gap: 10,

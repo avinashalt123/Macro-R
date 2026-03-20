@@ -37,6 +37,12 @@ export default function SettingsScreen() {
     updateSettings({ defaultSearchCount: newVal });
   };
 
+  const handleDelayChange = (delta: number) => {
+    const newVal = Math.max(3, Math.min(30, (settings.searchDelay ?? 5) + delta));
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updateSettings({ searchDelay: newVal });
+  };
+
   const handleApplySchedule = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
@@ -74,7 +80,7 @@ export default function SettingsScreen() {
               <View>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Searches per account</Text>
                 <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                  Daily Bing searches (5–50)
+                  Default daily Bing searches (5–50)
                 </Text>
               </View>
             </View>
@@ -90,6 +96,39 @@ export default function SettingsScreen() {
               </Text>
               <Pressable
                 onPress={() => handleSearchCountChange(1)}
+                style={({ pressed }) => [styles.counterBtn, { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Feather name="plus" size={16} color={colors.text} />
+              </Pressable>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingLabel}>
+              <View style={[styles.iconBg, { backgroundColor: "#F0F9FF" }]}>
+                <Feather name="clock" size={16} color="#0EA5E9" />
+              </View>
+              <View>
+                <Text style={[styles.settingTitle, { color: colors.text }]}>Delay between searches</Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                  Seconds to wait between each search (3–30)
+                </Text>
+              </View>
+            </View>
+            <View style={styles.counter}>
+              <Pressable
+                onPress={() => handleDelayChange(-1)}
+                style={({ pressed }) => [styles.counterBtn, { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 }]}
+              >
+                <Feather name="minus" size={16} color={colors.text} />
+              </Pressable>
+              <Text style={[styles.counterVal, { color: colors.text }]}>
+                {settings.searchDelay ?? 5}s
+              </Text>
+              <Pressable
+                onPress={() => handleDelayChange(1)}
                 style={({ pressed }) => [styles.counterBtn, { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 }]}
               >
                 <Feather name="plus" size={16} color={colors.text} />
@@ -338,4 +377,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
   },
+  divider: { height: 1, marginHorizontal: 16 },
 });

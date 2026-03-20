@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import { useAccounts } from "@/context/AccountsContext";
 import { useQueries } from "@/context/QueriesContext";
+import { useSettings } from "@/context/SettingsContext";
 
 const WINDOW_HEIGHT = Dimensions.get("window").height;
 
@@ -263,6 +264,7 @@ export default function SearchRunnerScreen() {
   const { accountIds: accountIdsParam } = useLocalSearchParams<{ accountIds: string }>();
   const { accounts, updateAccount, addLog, stopRun } = useAccounts();
   const { pickQueries } = useQueries();
+  const { settings } = useSettings();
 
   const [tasks, setTasks] = useState<SearchTask[]>([]);
   const [ready, setReady] = useState(false);
@@ -443,8 +445,8 @@ export default function SearchRunnerScreen() {
         if (isResults) {
           if (pageLoadedRef.current) return;
           pageLoadedRef.current = true;
-          // 5–8 second random wait on results page before next search
-          const delay = 5000 + Math.random() * 3000;
+          const baseDelay = (settings.searchDelay ?? 5) * 1000;
+          const delay = baseDelay + Math.random() * 2000;
           const secs = Math.round(delay / 1000);
           setStatusText(`Waiting ${secs}s before next search...`);
           delayTimerRef.current = setTimeout(goNext, delay);

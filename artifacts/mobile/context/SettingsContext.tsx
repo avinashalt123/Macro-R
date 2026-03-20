@@ -8,6 +8,7 @@ interface ScheduleTime {
 
 interface Settings {
   defaultSearchCount: number;
+  searchDelay: number;
   firstRunTime: ScheduleTime;
   dailySetEnabled: boolean;
   retrySchedule: ScheduleTime[];
@@ -15,6 +16,7 @@ interface Settings {
 
 const DEFAULT_SETTINGS: Settings = {
   defaultSearchCount: 30,
+  searchDelay: 5,
   firstRunTime: { hour: 13, minute: 0 },
   dailySetEnabled: true,
   retrySchedule: [
