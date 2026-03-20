@@ -62,48 +62,94 @@ function getTypingScript(query: string): string {
 (function() {
   var q = '${escaped}';
   var attempts = 0;
+  var maxAttempts = 40;
 
   function findInput() {
+    var ids = ['sb_form_q', 'q'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = document.getElementById(ids[i]);
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return el;
+    }
+    var byName = document.querySelector('input[name="q"], input[type="search"], textarea[name="q"]');
+    if (byName) return byName;
     var all = document.querySelectorAll('input');
-    for (var i = 0; i < all.length; i++) {
-      var el = all[i];
-      if (el.id === 'sb_form_q' || el.name === 'q' || el.type === 'search') return el;
+    for (var j = 0; j < all.length; j++) {
+      var inp = all[j];
+      if (inp.type !== 'hidden' && inp.type !== 'checkbox' && inp.type !== 'radio' && inp.type !== 'submit') {
+        var rect = inp.getBoundingClientRect();
+        if (rect.width > 100 && rect.height > 20) return inp;
+      }
     }
     return null;
   }
 
+  function dispatchKey(el, type, key, code, charCode) {
+    try {
+      el.dispatchEvent(new KeyboardEvent(type, {
+        key: key, code: code, charCode: charCode,
+        bubbles: true, cancelable: true
+      }));
+    } catch(e) {}
+  }
+
   function doType(input) {
     input.focus();
+    input.click();
     input.value = '';
+    input.dispatchEvent(new Event('focus', { bubbles: true }));
     var pos = 0;
+    var baseDelay = 120 + Math.floor(Math.random() * 60);
+
     function tick() {
       if (pos >= q.length) {
         setTimeout(function() {
-          var form = input.form || document.getElementById('sb_form');
-          if (form) {
-            form.submit();
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          var searchBtn =
+            document.getElementById('sb_form_go') ||
+            document.querySelector('input[type="submit"]') ||
+            document.querySelector('button[type="submit"]') ||
+            document.querySelector('[aria-label="Search"]');
+          if (searchBtn) {
+            searchBtn.click();
           } else {
-            window.location.href = 'https://www.bing.com/search?q=' + encodeURIComponent(q);
+            var form = input.form || document.getElementById('sb_form') || document.querySelector('form[action*="search"]');
+            if (form) {
+              form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+              form.submit();
+            } else {
+              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SEARCH_SUBMIT_FAILED' }));
+            }
           }
-        }, 500);
+        }, 600 + Math.floor(Math.random() * 300));
         return;
       }
+      var ch = q[pos];
+      var code = 'Key' + ch.toUpperCase();
+      dispatchKey(input, 'keydown', ch, code, ch.charCodeAt(0));
+      dispatchKey(input, 'keypress', ch, code, ch.charCodeAt(0));
       input.value = q.substring(0, pos + 1);
       input.dispatchEvent(new Event('input', { bubbles: true }));
+      dispatchKey(input, 'keyup', ch, code, ch.charCodeAt(0));
       pos++;
-      setTimeout(tick, 160 + Math.floor(Math.random() * 90));
+      var delay = baseDelay + Math.floor(Math.random() * 80) - 20;
+      if (Math.random() < 0.08) delay += 200 + Math.floor(Math.random() * 300);
+      setTimeout(tick, Math.max(60, delay));
     }
-    tick();
+
+    setTimeout(tick, 400 + Math.floor(Math.random() * 300));
   }
 
   function tryFind() {
     var input = findInput();
-    if (input) { doType(input); return; }
+    if (input) {
+      doType(input);
+      return;
+    }
     attempts++;
-    if (attempts < 20) {
+    if (attempts < maxAttempts) {
       setTimeout(tryFind, 500);
     } else {
-      window.location.href = 'https://www.bing.com/search?q=' + encodeURIComponent(q);
+      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SEARCH_INPUT_NOT_FOUND' }));
     }
   }
 
@@ -230,21 +276,30 @@ export default function SearchRunnerScreen() {
   const tasksRef = useRef<SearchTask[]>([]);
   const dailySetDoneRef = useRef(false);
   const earnedPointsRef = useRef(0);
+  const inputRetryCountRef = useRef(0);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const targetIds: string[] = JSON.parse(accountIdsParam ?? "[]");
     const targetAccounts = accounts.filter((a) => targetIds.includes(a.id));
-    const newTasks: SearchTask[] = targetAccounts.map((acc) => ({
-      accountId: acc.id,
-      accountName: acc.name,
-      accountEmail: acc.email,
-      searchCount: acc.searchCount,
-      dailySetEnabled: acc.dailySetEnabled,
-      queries: pickQueries(acc.searchCount),
-      cookies: acc.cookies ?? {},
-    }));
+    const newTasks: SearchTask[] = targetAccounts.map((acc) => {
+      const picked = pickQueries(acc.searchCount);
+      // Double-shuffle for truly random order each run
+      const shuffled = picked
+        .map((q) => ({ q, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ q }) => q);
+      return {
+        accountId: acc.id,
+        accountName: acc.name,
+        accountEmail: acc.email,
+        searchCount: acc.searchCount,
+        dailySetEnabled: acc.dailySetEnabled,
+        queries: shuffled,
+        cookies: acc.cookies ?? {},
+      };
+    });
     tasksRef.current = newTasks;
     setTasks(newTasks);
 
@@ -336,6 +391,7 @@ export default function SearchRunnerScreen() {
   const goNext = useCallback(() => {
     if (stoppedRef.current) return;
     pageLoadedRef.current = false;
+    inputRetryCountRef.current = 0;
 
     const tIdx = currentTaskIdxRef.current;
     const qIdx = currentQueryIdxRef.current;
@@ -446,10 +502,25 @@ export default function SearchRunnerScreen() {
           const tIdx = currentTaskIdxRef.current;
           const clicked = typeof data.clicked === "number" ? data.clicked : 0;
           logAndAdvanceAccount(tIdx, earnedPointsRef.current, clicked > 0);
+        } else if (data.type === "SEARCH_INPUT_NOT_FOUND" || data.type === "SEARCH_SUBMIT_FAILED") {
+          if (stoppedRef.current || phaseRef.current !== "searching") return;
+          inputRetryCountRef.current += 1;
+          if (inputRetryCountRef.current <= 3) {
+            // Reload bing home and try again for this query
+            setStatusText("Reloading search page...");
+            pageLoadedRef.current = false;
+            setWebviewUri(BING_HOME);
+            setWebviewKey((k) => k + 1);
+          } else {
+            // Give up on this query and skip to next after too many reloads
+            inputRetryCountRef.current = 0;
+            setStatusText("Skipping query...");
+            setTimeout(() => goNext(), 1000);
+          }
         }
       } catch (_) {}
     },
-    [handleUrlChange, logAndAdvanceAccount]
+    [handleUrlChange, logAndAdvanceAccount, goNext]
   );
 
   const handleLoadEnd = useCallback(
@@ -457,12 +528,26 @@ export default function SearchRunnerScreen() {
       const url: string = e?.nativeEvent?.url ?? "";
       const currentPhase = phaseRef.current;
 
-      if (currentPhase === "searching" && (url.includes("bing.com") || url === "")) {
-        const task = tasksRef.current[currentTaskIdxRef.current];
-        if (task && Object.keys(task.cookies).length > 0) {
-          webViewRef.current?.injectJavaScript(buildCookieInjectScript(task.cookies));
+      if (currentPhase === "searching") {
+        const isResults =
+          url.includes("bing.com/search") ||
+          url.includes("bing.com/Search") ||
+          (url.includes("bing.com") && url.includes("?q="));
+        const isBing = url.includes("bing.com") || url === "";
+
+        if (isBing && !isResults) {
+          // Home page — inject cookies first, then detect URL
+          const task = tasksRef.current[currentTaskIdxRef.current];
+          if (task && Object.keys(task.cookies).length > 0) {
+            webViewRef.current?.injectJavaScript(buildCookieInjectScript(task.cookies));
+          }
+          webViewRef.current?.injectJavaScript(INJECTED_JS);
+        } else if (isResults) {
+          // Results page — just detect URL, no cookie injection needed
+          webViewRef.current?.injectJavaScript(INJECTED_JS);
+        } else {
+          handleUrlChange(url);
         }
-        webViewRef.current?.injectJavaScript(INJECTED_JS);
       } else {
         handleUrlChange(url);
       }
