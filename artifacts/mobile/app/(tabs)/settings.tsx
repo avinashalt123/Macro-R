@@ -73,6 +73,15 @@ export default function SettingsScreen() {
     setScheduledCount(null);
   };
 
+  const adjustMinute = (delta: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    let m = minute + delta * 5;
+    if (m < 0) m = 55;
+    if (m > 55) m = 0;
+    updateSettings({ firstRunTime: { hour, minute: m } });
+    setScheduledCount(null);
+  };
+
   const toggleAmPm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newHour = isAm ? hour + 12 : hour - 12;
@@ -245,21 +254,47 @@ export default function SettingsScreen() {
               </View>
 
               <View style={styles.timePicker}>
-                <Pressable
-                  onPress={() => adjustHour(-1)}
-                  style={[styles.timeStepBtn, { backgroundColor: colors.surfaceSecondary }]}
-                >
-                  <Text style={[styles.timeStepText, { color: colors.text }]}>−</Text>
-                </Pressable>
-                <Text style={[styles.timeDisplay, { color: colors.text }]}>
-                  {displayHour}:00
-                </Text>
-                <Pressable
-                  onPress={() => adjustHour(1)}
-                  style={[styles.timeStepBtn, { backgroundColor: colors.surfaceSecondary }]}
-                >
-                  <Text style={[styles.timeStepText, { color: colors.text }]}>+</Text>
-                </Pressable>
+                {/* Hour column */}
+                <View style={styles.timeColumn}>
+                  <Pressable
+                    onPress={() => adjustHour(1)}
+                    style={[styles.timeStepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                  >
+                    <Text style={[styles.timeStepText, { color: colors.text }]}>+</Text>
+                  </Pressable>
+                  <Text style={[styles.timeDisplay, { color: colors.text }]}>
+                    {displayHour}
+                  </Text>
+                  <Pressable
+                    onPress={() => adjustHour(-1)}
+                    style={[styles.timeStepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                  >
+                    <Text style={[styles.timeStepText, { color: colors.text }]}>−</Text>
+                  </Pressable>
+                </View>
+
+                <Text style={[styles.timeColon, { color: colors.text }]}>:</Text>
+
+                {/* Minute column */}
+                <View style={styles.timeColumn}>
+                  <Pressable
+                    onPress={() => adjustMinute(1)}
+                    style={[styles.timeStepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                  >
+                    <Text style={[styles.timeStepText, { color: colors.text }]}>+</Text>
+                  </Pressable>
+                  <Text style={[styles.timeDisplay, { color: colors.text }]}>
+                    {minute.toString().padStart(2, "0")}
+                  </Text>
+                  <Pressable
+                    onPress={() => adjustMinute(-1)}
+                    style={[styles.timeStepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                  >
+                    <Text style={[styles.timeStepText, { color: colors.text }]}>−</Text>
+                  </Pressable>
+                </View>
+
+                {/* AM / PM */}
                 <Pressable
                   onPress={toggleAmPm}
                   style={[styles.amPmBtn, { backgroundColor: colors.tint }]}
@@ -434,6 +469,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
+  timeColumn: {
+    alignItems: "center",
+    gap: 4,
+  },
+  timeColon: {
+    fontSize: 22,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 2,
+    marginHorizontal: 2,
+  },
   timeStepBtn: {
     width: 30,
     height: 30,
@@ -447,9 +492,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   timeDisplay: {
-    fontSize: 16,
+    fontSize: 20,
     fontFamily: "Inter_700Bold",
-    minWidth: 52,
+    minWidth: 32,
     textAlign: "center",
   },
   amPmBtn: {
@@ -458,6 +503,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 4,
+    alignSelf: "center",
   },
   amPmText: {
     fontSize: 12,
