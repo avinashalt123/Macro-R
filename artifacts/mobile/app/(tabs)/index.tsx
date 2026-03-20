@@ -60,7 +60,10 @@ export default function HomeScreen() {
 
   const handleRunAccount = (id: string) => {
     if (isRunning) {
-      Alert.alert("Search Running", "Stop the current run before starting another.");
+      Alert.alert(
+        "Search Running",
+        "Stop the current run before starting another.",
+      );
       return;
     }
     startRun();
@@ -73,7 +76,10 @@ export default function HomeScreen() {
   const handleDailySetAll = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (isRunning) {
-      Alert.alert("Already Running", "Stop the current run before starting another.");
+      Alert.alert(
+        "Already Running",
+        "Stop the current run before starting another.",
+      );
       return;
     }
     if (accounts.length === 0) {
@@ -83,13 +89,19 @@ export default function HomeScreen() {
     startRun();
     router.push({
       pathname: "/search-runner",
-      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)), mode: "dailyset" },
+      params: {
+        accountIds: JSON.stringify(accounts.map((a) => a.id)),
+        mode: "dailyset",
+      },
     });
   };
 
   const handleDailySetAccount = (id: string) => {
     if (isRunning) {
-      Alert.alert("Already Running", "Stop the current run before starting another.");
+      Alert.alert(
+        "Already Running",
+        "Stop the current run before starting another.",
+      );
       return;
     }
     startRun();
@@ -103,21 +115,30 @@ export default function HomeScreen() {
     ({ item }: { item: Account }) => (
       <AccountCard
         account={item}
-        onPress={() => router.push({ pathname: "/account/[id]", params: { id: item.id } })}
+        onPress={() =>
+          router.push({ pathname: "/account/[id]", params: { id: item.id } })
+        }
         onRun={() => handleRunAccount(item.id)}
         onDailySet={() => handleDailySetAccount(item.id)}
-        onRefreshSession={() => router.push({ pathname: "/login-webview", params: { accountId: item.id } })}
+        onRefreshSession={() =>
+          router.push({
+            pathname: "/login-webview",
+            params: { accountId: item.id },
+          })
+        }
         isRunningGlobal={isRunning}
       />
     ),
-    [isRunning]
+    [isRunning],
   );
 
   const ListHeader = (
     <View>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>MS Rewards</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>
+            MS Rewards
+          </Text>
           <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
             {accounts.length} account{accounts.length !== 1 ? "s" : ""}
           </Text>
@@ -130,7 +151,10 @@ export default function HomeScreen() {
             }}
             style={({ pressed }) => [
               styles.headerBtn,
-              { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 },
+              {
+                backgroundColor: colors.surfaceSecondary,
+                opacity: pressed ? 0.7 : 1,
+              },
             ]}
           >
             <Plus size={20} color={colors.text} />
@@ -139,12 +163,23 @@ export default function HomeScreen() {
       </View>
 
       {/* Inline settings card */}
-      <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <Text style={[styles.settingsCardTitle, { color: colors.textSecondary }]}>Run Settings</Text>
+      <View
+        style={[
+          styles.settingsCard,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
+      >
         <View style={styles.settingsRow}>
           {/* Searches per account */}
           <View style={styles.settingBlock}>
-            <Text style={[styles.settingBlockLabel, { color: colors.textSecondary }]}>Searches / account</Text>
+            <Text
+              style={[
+                styles.settingBlockLabel,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Searches / account
+            </Text>
             <View style={styles.stepperRow}>
               <Pressable
                 onPress={() => {
@@ -152,29 +187,53 @@ export default function HomeScreen() {
                   updateSettings({ defaultSearchCount: next });
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                style={[
+                  styles.stepBtn,
+                  { backgroundColor: colors.surfaceSecondary },
+                ]}
               >
-                <Text style={[styles.stepBtnText, { color: colors.text }]}>−</Text>
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>
+                  −
+                </Text>
               </Pressable>
-              <Text style={[styles.stepValue, { color: colors.text }]}>{settings.defaultSearchCount}</Text>
+              <Text style={[styles.stepValue, { color: colors.text }]}>
+                {settings.defaultSearchCount}
+              </Text>
               <Pressable
                 onPress={() => {
                   const next = Math.min(50, settings.defaultSearchCount + 1);
                   updateSettings({ defaultSearchCount: next });
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                style={[
+                  styles.stepBtn,
+                  { backgroundColor: colors.surfaceSecondary },
+                ]}
               >
-                <Text style={[styles.stepBtnText, { color: colors.text }]}>+</Text>
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>
+                  +
+                </Text>
               </Pressable>
             </View>
           </View>
 
-          <View style={[styles.settingsCardDivider, { backgroundColor: colors.border }]} />
+          <View
+            style={[
+              styles.settingsCardDivider,
+              { backgroundColor: colors.border },
+            ]}
+          />
 
           {/* Delay */}
           <View style={styles.settingBlock}>
-            <Text style={[styles.settingBlockLabel, { color: colors.textSecondary }]}>Delay (seconds)</Text>
+            <Text
+              style={[
+                styles.settingBlockLabel,
+                { color: colors.textSecondary },
+              ]}
+            >
+              Delay (seconds)
+            </Text>
             <View style={styles.stepperRow}>
               <Pressable
                 onPress={() => {
@@ -182,20 +241,32 @@ export default function HomeScreen() {
                   updateSettings({ searchDelay: next });
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                style={[
+                  styles.stepBtn,
+                  { backgroundColor: colors.surfaceSecondary },
+                ]}
               >
-                <Text style={[styles.stepBtnText, { color: colors.text }]}>−</Text>
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>
+                  −
+                </Text>
               </Pressable>
-              <Text style={[styles.stepValue, { color: colors.text }]}>{settings.searchDelay}s</Text>
+              <Text style={[styles.stepValue, { color: colors.text }]}>
+                {settings.searchDelay}s
+              </Text>
               <Pressable
                 onPress={() => {
                   const next = Math.min(30, settings.searchDelay + 1);
                   updateSettings({ searchDelay: next });
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
-                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+                style={[
+                  styles.stepBtn,
+                  { backgroundColor: colors.surfaceSecondary },
+                ]}
               >
-                <Text style={[styles.stepBtnText, { color: colors.text }]}>+</Text>
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>
+                  +
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -226,17 +297,29 @@ export default function HomeScreen() {
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.tint}
+          />
         }
       />
 
-      <View style={[styles.fab, { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) }]}>
+      <View
+        style={[
+          styles.fab,
+          { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) },
+        ]}
+      >
         {/* Daily Set button — hidden while a run is active */}
         {!isRunning && (
           <Pressable
             onPress={handleDailySetAll}
             style={({ pressed }) => [
-              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+              {
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              },
             ]}
           >
             <LinearGradient
@@ -254,7 +337,10 @@ export default function HomeScreen() {
         <Pressable
           onPress={handleRunAll}
           style={({ pressed }) => [
-            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+            {
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            },
           ]}
         >
           <LinearGradient
@@ -263,8 +349,14 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            {isRunning ? <Square size={20} color="#fff" /> : <Play size={20} color="#fff" />}
-            <Text style={styles.fabText}>{isRunning ? "Running..." : "Run All"}</Text>
+            {isRunning ? (
+              <Square size={20} color="#fff" />
+            ) : (
+              <Play size={20} color="#fff" />
+            )}
+            <Text style={styles.fabText}>
+              {isRunning ? "Running..." : "Run All"}
+            </Text>
           </LinearGradient>
         </Pressable>
       </View>
@@ -347,7 +439,13 @@ const styles = StyleSheet.create({
     height: 52,
     marginHorizontal: 8,
   },
-  fab: { position: "absolute", right: 20, flexDirection: "row", gap: 10, alignItems: "center" },
+  fab: {
+    position: "absolute",
+    right: 20,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+  },
   fabBtn: {
     flexDirection: "row",
     alignItems: "center",

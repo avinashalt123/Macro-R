@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Award, Calendar, CheckSquare, Clock, Play, RefreshCw, Search } from "lucide-react-native";
+import { Calendar, Clock, Play, RefreshCw, Search } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -8,7 +8,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -167,34 +166,6 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
-        <Section title="DAILY SET" colors={colors}>
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            <View style={styles.settingRow}>
-              <View style={styles.settingLabel}>
-                <View style={[styles.iconBg, { backgroundColor: "#F0FDF4" }]}>
-                  <CheckSquare size={16} color={colors.success} />
-                </View>
-                <View style={styles.labelText}>
-                  <Text style={[styles.settingTitle, { color: colors.text }]}>
-                    Enable Daily Set
-                  </Text>
-                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                    Complete daily challenges automatically
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={settings.dailySetEnabled}
-                onValueChange={(v) => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  updateSettings({ dailySetEnabled: v });
-                }}
-                trackColor={{ false: colors.border, true: colors.tint }}
-                thumbColor="#fff"
-              />
-            </View>
-          </View>
-        </Section>
 
         <Section title="SCHEDULE" colors={colors}>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
