@@ -33,118 +33,74 @@ type SearchTask = {
   queries: string[];
 };
 
+const INJECTED_JS = `
+(function() {
+  try {
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'PAGE_LOADED',
+      url: window.location.href
+    }));
+  } catch(e) {}
+})();
+true;
+`;
+
 function getTypingScript(query: string): string {
   const escaped = query
     .replace(/\\/g, "\\\\")
     .replace(/'/g, "\\'")
-    .replace(/\r?\n/g, " ")
-    .replace(/"/g, '\\"');
+    .replace(/\r?\n/g, " ");
 
   return `
 (function() {
-  var MAX_WAIT = 12000;
-  var waited = 0;
+  var q = '${escaped}';
+  var attempts = 0;
 
   function findInput() {
-    var selectors = [
-      '#sb_form_q',
-      'input[name="q"]',
-      '.b_searchbox',
-      '[aria-label="Enter your search term"]',
-      'input[type="search"]',
-      '[role="searchbox"]',
-      'input[placeholder]'
-    ];
-    for (var i = 0; i < selectors.length; i++) {
-      var el = document.querySelector(selectors[i]);
-      if (el && el.tagName === 'INPUT') return el;
+    var all = document.querySelectorAll('input');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (el.id === 'sb_form_q' || el.name === 'q' || el.type === 'search') return el;
     }
     return null;
   }
 
-  function submit(input) {
-    var form = document.getElementById('sb_form') || document.querySelector('form[action*="search"]') || input.form;
-    if (form) {
-      form.submit();
-    } else {
-      ['keydown','keypress','keyup'].forEach(function(type) {
-        input.dispatchEvent(new KeyboardEvent(type, {key:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
-      });
-    }
-  }
-
-  function typeQuery(input) {
-    // Clear the field first
-    input.click();
+  function doType(input) {
     input.focus();
-
-    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
-    var setValue = nativeSetter && nativeSetter.set
-      ? function(val) { nativeSetter.set.call(input, val); }
-      : function(val) { input.value = val; };
-
-    setValue('');
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-
-    var query = '${escaped}';
+    input.value = '';
     var pos = 0;
-
     function tick() {
-      if (pos >= query.length) {
-        setTimeout(function() { submit(input); }, 500);
+      if (pos >= q.length) {
+        setTimeout(function() {
+          var form = input.form || document.getElementById('sb_form');
+          if (form) {
+            form.submit();
+          } else {
+            window.location.href = 'https://www.bing.com/search?q=' + encodeURIComponent(q);
+          }
+        }, 500);
         return;
       }
-
-      var ch = query[pos];
-      var current = query.substring(0, pos + 1);
-
-      // 1. Fire keydown
-      input.dispatchEvent(new KeyboardEvent('keydown', {
-        key: ch, code: 'Key' + ch.toUpperCase(),
-        keyCode: ch.charCodeAt(0), which: ch.charCodeAt(0),
-        bubbles: true, cancelable: true
-      }));
-
-      // 2. Try execCommand first (most reliable in WebKit/Blink WebView)
-      var typed = false;
-      if (document.execCommand) {
-        try {
-          typed = document.execCommand('insertText', false, ch);
-        } catch(e) {}
-      }
-
-      // 3. Fallback: set value with native setter + fire input event
-      if (!typed) {
-        setValue(current);
-        input.dispatchEvent(new Event('input', { inputType: 'insertText', data: ch, bubbles: true }));
-      }
-
-      // 4. Fire keyup
-      input.dispatchEvent(new KeyboardEvent('keyup', {
-        key: ch, keyCode: ch.charCodeAt(0), which: ch.charCodeAt(0), bubbles: true
-      }));
-
-      // 5. Move cursor to end
-      try { input.setSelectionRange(current.length, current.length); } catch(e) {}
-
+      input.value = q.substring(0, pos + 1);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
       pos++;
-      setTimeout(tick, 120 + Math.random() * 80);
+      setTimeout(tick, 160 + Math.floor(Math.random() * 90));
     }
-
-    setTimeout(tick, 400);
+    tick();
   }
 
   function tryFind() {
     var input = findInput();
-    if (input) {
-      typeQuery(input);
-      return;
+    if (input) { doType(input); return; }
+    attempts++;
+    if (attempts < 20) {
+      setTimeout(tryFind, 500);
+    } else {
+      window.location.href = 'https://www.bing.com/search?q=' + encodeURIComponent(q);
     }
-    waited += 600;
-    if (waited < MAX_WAIT) setTimeout(tryFind, 600);
   }
 
-  setTimeout(tryFind, 1200);
+  setTimeout(tryFind, 800);
 })();
 true;
 `;
@@ -262,26 +218,25 @@ export default function SearchRunnerScreen() {
     }
   }, [updateAccount, addLog]);
 
-  const handleLoadEnd = useCallback(
-    (e?: any) => {
+  const handleUrlChange = useCallback(
+    (url: string) => {
       if (stoppedRef.current) return;
-      const url: string = e?.nativeEvent?.url ?? "";
 
-      const isResultsPage =
+      const isResults =
         url.includes("bing.com/search") ||
         url.includes("bing.com/Search") ||
-        url.includes("bing.com/?q=");
+        (url.includes("bing.com") && url.includes("?q="));
 
-      const isHomePage =
-        !isResultsPage &&
-        (url.includes("bing.com") || url === "" || url === BING_HOME);
+      const isHome =
+        !isResults &&
+        (url.includes("bing.com") || url === "" || url.startsWith(BING_HOME));
 
-      if (isResultsPage) {
+      if (isResults) {
         if (pageLoadedRef.current) return;
         pageLoadedRef.current = true;
         const delay = 3000 + Math.random() * 2000;
         delayTimerRef.current = setTimeout(goNext, delay);
-      } else if (isHomePage) {
+      } else if (isHome) {
         pageLoadedRef.current = false;
         const task = tasksRef.current[currentTaskIdxRef.current];
         const query = task?.queries[currentQueryIdxRef.current];
@@ -290,11 +245,31 @@ export default function SearchRunnerScreen() {
             if (!stoppedRef.current) {
               webViewRef.current?.injectJavaScript(getTypingScript(query));
             }
-          }, 800);
+          }, 600);
         }
       }
     },
     [goNext]
+  );
+
+  const handleMessage = useCallback(
+    (event: any) => {
+      try {
+        const data = JSON.parse(event.nativeEvent.data);
+        if (data.type === "PAGE_LOADED") {
+          handleUrlChange(data.url ?? "");
+        }
+      } catch (_) {}
+    },
+    [handleUrlChange]
+  );
+
+  const handleLoadEnd = useCallback(
+    (e?: any) => {
+      const url: string = e?.nativeEvent?.url ?? "";
+      handleUrlChange(url);
+    },
+    [handleUrlChange]
   );
 
   const handleStop = () => {
