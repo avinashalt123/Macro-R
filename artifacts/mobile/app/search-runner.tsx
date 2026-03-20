@@ -100,55 +100,88 @@ async function fetchRewardsPoints(
   }
 }
 
-// ─── JS injected into the Rewards WebView to extract activity links ───────────
+// ─── JS injected into rewards.bing.com to click the next uncompleted card ─────
 //
-// The WebView holds the FULL device cookie store (httpOnly included), so any
-// navigation it performs is properly authenticated. We scrape the activity
-// links from the DOM and post them back to React Native, then navigate the
-// WebView through each one to credit the activity.
+// Rather than extracting URLs and navigating to them (which bypasses click
+// tracking), we find the first uncompleted daily-set card element and call
+// .click() on it directly — exactly what a real user does. Microsoft's page
+// fires XHR requests on click that register the activity completion.
+//
+// After the click the WebView may navigate away (quiz page, Bing search, etc).
+// React Native waits for that load then navigates back to rewards.bing.com and
+// calls this script again for the next card.
 
-const EXTRACT_ACTIVITIES_JS = `
+const CLICK_NEXT_CARD_JS = `
 (function() {
   try {
-    var seen = new Set();
-    var links = [];
+    // Candidate selectors for daily-set activity cards, ordered by specificity.
+    // We try each in turn and click the first match that isn't already completed.
+    var selectors = [
+      // Daily set section cards
+      '[data-activity] a',
+      '[data-bi-id*="dailyset"] a',
+      '[data-bi-id*="DailySet"] a',
+      '.ds-card-sec a',
+      '[class*="ds-card"] a',
+      // Generic activity cards not yet marked done
+      '[class*="daily-set"] a:not([class*="complete"]):not([class*="done"])',
+      '[class*="dailyset"] a:not([class*="complete"]):not([class*="done"])',
+      // Punchcard / streak items
+      '.punchcard-row a[href]',
+      '[class*="punchcard"] a[href]',
+      // Offer tiles
+      '[class*="offer-card"] a[href]',
+      '[class*="offercard"] a[href]',
+      // Fallback: any link pointing to a rewards challenge or go-redirect
+      'a[href*="rewardschallenges"]',
+      'a[href*="rewards.bing.com/go/"]',
+    ];
 
-    // Grab every <a> on the page and filter for likely activity destinations
-    document.querySelectorAll('a[href]').forEach(function(a) {
-      var href = a.href;
-      if (!href || seen.has(href) || href === window.location.href) return;
-      if (href.startsWith('javascript:') || href.startsWith('mailto:')) return;
+    // Also skip cards whose container signals they are already finished
+    var completedSignals = [
+      '[class*="complete"]', '[class*="completed"]',
+      '[class*="done"]', '[aria-checked="true"]',
+      '[class*="checked"]', '[class*="earned"]',
+    ];
 
-      // Rewards activity URLs: quiz pages, bing search activities, offer pages
-      var isActivity = (
-        href.includes('rewardschallenges') ||
-        href.includes('/go/') ||
-        (href.includes('bing.com/search') && (
-          href.includes('rewards') || href.includes('QFCT') || href.includes('QBRE')
-        )) ||
-        href.includes('microsoft.com/en-us/rewards/') ||
-        href.includes('rewards.microsoft.com')
-      );
-
-      // Also grab anything inside a known daily-set card container
-      var inCard = (
-        !!a.closest('[class*="daily"]') ||
-        !!a.closest('[class*="activity"]') ||
-        !!a.closest('[class*="punchcard"]') ||
-        !!a.closest('[class*="offer"]') ||
-        !!a.closest('[data-m]')
-      );
-
-      if (isActivity || inCard) {
-        seen.add(href);
-        var text = (a.textContent || a.title || a.getAttribute('aria-label') || '').trim().replace(/\\s+/g,' ').slice(0, 50);
-        links.push({ url: href, text: text || 'Activity' });
+    function isCompleted(el) {
+      for (var s of completedSignals) {
+        if (el.closest(s)) return true;
       }
-    });
+      return false;
+    }
 
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'daily_links', links: links.slice(0, 20) }));
+    for (var sel of selectors) {
+      var matches = Array.from(document.querySelectorAll(sel));
+      for (var el of matches) {
+        if (isCompleted(el)) continue;
+        var text = (
+          el.textContent ||
+          el.getAttribute('aria-label') ||
+          el.getAttribute('title') || ''
+        ).trim().replace(/\\s+/g, ' ').slice(0, 60);
+        el.click();
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'card_clicked',
+          found: true,
+          text: text || 'Activity',
+          url: el.href || '',
+        }));
+        return;
+      }
+    }
+
+    // Nothing clickable left
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'card_clicked',
+      found: false,
+    }));
   } catch(e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'daily_links', links: [], error: String(e) }));
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'card_clicked',
+      found: false,
+      error: String(e),
+    }));
   }
 })(); true;
 `;
@@ -268,68 +301,72 @@ export default function SearchRunnerScreen() {
 
   // ─── WebView-based Daily Set ───────────────────────────────────────────────
   //
-  // The WebView holds the real OS cookie store including httpOnly auth tokens,
-  // so navigating it to rewards.bing.com gives us a fully-authenticated page.
-  // We inject JS to extract activity links then navigate through each one.
+  // The WebView holds the real OS cookie store (httpOnly included), so the
+  // rewards page is fully authenticated. We inject JS that .click()s each
+  // daily-set card — the same user action that Microsoft's tracking listens for.
+  // After each click the WebView may navigate away; we wait for it to settle,
+  // then go back to rewards.bing.com and click the next card.
 
   const runDailySetViaWebView = useCallback(async (
     onStatus: (msg: string) => void
   ): Promise<{ completed: number; total: number; alreadyDone: boolean }> => {
-    onStatus("Daily Set: loading Rewards page…");
-
-    // Navigate WebView to the Rewards dashboard (uses full httpOnly session)
-    setWebViewUrl("https://rewards.bing.com/");
-    await waitForLoad(15000);
-    // Give the page's JS a moment to render the activity cards
-    await sleep(3000);
-
-    onStatus("Daily Set: scanning for activities…");
-
-    // Inject the extraction script and wait for the postMessage reply
-    webViewRef.current?.injectJavaScript(EXTRACT_ACTIVITIES_JS);
-    const msgData = await waitForMessage("daily_links", 8000);
-    const activityLinks: { url: string; text: string }[] = msgData?.links ?? [];
-
-    if (activityLinks.length === 0) {
-      onStatus("Daily Set: no activities found — try re-logging in");
-      await sleep(3000);
-      return { completed: 0, total: 0, alreadyDone: false };
-    }
-
-    onStatus(`Daily Set: found ${activityLinks.length} activities`);
-    await sleep(800);
-
+    const MAX_CARDS = 12; // safety limit per account
     let completed = 0;
 
-    for (let i = 0; i < activityLinks.length; i++) {
+    for (let attempt = 0; attempt < MAX_CARDS; attempt++) {
       if (abortRef.current) break;
 
-      const activity = activityLinks[i];
-      const label = activity.text || `Activity ${i + 1}`;
-      onStatus(`Daily Set [${i + 1}/${activityLinks.length}]: ${label}…`);
-      setDailySetResult({ completed, total: activityLinks.length });
+      // ── 1. Load (or reload) the Rewards dashboard ────────────────────────
+      onStatus(
+        attempt === 0
+          ? "Daily Set: loading Rewards page…"
+          : `Daily Set: back to Rewards (${completed} done so far)…`
+      );
 
-      // Navigate the WebView to the activity URL — the full authenticated
-      // session (httpOnly cookies included) means Microsoft sees a real visit
-      navigateTo(activity.url);
+      if (attempt === 0) {
+        // First load — set source prop so WebView initialises to this URL
+        setWebViewUrl("https://rewards.bing.com/");
+      } else {
+        // Subsequent loads — WebView already has source="rewards.bing.com" so
+        // changing the prop does nothing. Use JS injection to force navigation.
+        navigateTo("https://rewards.bing.com/");
+      }
+      await waitForLoad(15000);
+      // Give React-rendered SPA time to fully paint the activity cards
+      await sleep(3500);
+
+      // ── 2. Inject JS to click the NEXT uncompleted card ──────────────────
+      onStatus("Daily Set: scanning for next activity…");
+      webViewRef.current?.injectJavaScript(CLICK_NEXT_CARD_JS);
+      const msg = await waitForMessage("card_clicked", 8000);
+
+      if (!msg?.found) {
+        // No more clickable cards — we're done
+        if (completed === 0 && attempt === 0) {
+          onStatus("Daily Set: no activities found — try re-logging in");
+          await sleep(3000);
+        } else {
+          onStatus(`Daily Set: all activities done (${completed} completed)`);
+          await sleep(2000);
+        }
+        break;
+      }
+
+      // ── 3. Card was clicked — wait for the resulting page ────────────────
+      const label = msg.text || `Activity ${completed + 1}`;
+      onStatus(`Daily Set: clicked "${label}" — waiting…`);
+      setDailySetResult({ completed, total: completed + 1 });
+
+      // The click may navigate to a quiz, Bing search, or stay on the page
       await waitForLoad(10000);
-      await sleep(2500); // let the activity register server-side
+      // Let the activity register server-side before going back
+      await sleep(2500);
 
       completed++;
-      setDailySetResult({ completed, total: activityLinks.length });
-
-      // Navigate back to the Rewards dashboard before the next activity
-      if (i < activityLinks.length - 1 && !abortRef.current) {
-        navigateTo("https://rewards.bing.com/");
-        await waitForLoad(10000);
-        await sleep(2000);
-      }
+      setDailySetResult({ completed, total: completed });
     }
 
-    onStatus(`Daily Set: ${completed}/${activityLinks.length} activities visited`);
-    await sleep(2000);
-
-    return { completed, total: activityLinks.length, alreadyDone: false };
+    return { completed, total: completed, alreadyDone: false };
   }, [navigateTo, waitForLoad, waitForMessage]);
 
   // ─── Main automation loop ─────────────────────────────────────────────────
