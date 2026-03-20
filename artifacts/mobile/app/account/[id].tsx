@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, CheckSquare, Clock, Edit2, Minus, Plus, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
+import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, CheckSquare, Clock, Edit2, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -34,14 +34,12 @@ export default function AccountDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(account?.name ?? "");
   const [editEmail, setEditEmail] = useState(account?.email ?? "");
-  const [editSearchCount, setEditSearchCount] = useState(account?.searchCount ?? 30);
   const [editDailySet, setEditDailySet] = useState(account?.dailySetEnabled ?? true);
 
   useEffect(() => {
     if (account && !isEditing) {
       setEditName(account.name);
       setEditEmail(account.email);
-      setEditSearchCount(account.searchCount);
       setEditDailySet(account.dailySetEnabled);
     }
   }, [account?.id, isEditing]);
@@ -80,7 +78,6 @@ export default function AccountDetailScreen() {
     updateAccount(id, {
       name: editName.trim(),
       email: editEmail.trim(),
-      searchCount: editSearchCount,
       dailySetEnabled: editDailySet,
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -111,12 +108,6 @@ export default function AccountDetailScreen() {
     router.push({ pathname: "/search-runner", params: { accountIds: JSON.stringify([id]) } });
   };
 
-  const editCountChange = (d: number) => {
-    const v = Math.max(5, Math.min(50, editSearchCount + d));
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setEditSearchCount(v);
-  };
-
   return (
     <Animated.View style={[styles.root, { opacity: fadeAnim, backgroundColor: colors.background }]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -127,7 +118,6 @@ export default function AccountDetailScreen() {
                 setIsEditing(false);
                 setEditName(account.name);
                 setEditEmail(account.email);
-                setEditSearchCount(account.searchCount);
                 setEditDailySet(account.dailySetEnabled);
               } else {
                 router.back();
@@ -186,7 +176,7 @@ export default function AccountDetailScreen() {
 
           {!isEditing && (
             <View style={styles.statsRow}>
-              <StatCard icon={<Search size={18} color={colors.tint} />} label="Searches" value={`${account.searchesCompleted}/${account.searchCount}`} bg={colors.surface} colors={colors} />
+              <StatCard icon={<Search size={18} color={colors.tint} />} label="Searches done" value={`${account.searchesCompleted}`} bg={colors.surface} colors={colors} />
               <StatCard icon={<Star size={18} color={colors.warning} />} label="Today" value={`${account.todayPoints.toLocaleString()} pts`} bg={colors.surface} colors={colors} />
               <StatCard icon={<Award size={18} color="#8B5CF6" />} label="Total" value={`${account.totalPoints?.toLocaleString() ?? "—"} pts`} bg={colors.surface} colors={colors} />
             </View>
@@ -244,28 +234,6 @@ export default function AccountDetailScreen() {
           </Card>
 
           <Card title="CONFIGURATION" colors={colors}>
-            <View style={styles.configRow}>
-              <View style={styles.configLabel}>
-                <Search size={16} color={colors.textMuted} />
-                <Text style={[styles.configText, { color: colors.text }]}>Searches per day</Text>
-              </View>
-              {isEditing ? (
-                <View style={styles.counter}>
-                  <Pressable onPress={() => editCountChange(-1)} style={[styles.counterBtn, { backgroundColor: colors.surfaceSecondary }]}>
-                    <Minus size={14} color={colors.text} />
-                  </Pressable>
-                  <Text style={[styles.counterVal, { color: colors.text }]}>{editSearchCount}</Text>
-                  <Pressable onPress={() => editCountChange(1)} style={[styles.counterBtn, { backgroundColor: colors.surfaceSecondary }]}>
-                    <Plus size={14} color={colors.text} />
-                  </Pressable>
-                </View>
-              ) : (
-                <Text style={[styles.configValue, { color: colors.textSecondary }]}>{account.searchCount}</Text>
-              )}
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
             <View style={styles.configRow}>
               <View style={styles.configLabel}>
                 <CheckSquare size={16} color={colors.textMuted} />

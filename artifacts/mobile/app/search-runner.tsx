@@ -105,7 +105,7 @@ export default function SearchRunnerScreen() {
   );
   const [currentSearchIdx, setCurrentSearchIdx] = useState(0);
   const [totalSearches, setTotalSearches] = useState(
-    targetAccounts[0]?.searchCount ?? 0
+    settings.defaultSearchCount
   );
   const [statusLine, setStatusLine] = useState("Starting…");
   const [isFinished, setIsFinished] = useState(false);
@@ -148,12 +148,13 @@ export default function SearchRunnerScreen() {
         const account = targetAccounts[ai];
         const hasCookies = Object.keys(account.cookies ?? {}).length > 0;
         const cookieStr = buildCookieHeader(account.cookies ?? {});
-        const queries = pickQueries(account.searchCount);
+        const searchCount = settings.defaultSearchCount;
+        const queries = pickQueries(searchCount);
         const delay = (settings.searchDelay ?? 5) * 1000;
 
         setCurrentAccountIdx(ai);
         setCurrentAccountName(account.name);
-        setTotalSearches(account.searchCount);
+        setTotalSearches(searchCount);
         setCurrentSearchIdx(0);
 
         updateAccount(account.id, { status: "running", searchesCompleted: 0 });
@@ -194,7 +195,7 @@ export default function SearchRunnerScreen() {
         updateAccount(account.id, { searchesCompleted: searchesDone });
 
         // Searches 2…N — navigate within the same WebView session
-        for (let si = 1; si < account.searchCount; si++) {
+        for (let si = 1; si < searchCount; si++) {
           if (cancelled || abortRef.current) break;
 
           const query = queries[si] ?? `microsoft rewards tip ${si + 1}`;
