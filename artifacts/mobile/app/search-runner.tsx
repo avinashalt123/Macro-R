@@ -65,13 +65,15 @@ function getTypingScript(query: string): string {
   var maxAttempts = 40;
 
   function findInput() {
-    var ids = ['sb_form_q', 'q'];
-    for (var i = 0; i < ids.length; i++) {
-      var el = document.getElementById(ids[i]);
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return el;
-    }
-    var byName = document.querySelector('input[name="q"], input[type="search"], textarea[name="q"]');
+    // Primary: exact Bing search box id
+    var primary = document.querySelector('input#sb_form_q');
+    if (primary) return primary;
+    // Fallbacks
+    var byId = document.getElementById('q');
+    if (byId && byId.tagName === 'INPUT') return byId;
+    var byName = document.querySelector('input[name="q"], input[type="search"]');
     if (byName) return byName;
+    // Last resort: any large visible input
     var all = document.querySelectorAll('input');
     for (var j = 0; j < all.length; j++) {
       var inp = all[j];
@@ -100,27 +102,25 @@ function getTypingScript(query: string): string {
     var pos = 0;
     var baseDelay = 120 + Math.floor(Math.random() * 60);
 
+    function pressEnter(el) {
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      dispatchKey(el, 'keydown', 'Enter', 'Enter', 13);
+      dispatchKey(el, 'keypress', 'Enter', 'Enter', 13);
+      dispatchKey(el, 'keyup', 'Enter', 'Enter', 13);
+    }
+
     function tick() {
       if (pos >= q.length) {
         setTimeout(function() {
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-          var searchBtn =
-            document.getElementById('sb_form_go') ||
-            document.querySelector('input[type="submit"]') ||
-            document.querySelector('button[type="submit"]') ||
-            document.querySelector('[aria-label="Search"]');
-          if (searchBtn) {
-            searchBtn.click();
-          } else {
-            var form = input.form || document.getElementById('sb_form') || document.querySelector('form[action*="search"]');
-            if (form) {
-              form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-              form.submit();
-            } else {
-              window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SEARCH_SUBMIT_FAILED' }));
+          pressEnter(input);
+          // Belt-and-suspenders: also submit the form if Enter doesn't navigate
+          setTimeout(function() {
+            if (window.location.href.indexOf('/search') === -1) {
+              var form = input.form || document.getElementById('sb_form');
+              if (form) { try { form.submit(); } catch(e) {} }
             }
-          }
-        }, 600 + Math.floor(Math.random() * 300));
+          }, 1500);
+        }, 500 + Math.floor(Math.random() * 300));
         return;
       }
       var ch = q[pos];
@@ -194,19 +194,21 @@ function getDailySetScript(): string {
   var maxClicks = 3;
 
   function findCards() {
-    var selectors = [
-      '.c-card-content',
-      '.daily-set-item',
-      '[data-testid*="daily"]',
-      '.mee-icon-AddMedium',
-      '.ng-scope .c-call-to-action',
+    // Exact selector provided by the user
+    var primary = document.querySelectorAll('#daily-sets mee-card-group:nth-child(7) .ds-card-sec.ng-scope');
+    if (primary.length > 0) return Array.from(primary).slice(0, maxClicks);
+
+    // Broader fallbacks in case the page structure shifts
+    var fallbacks = [
+      '#daily-sets .ds-card-sec',
+      '#daily-sets mee-card-group .ng-scope',
+      '#daily-sets .c-card-content',
     ];
-    var cards = [];
-    for (var i = 0; i < selectors.length; i++) {
-      var found = document.querySelectorAll(selectors[i]);
-      if (found.length > 0) { cards = Array.from(found); break; }
+    for (var i = 0; i < fallbacks.length; i++) {
+      var found = document.querySelectorAll(fallbacks[i]);
+      if (found.length > 0) return Array.from(found).slice(0, maxClicks);
     }
-    return cards.slice(0, maxClicks);
+    return [];
   }
 
   function clickNext(cards, idx) {
@@ -215,10 +217,18 @@ function getDailySetScript(): string {
       return;
     }
     try {
-      cards[idx].click();
+      var card = cards[idx];
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(function() {
+        try { card.click(); } catch(e) {}
+        clicked++;
+        var wait = 5000 + Math.floor(Math.random() * 3000);
+        setTimeout(function() { clickNext(cards, idx + 1); }, wait);
+      }, 500);
+    } catch(e) {
       clicked++;
-    } catch(e) {}
-    setTimeout(function() { clickNext(cards, idx + 1); }, 2000);
+      setTimeout(function() { clickNext(cards, idx + 1); }, 5000);
+    }
   }
 
   setTimeout(function() {
@@ -228,7 +238,7 @@ function getDailySetScript(): string {
     } else {
       clickNext(cards, 0);
     }
-  }, 1500);
+  }, 2000);
 })();
 true;
 `;
@@ -433,8 +443,10 @@ export default function SearchRunnerScreen() {
         if (isResults) {
           if (pageLoadedRef.current) return;
           pageLoadedRef.current = true;
-          const delay = 3000 + Math.random() * 2000;
-          setStatusText("Reading results...");
+          // 5–80 second random wait on results page before next search
+          const delay = 5000 + Math.random() * 75000;
+          const secs = Math.round(delay / 1000);
+          setStatusText(`Waiting ${secs}s before next search...`);
           delayTimerRef.current = setTimeout(goNext, delay);
         } else if (isHome) {
           pageLoadedRef.current = false;
