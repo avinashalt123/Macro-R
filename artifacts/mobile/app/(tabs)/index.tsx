@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { Play, Plus, Square, Users } from "lucide-react-native";
+import { CheckSquare, Play, Plus, Square, Users } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
@@ -68,12 +68,42 @@ export default function HomeScreen() {
     });
   };
 
+  const handleDailySetAll = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (isRunning) {
+      Alert.alert("Already Running", "Stop the current run before starting another.");
+      return;
+    }
+    if (accounts.length === 0) {
+      Alert.alert("No Accounts", "Add an account first.");
+      return;
+    }
+    startRun();
+    router.push({
+      pathname: "/search-runner",
+      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)), mode: "dailyset" },
+    });
+  };
+
+  const handleDailySetAccount = (id: string) => {
+    if (isRunning) {
+      Alert.alert("Already Running", "Stop the current run before starting another.");
+      return;
+    }
+    startRun();
+    router.push({
+      pathname: "/search-runner",
+      params: { accountIds: JSON.stringify([id]), mode: "dailyset" },
+    });
+  };
+
   const renderItem = useCallback(
     ({ item }: { item: Account }) => (
       <AccountCard
         account={item}
         onPress={() => router.push({ pathname: "/account/[id]", params: { id: item.id } })}
         onRun={() => handleRunAccount(item.id)}
+        onDailySet={() => handleDailySetAccount(item.id)}
         onRefreshSession={() => router.push({ pathname: "/login-webview", params: { accountId: item.id } })}
         isRunningGlobal={isRunning}
       />
@@ -135,6 +165,26 @@ export default function HomeScreen() {
       />
 
       <View style={[styles.fab, { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) }]}>
+        {/* Daily Set button — hidden while a run is active */}
+        {!isRunning && (
+          <Pressable
+            onPress={handleDailySetAll}
+            style={({ pressed }) => [
+              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+            ]}
+          >
+            <LinearGradient
+              colors={["#7C3AED", "#5B21B6"]}
+              style={styles.fabBtn}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <CheckSquare size={20} color="#fff" />
+              <Text style={styles.fabText}>Daily Set</Text>
+            </LinearGradient>
+          </Pressable>
+        )}
+
         <Pressable
           onPress={handleRunAll}
           style={({ pressed }) => [
@@ -147,7 +197,7 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            {isRunning ? <Square size={22} color="#fff" /> : <Play size={22} color="#fff" />}
+            {isRunning ? <Square size={20} color="#fff" /> : <Play size={20} color="#fff" />}
             <Text style={styles.fabText}>{isRunning ? "Running..." : "Run All"}</Text>
           </LinearGradient>
         </Pressable>
@@ -175,7 +225,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  fab: { position: "absolute", right: 20 },
+  fab: { position: "absolute", right: 20, flexDirection: "row", gap: 10, alignItems: "center" },
   fabBtn: {
     flexDirection: "row",
     alignItems: "center",

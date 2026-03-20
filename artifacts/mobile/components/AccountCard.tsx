@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { AlertCircle, CheckCircle, Clock, Loader, Play, RefreshCw, Search, Shield, ShieldOff, Star, XCircle } from "lucide-react-native";
+import { AlertCircle, CheckCircle, CheckSquare, Clock, Loader, Play, RefreshCw, Search, Shield, Star, XCircle } from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
@@ -18,6 +18,7 @@ interface Props {
   account: Account;
   onPress: () => void;
   onRun: () => void;
+  onDailySet: () => void;
   onRefreshSession: () => void;
   isRunningGlobal: boolean;
 }
@@ -75,7 +76,7 @@ function isSessionExpired(account: Account): boolean {
   return hoursSinceRun > 24;
 }
 
-export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunningGlobal }: Props) {
+export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSession, isRunningGlobal }: Props) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -91,6 +92,11 @@ export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunni
   const handleRun = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onRun();
+  };
+
+  const handleDailySet = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onDailySet();
   };
 
   const handleSessionRefresh = () => {
@@ -205,24 +211,47 @@ export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunni
             )}
           </View>
 
-          <Pressable
-            onPress={handleRun}
-            disabled={account.status === "running" || isRunningGlobal}
-            style={({ pressed }) => [
-              styles.runBtn,
-              {
-                backgroundColor:
-                  account.status === "running" ? colors.border : pressed ? colors.tintDark : colors.tint,
-                opacity: account.status === "running" || isRunningGlobal ? 0.5 : 1,
-              },
-            ]}
-          >
-            {account.status === "running" ? (
-              <Loader size={14} color="#fff" />
-            ) : (
-              <Play size={14} color="#fff" />
-            )}
-          </Pressable>
+          <View style={styles.actionCol}>
+            {/* Daily Set button */}
+            <Pressable
+              onPress={handleDailySet}
+              disabled={account.status === "running" || isRunningGlobal}
+              style={({ pressed }) => [
+                styles.dsBtn,
+                {
+                  backgroundColor:
+                    account.status === "running" || isRunningGlobal
+                      ? colors.border
+                      : pressed
+                      ? "#5B21B6"
+                      : "#7C3AED",
+                  opacity: account.status === "running" || isRunningGlobal ? 0.4 : 1,
+                },
+              ]}
+            >
+              <CheckSquare size={13} color="#fff" />
+            </Pressable>
+
+            {/* Run searches button */}
+            <Pressable
+              onPress={handleRun}
+              disabled={account.status === "running" || isRunningGlobal}
+              style={({ pressed }) => [
+                styles.runBtn,
+                {
+                  backgroundColor:
+                    account.status === "running" ? colors.border : pressed ? colors.tintDark : colors.tint,
+                  opacity: account.status === "running" || isRunningGlobal ? 0.5 : 1,
+                },
+              ]}
+            >
+              {account.status === "running" ? (
+                <Loader size={14} color="#fff" />
+              ) : (
+                <Play size={14} color="#fff" />
+              )}
+            </Pressable>
+          </View>
         </View>
       </Pressable>
     </Animated.View>
@@ -345,13 +374,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_500Medium",
   },
+  actionCol: {
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  dsBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   runBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
-    marginTop: 2,
   },
 });

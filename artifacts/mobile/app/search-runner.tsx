@@ -262,10 +262,13 @@ export default function SearchRunnerScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
 
-  const { accountIds: rawIds } = useLocalSearchParams<{ accountIds: string }>();
+  const { accountIds: rawIds, mode: rawMode } = useLocalSearchParams<{ accountIds: string; mode?: string }>();
   const { accounts, updateAccount, addLog, stopRun } = useAccounts();
   const { pickQueries } = useQueries();
   const { settings } = useSettings();
+
+  // mode: "both" (default) = searches + daily set | "dailyset" = daily set only
+  const mode = (rawMode === "dailyset" ? "dailyset" : "both") as "both" | "dailyset";
 
   const accountIds: string[] = rawIds ? JSON.parse(rawIds) : [];
   const targetAccounts = useRef<Account[]>(
@@ -334,7 +337,7 @@ export default function SearchRunnerScreen() {
         setCurrentAccountName(account.name);
         setTotalSearches(searchCount);
         setCurrentSearchIdx(0);
-        setPhase("searching");
+        setPhase(mode === "dailyset" ? "dailyset" : "searching");
         setDailySetResult(null);
 
         updateAccount(account.id, { status: "running", searchesCompleted: 0 });
@@ -356,47 +359,49 @@ export default function SearchRunnerScreen() {
           continue;
         }
 
-        // ── Bing searches ────────────────────────────────────────────────────
+        // ── Bing searches (skipped in dailyset-only mode) ────────────────────
         let searchesDone = 0;
         let networkLost = false;
 
-        for (let si = 0; si < searchCount; si++) {
-          if (cancelled || abortRef.current) break;
+        if (mode !== "dailyset") {
+          for (let si = 0; si < searchCount; si++) {
+            if (cancelled || abortRef.current) break;
 
-          const query = queries[si] ?? `microsoft rewards tip ${si + 1}`;
-          const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(
-            query
-          )}&form=QBLH&cvid=${randomHex(32).toUpperCase()}`;
+            const query = queries[si] ?? `microsoft rewards tip ${si + 1}`;
+            const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(
+              query
+            )}&form=QBLH&cvid=${randomHex(32).toUpperCase()}`;
 
-          setCurrentSearchIdx(si + 1);
-          setStatusLine(`[${account.name}]  "${query}"`);
+            setCurrentSearchIdx(si + 1);
+            setStatusLine(`[${account.name}]  "${query}"`);
 
-          if (si === 0) {
-            setWebViewUrl(searchUrl);
-          } else {
-            navigateTo(searchUrl);
-          }
-
-          try {
-            const result = await performBingSearch(query, account.cookies);
-            if (result.ok) {
-              searchesDone++;
-              setNetworkError(false);
+            if (si === 0) {
+              setWebViewUrl(searchUrl);
+            } else {
+              navigateTo(searchUrl);
             }
-          } catch (e: any) {
-            if (e?.message === "NO_NETWORK") {
-              setNetworkError(true);
-              networkLost = true;
-              setStatusLine("No internet connection");
-              break;
+
+            try {
+              const result = await performBingSearch(query, account.cookies);
+              if (result.ok) {
+                searchesDone++;
+                setNetworkError(false);
+              }
+            } catch (e: any) {
+              if (e?.message === "NO_NETWORK") {
+                setNetworkError(true);
+                networkLost = true;
+                setStatusLine("No internet connection");
+                break;
+              }
             }
-          }
 
-          updateAccount(account.id, { searchesCompleted: searchesDone });
+            updateAccount(account.id, { searchesCompleted: searchesDone });
 
-          if (si < searchCount - 1) {
-            const jitter = Math.floor((Math.random() - 0.5) * 2000);
-            await sleep(Math.max(2500, delay + jitter));
+            if (si < searchCount - 1) {
+              const jitter = Math.floor((Math.random() - 0.5) * 2000);
+              await sleep(Math.max(2500, delay + jitter));
+            }
           }
         }
 
@@ -404,12 +409,14 @@ export default function SearchRunnerScreen() {
 
         // ── Daily Set ────────────────────────────────────────────────────────
         let dailySetDone = false;
-        // account.dailySetEnabled may be undefined for accounts created before
-        // this field was added — treat undefined as true (opt-in by default).
+        // In dailyset-only mode always run regardless of per-account toggle.
+        // In "both" mode respect both the global and per-account settings.
+        // account.dailySetEnabled may be undefined for old accounts → default true.
         const shouldRunDailySet =
           !networkLost &&
-          settings.dailySetEnabled &&
-          (account.dailySetEnabled ?? true);
+          (mode === "dailyset"
+            ? true
+            : settings.dailySetEnabled && (account.dailySetEnabled ?? true));
 
         if (shouldRunDailySet) {
           setPhase("dailyset");
@@ -532,7 +539,9 @@ export default function SearchRunnerScreen() {
             {currentAccountName || "Starting…"}
           </Text>
           <Text style={styles.topSub}>
-            {phase === "dailyset"
+            {mode === "dailyset"
+              ? `Daily Set Only · Account ${Math.min(currentAccountIdx + 1, targetAccounts.length)}/${targetAccounts.length}`
+              : phase === "dailyset"
               ? `Account ${Math.min(currentAccountIdx + 1, targetAccounts.length)}/${targetAccounts.length} · Daily Set`
               : `Account ${Math.min(currentAccountIdx + 1, targetAccounts.length)}/${targetAccounts.length} · Search ${currentSearchIdx}/${totalSearches}`}
           </Text>
