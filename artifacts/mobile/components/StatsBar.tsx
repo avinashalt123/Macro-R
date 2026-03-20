@@ -40,7 +40,7 @@ function StatItem({ icon: Icon, iconColor, label, value, colors }: {
 }) {
   return (
     <View style={styles.statItem}>
-      <Icon size={16} color={iconColor} />
+      <Icon size={12} color={iconColor} />
       <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>
@@ -52,27 +52,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 16,
-    padding: 16,
+    marginBottom: 10,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
   },
   statItem: {
     flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
+    gap: 5,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 13,
     fontFamily: "Inter_700Bold",
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontFamily: "Inter_400Regular",
-    textAlign: "center",
   },
   divider: {
     width: 1,
-    height: 36,
+    height: 20,
     marginHorizontal: 4,
   },
 });

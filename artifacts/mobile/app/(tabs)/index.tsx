@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { CheckSquare, Clock, Play, Plus, Search, Square, Users } from "lucide-react-native";
+import { CheckSquare, Play, Plus, Square, Users } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
@@ -29,7 +29,7 @@ export default function HomeScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { accounts, isRunning, startRun, stopRun } = useAccounts();
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -138,24 +138,68 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Settings quick-view strip */}
-      <View style={[styles.settingsStrip, { backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}>
-        <Pressable
-          onPress={() => router.push("/(tabs)/settings")}
-          style={styles.settingsStripInner}
-        >
-          <View style={styles.settingsItem}>
-            <Search size={14} color={colors.tint} />
-            <Text style={[styles.settingsValue, { color: colors.text }]}>{settings.defaultSearchCount}</Text>
-            <Text style={[styles.settingsLabel, { color: colors.textSecondary }]}>Searches / account</Text>
+      {/* Inline settings card */}
+      <View style={[styles.settingsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.settingsCardTitle, { color: colors.textSecondary }]}>Run Settings</Text>
+        <View style={styles.settingsRow}>
+          {/* Searches per account */}
+          <View style={styles.settingBlock}>
+            <Text style={[styles.settingBlockLabel, { color: colors.textSecondary }]}>Searches / account</Text>
+            <View style={styles.stepperRow}>
+              <Pressable
+                onPress={() => {
+                  const next = Math.max(5, settings.defaultSearchCount - 1);
+                  updateSettings({ defaultSearchCount: next });
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+              >
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>−</Text>
+              </Pressable>
+              <Text style={[styles.stepValue, { color: colors.text }]}>{settings.defaultSearchCount}</Text>
+              <Pressable
+                onPress={() => {
+                  const next = Math.min(50, settings.defaultSearchCount + 1);
+                  updateSettings({ defaultSearchCount: next });
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+              >
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>+</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={[styles.settingsDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.settingsItem}>
-            <Clock size={14} color={colors.tint} />
-            <Text style={[styles.settingsValue, { color: colors.text }]}>{settings.searchDelay}s</Text>
-            <Text style={[styles.settingsLabel, { color: colors.textSecondary }]}>Delay between searches</Text>
+
+          <View style={[styles.settingsCardDivider, { backgroundColor: colors.border }]} />
+
+          {/* Delay */}
+          <View style={styles.settingBlock}>
+            <Text style={[styles.settingBlockLabel, { color: colors.textSecondary }]}>Delay (seconds)</Text>
+            <View style={styles.stepperRow}>
+              <Pressable
+                onPress={() => {
+                  const next = Math.max(3, settings.searchDelay - 1);
+                  updateSettings({ searchDelay: next });
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+              >
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>−</Text>
+              </Pressable>
+              <Text style={[styles.stepValue, { color: colors.text }]}>{settings.searchDelay}s</Text>
+              <Pressable
+                onPress={() => {
+                  const next = Math.min(30, settings.searchDelay + 1);
+                  updateSettings({ searchDelay: next });
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }}
+                style={[styles.stepBtn, { backgroundColor: colors.surfaceSecondary }]}
+              >
+                <Text style={[styles.stepBtnText, { color: colors.text }]}>+</Text>
+              </Pressable>
+            </View>
           </View>
-        </Pressable>
+        </View>
       </View>
 
       {accounts.length > 0 && <StatsBar accounts={accounts} />}
@@ -247,37 +291,61 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  settingsStrip: {
+  settingsCard: {
     marginHorizontal: 16,
-    marginBottom: 10,
-    borderRadius: 14,
+    marginBottom: 12,
+    borderRadius: 16,
     borderWidth: 1,
-    overflow: "hidden",
+    padding: 16,
   },
-  settingsStripInner: {
+  settingsCardTitle: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 14,
+  },
+  settingsRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
   },
-  settingsItem: {
+  settingBlock: {
     flex: 1,
-    flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
-  settingsValue: {
-    fontSize: 15,
-    fontFamily: "Inter_700Bold",
-  },
-  settingsLabel: {
+  settingBlockLabel: {
     fontSize: 12,
     fontFamily: "Inter_400Regular",
+    textAlign: "center",
   },
-  settingsDivider: {
+  stepperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  stepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepBtnText: {
+    fontSize: 20,
+    fontFamily: "Inter_600SemiBold",
+    lineHeight: 22,
+  },
+  stepValue: {
+    fontSize: 28,
+    fontFamily: "Inter_700Bold",
+    minWidth: 52,
+    textAlign: "center",
+  },
+  settingsCardDivider: {
     width: 1,
-    height: 24,
-    marginHorizontal: 12,
+    height: 52,
+    marginHorizontal: 8,
   },
   fab: { position: "absolute", right: 20, flexDirection: "row", gap: 10, alignItems: "center" },
   fabBtn: {
