@@ -1,7 +1,7 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { Check, Info, Lock, RefreshCw, Smartphone, Unlock, UserPlus, X } from "lucide-react-native";
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -21,12 +21,10 @@ import WebView, { WebViewNavigation, WebViewMessageEvent } from "react-native-we
 import Colors from "@/constants/colors";
 import { useAccounts } from "@/context/AccountsContext";
 
-// accountId param = update existing; no param = create new
 const MOBILE_USER_AGENT =
   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
 
 const LOGIN_URL = "https://login.live.com/login.srf?wa=wsignin1.0&wreply=https://rewards.bing.com/";
-
 const REWARDS_DOMAINS = ["rewards.bing.com", "bing.com/rewards"];
 
 const INJECT_COOKIES_JS = `
@@ -39,16 +37,10 @@ const INJECT_COOKIES_JS = `
       username: '',
       localStorageTokens: {},
     };
-
-    // Try to get account name from page
     var nameEl = document.querySelector('[data-testid="user-name"], .id_accountName, #mHamburgerFlyout .id_accountName, .ms-Icon--Contact');
     if (nameEl) data.username = nameEl.innerText || nameEl.textContent || '';
-
-    // Try meta tags
     var metaUser = document.querySelector('meta[name="og:title"], meta[property="og:title"]');
     if (metaUser && !data.username) data.username = metaUser.getAttribute('content') || '';
-
-    // Try to grab auth-related localStorage keys for persistence
     try {
       var lsKeys = Object.keys(localStorage);
       for (var i = 0; i < lsKeys.length; i++) {
@@ -59,11 +51,8 @@ const INJECT_COOKIES_JS = `
         }
       }
     } catch(lsErr) {}
-
-    // Try to find email from the page DOM
     var emailEl = document.querySelector('.id_email, [data-testid="user-email"], .account-header-email');
     if (emailEl) data.username = emailEl.innerText || emailEl.textContent || data.username;
-
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'cookies', data: data }));
   } catch(e) {
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', message: e.message }));
@@ -95,12 +84,7 @@ export default function LoginWebViewScreen() {
 
   const showSuccessBanner = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Animated.spring(bannerAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 14,
-      bounciness: 6,
-    }).start();
+    Animated.spring(bannerAnim, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 6 }).start();
   }, []);
 
   const parseCookieString = (cookieStr: string): Record<string, string> => {
@@ -116,13 +100,10 @@ export default function LoginWebViewScreen() {
     (navState: WebViewNavigation) => {
       setPageUrl(navState.url);
       setIsLoading(navState.loading);
-
       const isOnRewards = REWARDS_DOMAINS.some((d) => navState.url.includes(d));
-
       if (isOnRewards && status !== "loggedIn") {
         setStatus("loggedIn");
         showSuccessBanner();
-        // Inject JS to capture cookies + detect email
         webViewRef.current?.injectJavaScript(INJECT_COOKIES_JS);
       } else if (!navState.loading && status === "loading") {
         setStatus("browsing");
@@ -136,89 +117,60 @@ export default function LoginWebViewScreen() {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type === "cookies" && msg.data) {
         const parsed = parseCookieString(msg.data.cookies || "");
-
-        // Merge localStorage auth tokens into the cookies dict (prefixed with _ls_)
         const lsTokens: Record<string, string> = msg.data.localStorageTokens || {};
         const merged = { ...parsed };
-        Object.entries(lsTokens).forEach(([k, v]) => {
-          merged[`_ls_${k}`] = v;
-        });
-
+        Object.entries(lsTokens).forEach(([k, v]) => { merged[`_ls_${k}`] = v; });
         setCapturedCookies(merged);
-
-        // Try to detect email from URL or cookies
         const url = msg.data.url || "";
         const emailMatch = url.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (emailMatch) setDetectedEmail(emailMatch[0]);
-
-        // Set name from title or username
         const username = (msg.data.username || "").trim();
-        if (username && !accountName) {
-          setAccountName(username.split(" ")[0] || "My Account");
-        }
+        if (username && !accountName) setAccountName(username.split(" ")[0] || "My Account");
       }
     } catch {}
   }, [accountName]);
 
   const handleSave = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
     if (existingAccount) {
-      // Update existing account's cookies
-      updateAccount(existingAccount.id, {
-        cookies: capturedCookies,
-        email: detectedEmail.trim() || existingAccount.email,
-      });
+      updateAccount(existingAccount.id, { cookies: capturedCookies, email: detectedEmail.trim() || existingAccount.email });
       router.back();
       return;
     }
-
-    // Create new account
-    const name = accountName.trim() || "MS Rewards Account";
-    const email = detectedEmail.trim() || "user@outlook.com";
-
     addAccount({
-      name,
-      email,
+      name: accountName.trim() || "MS Rewards Account",
+      email: detectedEmail.trim() || "user@outlook.com",
       searchCount: 30,
       dailySetEnabled: true,
       lastRun: null,
       cookies: capturedCookies,
     });
-
     router.back();
   };
 
   const handleSavePress = () => {
-    // If updating existing account, save directly — no name input needed
-    if (existingAccount) {
-      handleSave();
-      return;
-    }
+    if (existingAccount) { handleSave(); return; }
     setShowNameInput(true);
   };
 
-  // Web fallback — WebView not supported on web
   if (Platform.OS === "web") {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.webFallbackHeader, { paddingTop: insets.top + 12 }]}>
           <Pressable onPress={() => router.back()} style={styles.closeBtn}>
-            <Feather name="x" size={22} color={colors.textSecondary} />
+            <X size={22} color={colors.textSecondary} />
           </Pressable>
         </View>
         <View style={styles.webFallback}>
           <View style={[styles.webFallbackIcon, { backgroundColor: colors.surfaceSecondary }]}>
-            <Feather name="smartphone" size={36} color={colors.tint} />
+            <Smartphone size={36} color={colors.tint} />
           </View>
-          <Text style={[styles.webFallbackTitle, { color: colors.text }]}>
-            Open on your Android device
-          </Text>
+          <Text style={[styles.webFallbackTitle, { color: colors.text }]}>Open on your Android device</Text>
           <Text style={[styles.webFallbackSub, { color: colors.textSecondary }]}>
-            The Microsoft login requires Expo Go on your Android device to capture session cookies. Scan the QR code from the Expo CLI to open the app on your phone.
+            The Microsoft login requires Expo Go on your Android device to capture session cookies.
           </Text>
           <View style={[styles.webFallbackNote, { backgroundColor: colors.surfaceSecondary }]}>
-            <Feather name="info" size={14} color={colors.tint} />
+            <Info size={14} color={colors.tint} />
             <Text style={[styles.webFallbackNoteText, { color: colors.textSecondary }]}>
               WebView login is only supported on Android and iOS
             </Text>
@@ -228,49 +180,43 @@ export default function LoginWebViewScreen() {
     );
   }
 
+  const WebViewComponent = require("react-native-webview").default;
+
   return (
     <View style={[styles.root, { backgroundColor: "#000" }]}>
-      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Pressable
           onPress={() => {
             if (status === "loggedIn") {
-              Alert.alert(
-                "Leave without saving?",
-                "Your login session will be lost.",
-                [
-                  { text: "Stay", style: "cancel" },
-                  { text: "Leave", style: "destructive", onPress: () => router.back() },
-                ]
-              );
+              Alert.alert("Leave without saving?", "Your login session will be lost.", [
+                { text: "Stay", style: "cancel" },
+                { text: "Leave", style: "destructive", onPress: () => router.back() },
+              ]);
             } else {
               router.back();
             }
           }}
           style={({ pressed }) => [styles.closeBtn, { opacity: pressed ? 0.6 : 1 }]}
         >
-          <Feather name="x" size={22} color="#fff" />
+          <X size={22} color="#fff" />
         </Pressable>
 
         <View style={styles.urlBar}>
-          <Feather
-            name={pageUrl.startsWith("https") ? "lock" : "unlock"}
-            size={12}
-            color={pageUrl.startsWith("https") ? "#4ADE80" : "#FCD34D"}
-          />
+          {pageUrl.startsWith("https") ? (
+            <Lock size={12} color="#4ADE80" />
+          ) : (
+            <Unlock size={12} color="#FCD34D" />
+          )}
           <Text style={styles.urlText} numberOfLines={1}>
             {pageUrl.replace(/^https?:\/\//, "").split("?")[0]}
           </Text>
         </View>
 
-        {isLoading && (
-          <ActivityIndicator size="small" color="#60A5FA" />
-        )}
+        {isLoading && <ActivityIndicator size="small" color="#60A5FA" />}
         {!isLoading && <View style={{ width: 20 }} />}
       </View>
 
-      {/* WebView */}
-      <WebView
+      <WebViewComponent
         ref={webViewRef}
         source={{ uri: LOGIN_URL }}
         userAgent={MOBILE_USER_AGENT}
@@ -293,20 +239,12 @@ export default function LoginWebViewScreen() {
         )}
       />
 
-      {/* Success Banner */}
       {status === "loggedIn" && !showNameInput && (
         <Animated.View
           style={[
             styles.banner,
             {
-              transform: [
-                {
-                  translateY: bannerAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [120, 0],
-                  }),
-                },
-              ],
+              transform: [{ translateY: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [120, 0] }) }],
               paddingBottom: insets.bottom + 12,
             },
           ]}
@@ -331,25 +269,18 @@ export default function LoginWebViewScreen() {
               onPress={handleSavePress}
               style={({ pressed }) => [styles.saveBtn, { opacity: pressed ? 0.85 : 1 }]}
             >
-              <Feather name={existingAccount ? "refresh-cw" : "user-plus"} size={18} color="#15803D" />
-              <Text style={styles.saveBtnText}>
-                {existingAccount ? "Update Cookies" : "Save Account"}
-              </Text>
+              {existingAccount ? <RefreshCw size={18} color="#15803D" /> : <UserPlus size={18} color="#15803D" />}
+              <Text style={styles.saveBtnText}>{existingAccount ? "Update Cookies" : "Save Account"}</Text>
             </Pressable>
           </LinearGradient>
         </Animated.View>
       )}
 
-      {/* Name Input Sheet */}
       {showNameInput && (
         <View style={[styles.nameSheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.nameSheetHandle} />
           <Text style={[styles.nameSheetTitle, { color: colors.text }]}>Name this account</Text>
-          {detectedEmail ? (
-            <Text style={[styles.nameSheetEmail, { color: colors.textSecondary }]}>
-              {detectedEmail}
-            </Text>
-          ) : null}
+          {detectedEmail ? <Text style={[styles.nameSheetEmail, { color: colors.textSecondary }]}>{detectedEmail}</Text> : null}
           <TextInput
             style={[styles.nameInput, { color: colors.text, backgroundColor: colors.surfaceSecondary, borderColor: colors.border }]}
             value={accountName}
@@ -361,11 +292,8 @@ export default function LoginWebViewScreen() {
             returnKeyType="done"
             onSubmitEditing={handleSave}
           />
-          <Pressable
-            onPress={handleSave}
-            style={({ pressed }) => [styles.confirmBtn, { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 }]}
-          >
-            <Feather name="check" size={18} color="#fff" />
+          <Pressable onPress={handleSave} style={({ pressed }) => [styles.confirmBtn, { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 }]}>
+            <Check size={18} color="#fff" />
             <Text style={styles.confirmText}>Add Account</Text>
           </Pressable>
           <Pressable onPress={() => setShowNameInput(false)} style={styles.cancelBtn}>
@@ -379,204 +307,36 @@ export default function LoginWebViewScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    gap: 10,
-    backgroundColor: "#0F172A",
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  urlBar: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#1E293B",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  urlText: {
-    color: "#CBD5E1",
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
-  },
-  webView: {
-    flex: 1,
-  },
-  loadingOverlay: {
-    position: "absolute",
-    inset: 0,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: "#6B7280",
-    fontFamily: "Inter_400Regular",
-  },
-  banner: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  bannerGradient: {
-    margin: 12,
-    borderRadius: 20,
-    padding: 20,
-    gap: 16,
-  },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingBottom: 10, gap: 10, backgroundColor: "#0F172A" },
+  closeBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  urlBar: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#1E293B", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+  urlText: { color: "#CBD5E1", fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+  webView: { flex: 1 },
+  loadingOverlay: { position: "absolute", inset: 0, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", gap: 12 },
+  loadingText: { fontSize: 14, color: "#6B7280", fontFamily: "Inter_400Regular" },
+  banner: { position: "absolute", bottom: 0, left: 0, right: 0 },
+  bannerGradient: { margin: 12, borderRadius: 20, padding: 20, gap: 16 },
   bannerTop: { gap: 6 },
-  bannerTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  successDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#4ADE80",
-  },
-  bannerTitle: {
-    color: "#fff",
-    fontSize: 17,
-    fontFamily: "Inter_700Bold",
-  },
-  bannerSub: {
-    color: "#BBF7D0",
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    lineHeight: 18,
-  },
-  saveBtn: {
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  saveBtnText: {
-    color: "#15803D",
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  nameSheet: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingTop: 12,
-    gap: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  nameSheetHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#D1D5DB",
-    alignSelf: "center",
-    marginBottom: 6,
-  },
-  nameSheetTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-  },
-  nameSheetEmail: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: -8,
-  },
-  nameInput: {
-    padding: 14,
-    borderRadius: 12,
-    fontSize: 16,
-    fontFamily: "Inter_400Regular",
-    borderWidth: 1,
-  },
-  confirmBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 14,
-  },
-  confirmText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  cancelBtn: {
-    alignItems: "center",
-    paddingVertical: 4,
-  },
-  cancelText: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
-  // Web fallback
-  webFallbackHeader: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  webFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  webFallbackIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  webFallbackTitle: {
-    fontSize: 22,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-  },
-  webFallbackSub: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  webFallbackNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    padding: 14,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  webFallbackNoteText: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
-  },
+  bannerTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  successDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#4ADE80" },
+  bannerTitle: { color: "#fff", fontSize: 17, fontFamily: "Inter_700Bold" },
+  bannerSub: { color: "#BBF7D0", fontSize: 13, fontFamily: "Inter_400Regular", lineHeight: 18 },
+  saveBtn: { backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14 },
+  saveBtnText: { color: "#15803D", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  nameSheet: { position: "absolute", bottom: 0, left: 0, right: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingTop: 12, gap: 14, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
+  nameSheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: "#D1D5DB", alignSelf: "center", marginBottom: 6 },
+  nameSheetTitle: { fontSize: 20, fontFamily: "Inter_700Bold" },
+  nameSheetEmail: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: -8 },
+  nameInput: { padding: 14, borderRadius: 12, fontSize: 16, fontFamily: "Inter_400Regular", borderWidth: 1 },
+  confirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 14 },
+  confirmText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  cancelBtn: { alignItems: "center", paddingVertical: 4 },
+  cancelText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  webFallbackHeader: { paddingHorizontal: 16, paddingBottom: 8 },
+  webFallback: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 16 },
+  webFallbackIcon: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  webFallbackTitle: { fontSize: 22, fontFamily: "Inter_700Bold", textAlign: "center" },
+  webFallbackSub: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 22 },
+  webFallbackNote: { flexDirection: "row", alignItems: "center", gap: 8, padding: 14, borderRadius: 12, marginTop: 8 },
+  webFallbackNoteText: { fontSize: 13, fontFamily: "Inter_400Regular", flex: 1 },
 });

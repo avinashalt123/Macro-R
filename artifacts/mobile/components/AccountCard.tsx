@@ -1,6 +1,6 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { AlertCircle, CheckCircle, Clock, Loader, Play, RefreshCw, Search, Shield, ShieldOff, Star, XCircle } from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
@@ -43,10 +43,10 @@ function StatusBadge({ status, searchesCompleted, searchCount }: { status: Accou
   }, [status]);
 
   const configs = {
-    idle: { icon: "clock" as const, color: colors.statusIdle, bg: colors.surfaceSecondary, label: "Idle" },
-    running: { icon: "refresh-cw" as const, color: colors.statusRunning, bg: "#EDE9FE", label: `${searchesCompleted}/${searchCount}` },
-    done: { icon: "check-circle" as const, color: colors.statusDone, bg: "#DCFCE7", label: "Done" },
-    failed: { icon: "x-circle" as const, color: colors.statusFailed, bg: "#FEE2E2", label: "Failed" },
+    idle: { Icon: Clock, color: colors.statusIdle, bg: colors.surfaceSecondary, label: "Idle" },
+    running: { Icon: RefreshCw, color: colors.statusRunning, bg: "#EDE9FE", label: `${searchesCompleted}/${searchCount}` },
+    done: { Icon: CheckCircle, color: colors.statusDone, bg: "#DCFCE7", label: "Done" },
+    failed: { Icon: XCircle, color: colors.statusFailed, bg: "#FEE2E2", label: "Failed" },
   };
 
   const cfg = configs[status];
@@ -57,12 +57,10 @@ function StatusBadge({ status, searchesCompleted, searchCount }: { status: Accou
   return (
     <View style={[
       styles.badge,
-      {
-        backgroundColor: darkRunning ? "#4C1D95" : darkDone ? "#14532D" : darkFailed ? "#7F1D1D" : cfg.bg,
-      }
+      { backgroundColor: darkRunning ? "#4C1D95" : darkDone ? "#14532D" : darkFailed ? "#7F1D1D" : cfg.bg }
     ]}>
       <Animated.View style={{ opacity: status === "running" ? pulseAnim : 1 }}>
-        <Feather name={cfg.icon} size={12} color={cfg.color} />
+        <cfg.Icon size={12} color={cfg.color} />
       </Animated.View>
       <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
     </View>
@@ -117,10 +115,7 @@ export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunni
         style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.cardShadow }]}
       >
         <View style={styles.cardContent}>
-          <LinearGradient
-            colors={["#3B82F6", "#1D4ED8"]}
-            style={styles.avatar}
-          >
+          <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
           </LinearGradient>
 
@@ -141,44 +136,32 @@ export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunni
 
             {account.status === "running" && (
               <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { width: `${progressPercent}%` as any, backgroundColor: colors.running },
-                  ]}
-                />
+                <View style={[styles.progressFill, { width: `${progressPercent}%` as any, backgroundColor: colors.running }]} />
               </View>
             )}
 
             <View style={styles.stats}>
               <View style={styles.statItem}>
-                <Feather name="search" size={11} color={colors.textMuted} />
-                <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                  {account.searchCount} searches
-                </Text>
+                <Search size={11} color={colors.textMuted} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.searchCount} searches</Text>
               </View>
               {account.todayPoints > 0 && (
                 <>
                   <View style={styles.statDot} />
                   <View style={styles.statItem}>
-                    <Feather name="star" size={11} color={colors.warning} />
-                    <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                      {account.todayPoints.toLocaleString()} pts today
-                    </Text>
+                    <Star size={11} color={colors.warning} />
+                    <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.todayPoints.toLocaleString()} pts today</Text>
                   </View>
                 </>
               )}
               {account.lastRun && (
                 <>
                   <View style={styles.statDot} />
-                  <Text style={[styles.statText, { color: colors.textMuted }]}>
-                    {formatRelativeTime(account.lastRun)}
-                  </Text>
+                  <Text style={[styles.statText, { color: colors.textMuted }]}>{formatRelativeTime(account.lastRun)}</Text>
                 </>
               )}
             </View>
 
-            {/* Session status banner */}
             {account.status !== "running" && (
               <Pressable
                 onPress={handleSessionRefresh}
@@ -190,31 +173,22 @@ export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunni
                       : sessionExpired
                       ? scheme === "dark" ? "#78350F22" : "#FFFBEB"
                       : scheme === "dark" ? "#14532D22" : "#F0FDF4",
-                    borderColor: noCookies
-                      ? "#FCA5A5"
-                      : sessionExpired
-                      ? "#FCD34D"
-                      : "#86EFAC",
+                    borderColor: noCookies ? "#FCA5A5" : sessionExpired ? "#FCD34D" : "#86EFAC",
                     opacity: pressed ? 0.75 : 1,
                   },
                 ]}
               >
-                <Feather
-                  name={noCookies ? "alert-circle" : sessionExpired ? "clock" : "shield"}
-                  size={11}
-                  color={noCookies ? colors.error : sessionExpired ? colors.warning : colors.success}
-                />
+                {noCookies ? (
+                  <AlertCircle size={11} color={colors.error} />
+                ) : sessionExpired ? (
+                  <Clock size={11} color={colors.warning} />
+                ) : (
+                  <Shield size={11} color={colors.success} />
+                )}
                 <Text
                   style={[
                     styles.sessionText,
-                    {
-                      color: noCookies
-                        ? colors.error
-                        : sessionExpired
-                        ? "#B45309"
-                        : colors.success,
-                      flex: 1,
-                    },
+                    { color: noCookies ? colors.error : sessionExpired ? "#B45309" : colors.success, flex: 1 },
                   ]}
                   numberOfLines={1}
                 >
@@ -225,11 +199,7 @@ export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunni
                     : "Session active"}
                 </Text>
                 {(noCookies || sessionExpired) && (
-                  <Feather
-                    name="refresh-cw"
-                    size={11}
-                    color={noCookies ? colors.error : "#B45309"}
-                  />
+                  <RefreshCw size={11} color={noCookies ? colors.error : "#B45309"} />
                 )}
               </Pressable>
             )}
@@ -242,20 +212,16 @@ export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunni
               styles.runBtn,
               {
                 backgroundColor:
-                  account.status === "running"
-                    ? colors.border
-                    : pressed
-                    ? colors.tintDark
-                    : colors.tint,
+                  account.status === "running" ? colors.border : pressed ? colors.tintDark : colors.tint,
                 opacity: account.status === "running" || (isRunningGlobal && account.status !== "running") ? 0.5 : 1,
               },
             ]}
           >
-            <Feather
-              name={account.status === "running" ? "loader" : "play"}
-              size={14}
-              color="#fff"
-            />
+            {account.status === "running" ? (
+              <Loader size={14} color="#fff" />
+            ) : (
+              <Play size={14} color="#fff" />
+            )}
           </Pressable>
         </View>
       </Pressable>

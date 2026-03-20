@@ -3,7 +3,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { Feather } from "@expo/vector-icons";
+import { FileText, Search, Settings, Users } from "lucide-react-native";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
 
@@ -55,18 +55,9 @@ function ClassicTabLayout() {
         },
         tabBarBackground: () =>
           isIOS ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
+            <BlurView intensity={100} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
           ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: isDark ? "#0F172A" : "#fff" },
-              ]}
-            />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? "#0F172A" : "#fff" }]} />
           ) : null,
       }}
     >
@@ -78,7 +69,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="person.2" tintColor={color} size={24} />
             ) : (
-              <Feather name="users" size={22} color={color} />
+              <Users size={22} color={color} />
             ),
         }}
       />
@@ -90,7 +81,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="magnifyingglass.circle" tintColor={color} size={24} />
             ) : (
-              <Feather name="search" size={22} color={color} />
+              <Search size={22} color={color} />
             ),
         }}
       />
@@ -102,7 +93,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="list.bullet.clipboard" tintColor={color} size={24} />
             ) : (
-              <Feather name="file-text" size={22} color={color} />
+              <FileText size={22} color={color} />
             ),
         }}
       />
@@ -114,7 +105,7 @@ function ClassicTabLayout() {
             isIOS ? (
               <SymbolView name="gearshape" tintColor={color} size={24} />
             ) : (
-              <Feather name="settings" size={22} color={color} />
+              <Settings size={22} color={color} />
             ),
         }}
       />

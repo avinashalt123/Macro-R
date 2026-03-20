@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { CheckCircle, Circle, LucideIcon, Search, Star } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, View, useColorScheme } from "react-native";
 import Colors from "@/constants/colors";
@@ -22,38 +22,28 @@ export function LogItem({ log }: { log: RunLog }) {
       </View>
 
       <View style={styles.stats}>
+        <Chip icon={Search} label={`${log.searchesDone} searches`} color={colors.tint} colors={colors} />
         <Chip
-          icon="search"
-          label={`${log.searchesDone} searches`}
-          color={colors.tint}
-          colors={colors}
-        />
-        <Chip
-          icon={log.dailySetDone ? "check-circle" : "circle"}
+          icon={log.dailySetDone ? CheckCircle : Circle}
           label="Daily Set"
           color={log.dailySetDone ? colors.success : colors.textMuted}
           colors={colors}
         />
-        <Chip
-          icon="star"
-          label={`+${log.pointsEarned} pts`}
-          color={colors.warning}
-          colors={colors}
-        />
+        <Chip icon={Star} label={`+${log.pointsEarned} pts`} color={colors.warning} colors={colors} />
       </View>
     </View>
   );
 }
 
-function Chip({ icon, label, color, colors }: {
-  icon: keyof typeof Feather.glyphMap;
+function Chip({ icon: Icon, label, color, colors }: {
+  icon: LucideIcon;
   label: string;
   color: string;
   colors: (typeof Colors)["light"];
 }) {
   return (
     <View style={[styles.chip, { backgroundColor: colors.surfaceSecondary }]}>
-      <Feather name={icon} size={11} color={color} />
+      <Icon size={11} color={color} />
       <Text style={[styles.chipText, { color: colors.textSecondary }]}>{label}</Text>
     </View>
   );

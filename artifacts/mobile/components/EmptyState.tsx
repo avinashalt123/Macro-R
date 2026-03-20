@@ -1,27 +1,26 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { LucideIcon, Plus } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
 import Colors from "@/constants/colors";
 
 interface Props {
-  icon: keyof typeof Feather.glyphMap;
+  icon: LucideIcon;
   title: string;
   subtitle: string;
   actionLabel?: string;
-  actionIcon?: keyof typeof Feather.glyphMap;
   onAction?: () => void;
 }
 
-export function EmptyState({ icon, title, subtitle, actionLabel, actionIcon, onAction }: Props) {
+export function EmptyState({ icon: Icon, title, subtitle, actionLabel, onAction }: Props) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
 
   return (
     <View style={styles.container}>
       <View style={[styles.iconWrap, { backgroundColor: colors.surfaceSecondary }]}>
-        <Feather name={icon} size={32} color={colors.textMuted} />
+        <Icon size={32} color={colors.textMuted} />
       </View>
       <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       {!!subtitle && <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>}
@@ -40,7 +39,7 @@ export function EmptyState({ icon, title, subtitle, actionLabel, actionIcon, onA
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            {actionIcon && <Feather name={actionIcon} size={16} color="#fff" />}
+            <Plus size={16} color="#fff" />
             <Text style={styles.actionText}>{actionLabel}</Text>
           </LinearGradient>
         </Pressable>

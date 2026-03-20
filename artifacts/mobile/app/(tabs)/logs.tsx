@@ -1,5 +1,5 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { FileText, Trash2 } from "lucide-react-native";
 import React from "react";
 import {
   Alert,
@@ -57,7 +57,7 @@ export default function LogsScreen() {
               { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 },
             ]}
           >
-            <Feather name="trash-2" size={16} color={colors.error} />
+            <Trash2 size={16} color={colors.error} />
             <Text style={[styles.clearText, { color: colors.error }]}>Clear</Text>
           </Pressable>
         )}
@@ -71,7 +71,7 @@ export default function LogsScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <EmptyState
-            icon="file-text"
+            icon={FileText}
             title="No logs yet"
             subtitle="Run some accounts and their results will appear here"
           />
@@ -92,15 +92,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-  title: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-  },
-  subtitle: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
+  title: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
   clearBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -109,8 +102,5 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  clearText: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-  },
+  clearText: { fontSize: 14, fontFamily: "Inter_500Medium" },
 });

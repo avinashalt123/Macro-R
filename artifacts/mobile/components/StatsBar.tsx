@@ -1,5 +1,5 @@
-import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { CheckCircle, LucideIcon, RefreshCw, Star, XCircle } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, View, useColorScheme } from "react-native";
 import Colors from "@/constants/colors";
@@ -23,49 +23,19 @@ export function StatsBar({ accounts }: Props) {
       colors={scheme === "dark" ? ["#1E3A5F", "#1E293B"] : ["#EFF6FF", "#DBEAFE"]}
       style={styles.container}
     >
-      <StatItem
-        icon="star"
-        iconColor={colors.warning}
-        label="Points Today"
-        value={totalToday.toLocaleString()}
-        colors={colors}
-      />
+      <StatItem icon={Star} iconColor={colors.warning} label="Points Today" value={totalToday.toLocaleString()} colors={colors} />
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <StatItem
-        icon="check-circle"
-        iconColor={colors.success}
-        label="Done"
-        value={`${doneCount}/${accounts.length}`}
-        colors={colors}
-      />
+      <StatItem icon={CheckCircle} iconColor={colors.success} label="Done" value={`${doneCount}/${accounts.length}`} colors={colors} />
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <StatItem
-        icon="refresh-cw"
-        iconColor={colors.running}
-        label="Running"
-        value={String(runningCount)}
-        colors={colors}
-      />
+      <StatItem icon={RefreshCw} iconColor={colors.running} label="Running" value={String(runningCount)} colors={colors} />
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <StatItem
-        icon="x-circle"
-        iconColor={colors.error}
-        label="Failed"
-        value={String(failedCount)}
-        colors={colors}
-      />
+      <StatItem icon={XCircle} iconColor={colors.error} label="Failed" value={String(failedCount)} colors={colors} />
     </LinearGradient>
   );
 }
 
-function StatItem({
-  icon,
-  iconColor,
-  label,
-  value,
-  colors,
-}: {
-  icon: keyof typeof Feather.glyphMap;
+function StatItem({ icon: Icon, iconColor, label, value, colors }: {
+  icon: LucideIcon;
   iconColor: string;
   label: string;
   value: string;
@@ -73,7 +43,7 @@ function StatItem({
 }) {
   return (
     <View style={styles.statItem}>
-      <Feather name={icon} size={16} color={iconColor} />
+      <Icon size={16} color={iconColor} />
       <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{label}</Text>
     </View>

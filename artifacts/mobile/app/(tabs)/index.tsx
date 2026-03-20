@@ -1,7 +1,7 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { Play, Plus, Square, Users } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
@@ -74,9 +74,7 @@ export default function HomeScreen() {
         account={item}
         onPress={() => router.push({ pathname: "/account/[id]", params: { id: item.id } })}
         onRun={() => handleRunAccount(item.id)}
-        onRefreshSession={() =>
-          router.push({ pathname: "/login-webview", params: { accountId: item.id } })
-        }
+        onRefreshSession={() => router.push({ pathname: "/login-webview", params: { accountId: item.id } })}
         isRunningGlobal={isRunning}
       />
     ),
@@ -103,7 +101,7 @@ export default function HomeScreen() {
               { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 },
             ]}
           >
-            <Feather name="plus" size={20} color={colors.text} />
+            <Plus size={20} color={colors.text} />
           </Pressable>
         </View>
       </View>
@@ -124,22 +122,15 @@ export default function HomeScreen() {
         ListFooterComponent={ListFooter}
         ListEmptyComponent={
           <EmptyState
-            icon="users"
+            icon={Users}
             title="No accounts yet"
-            subtitle=""
-            actionLabel="Add Account"
-            actionIcon="plus"
-            onAction={() => router.push("/add-account")}
+            subtitle="Tap the + button above to add your first account"
           />
         }
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.tint}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />
         }
       />
 
@@ -156,7 +147,7 @@ export default function HomeScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <Feather name={isRunning ? "square" : "play"} size={22} color="#fff" />
+            {isRunning ? <Square size={22} color="#fff" /> : <Play size={22} color="#fff" />}
             <Text style={styles.fabText}>{isRunning ? "Running..." : "Run All"}</Text>
           </LinearGradient>
         </Pressable>
@@ -166,9 +157,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -176,19 +165,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-  },
-  headerSub: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
+  headerTitle: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  headerSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  headerActions: { flexDirection: "row", gap: 8 },
   headerBtn: {
     width: 40,
     height: 40,
@@ -196,10 +175,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  fab: {
-    position: "absolute",
-    right: 20,
-  },
+  fab: { position: "absolute", right: 20 },
   fabBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -213,9 +189,5 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
-  fabText: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-  },
+  fabText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
 });

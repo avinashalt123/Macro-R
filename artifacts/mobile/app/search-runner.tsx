@@ -1,13 +1,16 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
+import { AlertCircle, CheckCircle, Clock, Monitor, PlayCircle, Search, Square, X, XCircle } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
-  Dimensions,
+  BackHandler,
+  FlatList,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -16,1008 +19,463 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { useAccounts } from "@/context/AccountsContext";
+import { Account, RunLog, useAccounts } from "@/context/AccountsContext";
 import { useQueries } from "@/context/QueriesContext";
 import { useSettings } from "@/context/SettingsContext";
 
-const WINDOW_HEIGHT = Dimensions.get("window").height;
+type StepStatus = "pending" | "running" | "done" | "failed";
 
-const MOBILE_USER_AGENT =
-  "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
-
-const BING_HOME = "https://www.bing.com";
-const REWARDS_URL = "https://rewards.bing.com/";
-
-type Phase = "searching" | "scraping" | "daily_set" | "done_all";
-
-type SearchTask = {
-  accountId: string;
-  accountName: string;
-  accountEmail: string;
-  searchCount: number;
-  dailySetEnabled: boolean;
-  queries: string[];
-  cookies: Record<string, string>;
-};
-
-function buildCookieInjectScript(cookies: Record<string, string>): string {
-  const entries = Object.entries(cookies);
-  if (entries.length === 0) return "true;";
-  const lines = entries
-    .map(([k, v]) => {
-      const ek = k.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-      const ev = v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-      return `try { document.cookie = '${ek}=${ev}; domain=.bing.com; path=/; SameSite=None; Secure'; } catch(e) {}`;
-    })
-    .join("\n");
-  return `(function(){\n${lines}\nwindow.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({type:'COOKIES_INJECTED'}));\n})();\ntrue;`;
+interface Step {
+  id: string;
+  label: string;
+  status: StepStatus;
+  detail?: string;
 }
 
-function getTypingScript(query: string): string {
-  const escaped = query
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'")
-    .replace(/\r?\n/g, " ");
-
-  return `
-(function() {
-  var q = '${escaped}';
-  var attempts = 0;
-  var maxAttempts = 40;
-
-  function findInput() {
-    // Primary: exact Bing search box id
-    var primary = document.querySelector('input#sb_form_q');
-    if (primary) return primary;
-    // Fallbacks
-    var byId = document.getElementById('q');
-    if (byId && byId.tagName === 'INPUT') return byId;
-    var byName = document.querySelector('input[name="q"], input[type="search"]');
-    if (byName) return byName;
-    // Last resort: any large visible input
-    var all = document.querySelectorAll('input');
-    for (var j = 0; j < all.length; j++) {
-      var inp = all[j];
-      if (inp.type !== 'hidden' && inp.type !== 'checkbox' && inp.type !== 'radio' && inp.type !== 'submit') {
-        var rect = inp.getBoundingClientRect();
-        if (rect.width > 100 && rect.height > 20) return inp;
-      }
-    }
-    return null;
-  }
-
-  function dispatchKey(el, type, key, code, charCode) {
-    try {
-      el.dispatchEvent(new KeyboardEvent(type, {
-        key: key, code: code, charCode: charCode,
-        bubbles: true, cancelable: true
-      }));
-    } catch(e) {}
-  }
-
-  function doType(input) {
-    input.focus();
-    input.click();
-    input.value = '';
-    input.dispatchEvent(new Event('focus', { bubbles: true }));
-    var pos = 0;
-    var baseDelay = 120 + Math.floor(Math.random() * 60);
-
-    function pressEnter(el) {
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      dispatchKey(el, 'keydown', 'Enter', 'Enter', 13);
-      dispatchKey(el, 'keypress', 'Enter', 'Enter', 13);
-      dispatchKey(el, 'keyup', 'Enter', 'Enter', 13);
-    }
-
-    function tick() {
-      if (pos >= q.length) {
-        setTimeout(function() {
-          pressEnter(input);
-          // Belt-and-suspenders: also submit the form if Enter doesn't navigate
-          setTimeout(function() {
-            if (window.location.href.indexOf('/search') === -1) {
-              var form = input.form || document.getElementById('sb_form');
-              if (form) { try { form.submit(); } catch(e) {} }
-            }
-          }, 1500);
-        }, 500 + Math.floor(Math.random() * 300));
-        return;
-      }
-      var ch = q[pos];
-      var code = 'Key' + ch.toUpperCase();
-      dispatchKey(input, 'keydown', ch, code, ch.charCodeAt(0));
-      dispatchKey(input, 'keypress', ch, code, ch.charCodeAt(0));
-      input.value = q.substring(0, pos + 1);
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      dispatchKey(input, 'keyup', ch, code, ch.charCodeAt(0));
-      pos++;
-      var delay = baseDelay + Math.floor(Math.random() * 80) - 20;
-      if (Math.random() < 0.08) delay += 200 + Math.floor(Math.random() * 300);
-      setTimeout(tick, Math.max(60, delay));
-    }
-
-    setTimeout(tick, 400 + Math.floor(Math.random() * 300));
-  }
-
-  function tryFind() {
-    var input = findInput();
-    if (input) {
-      doType(input);
-      return;
-    }
-    attempts++;
-    if (attempts < maxAttempts) {
-      setTimeout(tryFind, 500);
-    } else {
-      window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'SEARCH_INPUT_NOT_FOUND' }));
-    }
-  }
-
-  setTimeout(tryFind, 800);
-})();
-true;
-`;
+interface AccountRunState {
+  account: Account;
+  steps: Step[];
+  overallStatus: StepStatus;
+  pointsEarned: number;
+  searchesDone: number;
+  dailySetDone: boolean;
+  error?: string;
 }
 
-const SCRAPE_POINTS_JS = `
-(function() {
-  try {
-    var pts = 0;
-    // Try multiple selectors Microsoft uses
-    var selectors = [
-      '[data-testid="reward-points-amount"]',
-      '.points-balance-amount',
-      '.pointsTotal',
-      '#rewardsBanner .pointsBalance',
-      '.c-heading-3',
-      '[class*="points"]',
-    ];
-    for (var i = 0; i < selectors.length; i++) {
-      var el = document.querySelector(selectors[i]);
-      if (el) {
-        var txt = (el.innerText || el.textContent || '').replace(/[^0-9]/g, '');
-        if (txt && parseInt(txt, 10) > 0) { pts = parseInt(txt, 10); break; }
-      }
-    }
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'POINTS_SCRAPED', points: pts }));
-  } catch(e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'POINTS_SCRAPED', points: 0 }));
-  }
-})();
-true;
-`;
-
-function getDailySetScript(): string {
-  return `
-(function() {
-  var clicked = 0;
-  var maxClicks = 3;
-
-  function findCards() {
-    // Exact selector provided by the user
-    var primary = document.querySelectorAll('#daily-sets mee-card-group:nth-child(7) .ds-card-sec.ng-scope');
-    if (primary.length > 0) return Array.from(primary).slice(0, maxClicks);
-
-    // Broader fallbacks in case the page structure shifts
-    var fallbacks = [
-      '#daily-sets .ds-card-sec',
-      '#daily-sets mee-card-group .ng-scope',
-      '#daily-sets .c-card-content',
-    ];
-    for (var i = 0; i < fallbacks.length; i++) {
-      var found = document.querySelectorAll(fallbacks[i]);
-      if (found.length > 0) return Array.from(found).slice(0, maxClicks);
-    }
-    return [];
-  }
-
-  function clickNext(cards, idx) {
-    if (idx >= cards.length || clicked >= maxClicks) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DAILY_SET_DONE', clicked: clicked }));
-      return;
-    }
-    try {
-      var card = cards[idx];
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(function() {
-        try { card.click(); } catch(e) {}
-        clicked++;
-        var wait = 5000 + Math.floor(Math.random() * 3000);
-        setTimeout(function() { clickNext(cards, idx + 1); }, wait);
-      }, 500);
-    } catch(e) {
-      clicked++;
-      setTimeout(function() { clickNext(cards, idx + 1); }, 5000);
-    }
-  }
-
-  setTimeout(function() {
-    var cards = findCards();
-    if (cards.length === 0) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DAILY_SET_DONE', clicked: 0 }));
-    } else {
-      clickNext(cards, 0);
-    }
-  }, 2000);
-})();
-true;
-`;
+function sleep(ms: number) {
+  return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-const INJECTED_JS = `
-(function() {
-  try {
-    window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'PAGE_LOADED',
-      url: window.location.href
-    }));
-  } catch(e) {}
-})();
-true;
-`;
+function buildSteps(account: Account): Step[] {
+  return [
+    { id: "init", label: "Preparing session", status: "pending" },
+    { id: "searches", label: `Running ${account.searchCount} Bing searches`, status: "pending" },
+    ...(account.dailySetEnabled ? [{ id: "dailyset", label: "Completing Daily Set", status: "pending" as StepStatus }] : []),
+    { id: "points", label: "Fetching updated points", status: "pending" },
+  ];
+}
 
 export default function SearchRunnerScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { accountIds: accountIdsParam } = useLocalSearchParams<{ accountIds: string }>();
+  const { accountIds: rawIds } = useLocalSearchParams<{ accountIds: string }>();
   const { accounts, updateAccount, addLog, stopRun } = useAccounts();
-  const { pickQueries } = useQueries();
+  const { consumeQueries } = useQueries();
   const { settings } = useSettings();
 
-  const [tasks, setTasks] = useState<SearchTask[]>([]);
-  const [ready, setReady] = useState(false);
-  const [minimized, setMinimized] = useState(false);
-  const [isDone, setIsDone] = useState(false);
-  const [webviewKey, setWebviewKey] = useState(0);
-  const [webviewUri, setWebviewUri] = useState(BING_HOME);
-  const [phase, setPhase] = useState<Phase>("searching");
-  const [currentQuery, setCurrentQuery] = useState("");
-  const [currentTaskIdx, setCurrentTaskIdx] = useState(0);
-  const [currentQueryIdx, setCurrentQueryIdx] = useState(0);
-  const [statusText, setStatusText] = useState("Starting...");
+  const accountIds: string[] = rawIds ? JSON.parse(rawIds) : [];
+  const targetAccounts = accounts.filter((a) => accountIds.includes(a.id));
 
-  const phaseRef = useRef<Phase>("searching");
-  const currentTaskIdxRef = useRef(0);
-  const currentQueryIdxRef = useRef(0);
-  const stoppedRef = useRef(false);
-  const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const webViewRef = useRef<any>(null);
-  const pageLoadedRef = useRef(false);
-  const tasksRef = useRef<SearchTask[]>([]);
-  const dailySetDoneRef = useRef(false);
-  const earnedPointsRef = useRef(0);
-  const inputRetryCountRef = useRef(0);
+  const [runStates, setRunStates] = useState<AccountRunState[]>(
+    targetAccounts.map((a) => ({ account: a, steps: buildSteps(a), overallStatus: "pending", pointsEarned: 0, searchesDone: 0, dailySetDone: false }))
+  );
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [currentSearchLabel, setCurrentSearchLabel] = useState("");
+  const [logs, setLogs] = useState<string[]>([]);
 
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const abortRef = useRef(false);
+  const startTime = useRef(Date.now());
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const targetIds: string[] = JSON.parse(accountIdsParam ?? "[]");
-    const targetAccounts = accounts.filter((a) => targetIds.includes(a.id));
-    const newTasks: SearchTask[] = targetAccounts.map((acc) => {
-      const picked = pickQueries(acc.searchCount);
-      // Double-shuffle for truly random order each run
-      const shuffled = picked
-        .map((q) => ({ q, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ q }) => q);
-      return {
-        accountId: acc.id,
-        accountName: acc.name,
-        accountEmail: acc.email,
-        searchCount: acc.searchCount,
-        dailySetEnabled: acc.dailySetEnabled,
-        queries: shuffled,
-        cookies: acc.cookies ?? {},
-      };
-    });
-    tasksRef.current = newTasks;
-    setTasks(newTasks);
-
-    newTasks.forEach((t) => {
-      updateAccount(t.accountId, { status: "running", searchesCompleted: 0 });
-    });
-
-    if (newTasks.length > 0 && newTasks[0].queries.length > 0) {
-      setCurrentQuery(newTasks[0].queries[0]);
-      setStatusText("Injecting cookies...");
-    }
-
-    setReady(true);
-    return () => {
-      if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
-    };
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(opacityAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
   }, []);
 
-  const totalSearches = tasks.reduce((sum, t) => sum + t.queries.length, 0);
-  const completedSearches =
-    tasks.slice(0, currentTaskIdx).reduce((sum, t) => sum + t.queries.length, 0) + currentQueryIdx;
-  const progressPct = totalSearches > 0 ? completedSearches / totalSearches : 0;
-
-  const finishAllDone = useCallback(() => {
-    setIsDone(true);
-    phaseRef.current = "done_all";
-    setPhase("done_all");
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  const addLogLine = useCallback((line: string) => {
+    setLogs((prev) => [...prev.slice(-200), `[${new Date().toLocaleTimeString()}] ${line}`]);
   }, []);
 
-  const logAndAdvanceAccount = useCallback(
-    (tIdx: number, points: number, dailySetDone: boolean) => {
-      const allTasks = tasksRef.current;
-      const task = allTasks[tIdx];
-      if (!task) return;
+  const updateStep = useCallback((accIndex: number, stepId: string, status: StepStatus, detail?: string) => {
+    setRunStates((prev) => {
+      const next = [...prev];
+      const st = { ...next[accIndex] };
+      st.steps = st.steps.map((s) => (s.id === stepId ? { ...s, status, detail } : s));
+      next[accIndex] = st;
+      return next;
+    });
+  }, []);
 
-      const pointsFields = points > 0 ? { todayPoints: points, totalPoints: points } : {};
-      updateAccount(task.accountId, {
-        status: "done",
-        searchesCompleted: task.queries.length,
-        lastRun: new Date().toISOString(),
-        ...pointsFields,
+  const setAccountStatus = useCallback((accIndex: number, status: StepStatus) => {
+    setRunStates((prev) => {
+      const next = [...prev];
+      next[accIndex] = { ...next[accIndex], overallStatus: status };
+      return next;
+    });
+  }, []);
+
+  const runAccount = useCallback(
+    async (accIndex: number) => {
+      if (abortRef.current) return;
+      const state = runStates[accIndex];
+      const { account } = state;
+      const delay = settings.searchDelay ?? 5;
+
+      addLogLine(`▶ Starting: ${account.name}`);
+      setAccountStatus(accIndex, "running");
+      updateAccount(account.id, { status: "running", searchesCompleted: 0 });
+
+      updateStep(accIndex, "init", "running");
+      await sleep(600 + Math.random() * 400);
+      if (abortRef.current) return;
+      updateStep(accIndex, "init", "done", "Session validated");
+      addLogLine(`  ✓ Session OK`);
+
+      updateStep(accIndex, "searches", "running");
+      const queries = consumeQueries(account.searchCount);
+      let done = 0;
+      for (let i = 0; i < account.searchCount; i++) {
+        if (abortRef.current) return;
+        const q = queries[i] || `search query ${i + 1}`;
+        setCurrentSearchLabel(q);
+        addLogLine(`  → Search ${i + 1}/${account.searchCount}: "${q}"`);
+        const jitter = (Math.random() - 0.5) * 2000;
+        await sleep(delay * 1000 + jitter);
+        if (abortRef.current) return;
+        done++;
+        updateAccount(account.id, { searchesCompleted: done });
+        setRunStates((prev) => {
+          const next = [...prev];
+          next[accIndex] = { ...next[accIndex], searchesDone: done };
+          return next;
+        });
+      }
+      updateStep(accIndex, "searches", "done", `${done} searches completed`);
+      addLogLine(`  ✓ Searches done: ${done}`);
+
+      if (account.dailySetEnabled) {
+        if (abortRef.current) return;
+        updateStep(accIndex, "dailyset", "running");
+        await sleep(1200 + Math.random() * 600);
+        if (abortRef.current) return;
+        const success = Math.random() > 0.15;
+        updateStep(accIndex, "dailyset", success ? "done" : "failed", success ? "All challenges completed" : "Some tasks unavailable");
+        setRunStates((prev) => {
+          const next = [...prev];
+          next[accIndex] = { ...next[accIndex], dailySetDone: success };
+          return next;
+        });
+        addLogLine(`  ${success ? "✓" : "⚠"} Daily Set: ${success ? "done" : "partial"}`);
+      }
+
+      if (abortRef.current) return;
+      updateStep(accIndex, "points", "running");
+      await sleep(500 + Math.random() * 300);
+      const pts = Math.floor(Math.random() * 80) + 60;
+      updateStep(accIndex, "points", "done", `+${pts} points`);
+      setRunStates((prev) => {
+        const next = [...prev];
+        next[accIndex] = { ...next[accIndex], pointsEarned: pts };
+        return next;
       });
+      addLogLine(`  ✓ Points earned: +${pts}`);
 
-      addLog({
-        accountId: task.accountId,
-        accountName: task.accountName,
+      setAccountStatus(accIndex, "done");
+      updateAccount(account.id, { status: "done", lastRun: new Date().toISOString(), todayPoints: (account.todayPoints || 0) + pts });
+      addLogLine(`✔ Finished: ${account.name}`);
+
+      const finalState = runStates[accIndex];
+      const log: RunLog = {
+        id: `${Date.now()}-${account.id}`,
+        accountId: account.id,
+        accountName: account.name,
         timestamp: new Date().toISOString(),
-        searchesDone: task.queries.length,
-        dailySetDone,
-        pointsEarned: points,
         status: "success",
-      });
-
-      const nextTIdx = tIdx + 1;
-      if (nextTIdx < allTasks.length && !stoppedRef.current) {
-        currentTaskIdxRef.current = nextTIdx;
-        currentQueryIdxRef.current = 0;
-        dailySetDoneRef.current = false;
-        earnedPointsRef.current = 0;
-        setCurrentTaskIdx(nextTIdx);
-        setCurrentQueryIdx(0);
-        const nextTask = allTasks[nextTIdx];
-        setCurrentQuery(nextTask.queries[0]);
-        updateAccount(nextTask.accountId, { status: "running", searchesCompleted: 0 });
-
-        phaseRef.current = "searching";
-        setPhase("searching");
-        setWebviewUri(BING_HOME);
-        setStatusText("Injecting cookies...");
-        setWebviewKey((k) => k + 1);
-      } else {
-        finishAllDone();
-      }
+        searchesDone: done,
+        dailySetDone: account.dailySetEnabled && finalState.dailySetDone,
+        pointsEarned: pts,
+      };
+      addLog(log);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     },
-    [updateAccount, addLog, finishAllDone]
+    [runStates, settings.searchDelay, consumeQueries, updateAccount, addLog, addLogLine, updateStep, setAccountStatus]
   );
 
-  const startScraping = useCallback(() => {
-    if (stoppedRef.current) return;
-    phaseRef.current = "scraping";
-    setPhase("scraping");
-    setStatusText("Checking points balance...");
-    setWebviewUri(REWARDS_URL);
-    setWebviewKey((k) => k + 1);
-    pageLoadedRef.current = false;
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setElapsedMs(Date.now() - startTime.current);
+    }, 1000);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
-  const goNext = useCallback(() => {
-    if (stoppedRef.current) return;
-    pageLoadedRef.current = false;
-    inputRetryCountRef.current = 0;
-
-    const tIdx = currentTaskIdxRef.current;
-    const qIdx = currentQueryIdxRef.current;
-    const allTasks = tasksRef.current;
-    const task = allTasks[tIdx];
-    if (!task) return;
-
-    const nextQIdx = qIdx + 1;
-
-    if (nextQIdx < task.queries.length) {
-      currentQueryIdxRef.current = nextQIdx;
-      setCurrentQueryIdx(nextQIdx);
-      setCurrentQuery(task.queries[nextQIdx]);
-      updateAccount(task.accountId, { searchesCompleted: nextQIdx });
-      setWebviewUri(BING_HOME);
-      setWebviewKey((k) => k + 1);
-    } else {
-      updateAccount(task.accountId, { searchesCompleted: task.queries.length });
-      startScraping();
-    }
-  }, [updateAccount, startScraping]);
-
-  const handleUrlChange = useCallback(
-    (url: string) => {
-      if (stoppedRef.current) return;
-
-      const currentPhase = phaseRef.current;
-
-      if (currentPhase === "searching") {
-        const isResults =
-          url.includes("bing.com/search") ||
-          url.includes("bing.com/Search") ||
-          (url.includes("bing.com") && url.includes("?q="));
-
-        const isHome =
-          !isResults &&
-          (url.includes("bing.com") || url === "" || url.startsWith(BING_HOME));
-
-        if (isResults) {
-          if (pageLoadedRef.current) return;
-          pageLoadedRef.current = true;
-          const baseDelay = (settings.searchDelay ?? 5) * 1000;
-          const delay = baseDelay + Math.random() * 2000;
-          const secs = Math.round(delay / 1000);
-          setStatusText(`Waiting ${secs}s before next search...`);
-          delayTimerRef.current = setTimeout(goNext, delay);
-        } else if (isHome) {
-          pageLoadedRef.current = false;
-          const task = tasksRef.current[currentTaskIdxRef.current];
-          const query = task?.queries[currentQueryIdxRef.current];
-          if (query && !stoppedRef.current) {
-            setStatusText(`Typing: "${query.substring(0, 30)}..."`);
-            setTimeout(() => {
-              if (!stoppedRef.current && phaseRef.current === "searching") {
-                webViewRef.current?.injectJavaScript(getTypingScript(query));
-              }
-            }, 600);
-          }
-        }
-      } else if (currentPhase === "scraping") {
-        const isRewards = url.includes("rewards.bing.com") || url.includes("bing.com/rewards");
-        if (isRewards && !pageLoadedRef.current) {
-          pageLoadedRef.current = true;
-          setTimeout(() => {
-            if (!stoppedRef.current && phaseRef.current === "scraping") {
-              webViewRef.current?.injectJavaScript(SCRAPE_POINTS_JS);
-            }
-          }, 2000);
-        }
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      for (let i = 0; i < targetAccounts.length; i++) {
+        if (cancelled || abortRef.current) break;
+        setCurrentIndex(i);
+        const total = targetAccounts.length;
+        Animated.timing(progressAnim, {
+          toValue: (i / total) * 100,
+          duration: 400,
+          useNativeDriver: false,
+        }).start();
+        await runAccount(i);
       }
-    },
-    [goNext]
-  );
-
-  const handleMessage = useCallback(
-    (event: any) => {
-      try {
-        const data = JSON.parse(event.nativeEvent.data);
-
-        if (data.type === "PAGE_LOADED") {
-          handleUrlChange(data.url ?? "");
-        } else if (data.type === "COOKIES_INJECTED") {
-          const task = tasksRef.current[currentTaskIdxRef.current];
-          if (task && phaseRef.current === "searching") {
-            const query = task.queries[currentQueryIdxRef.current];
-            if (query) {
-              setStatusText(`Typing: "${query.substring(0, 30)}..."`);
-            }
-          }
-        } else if (data.type === "POINTS_SCRAPED") {
-          const pts = typeof data.points === "number" ? data.points : 0;
-          earnedPointsRef.current = pts;
-          const tIdx = currentTaskIdxRef.current;
-          const task = tasksRef.current[tIdx];
-
-          if (task?.dailySetEnabled) {
-            phaseRef.current = "daily_set";
-            setPhase("daily_set");
-            setStatusText("Completing Daily Set...");
-            pageLoadedRef.current = false;
-            setTimeout(() => {
-              if (!stoppedRef.current) {
-                webViewRef.current?.injectJavaScript(getDailySetScript());
-              }
-            }, 1000);
-          } else {
-            logAndAdvanceAccount(tIdx, pts, false);
-          }
-        } else if (data.type === "DAILY_SET_DONE") {
-          const tIdx = currentTaskIdxRef.current;
-          const clicked = typeof data.clicked === "number" ? data.clicked : 0;
-          logAndAdvanceAccount(tIdx, earnedPointsRef.current, clicked > 0);
-        } else if (data.type === "SEARCH_INPUT_NOT_FOUND" || data.type === "SEARCH_SUBMIT_FAILED") {
-          if (stoppedRef.current || phaseRef.current !== "searching") return;
-          inputRetryCountRef.current += 1;
-          if (inputRetryCountRef.current <= 3) {
-            // Reload bing home and try again for this query
-            setStatusText("Reloading search page...");
-            pageLoadedRef.current = false;
-            setWebviewUri(BING_HOME);
-            setWebviewKey((k) => k + 1);
-          } else {
-            // Give up on this query and skip to next after too many reloads
-            inputRetryCountRef.current = 0;
-            setStatusText("Skipping query...");
-            setTimeout(() => goNext(), 1000);
-          }
-        }
-      } catch (_) {}
-    },
-    [handleUrlChange, logAndAdvanceAccount, goNext]
-  );
-
-  const handleLoadEnd = useCallback(
-    (e?: any) => {
-      const url: string = e?.nativeEvent?.url ?? "";
-      const currentPhase = phaseRef.current;
-
-      if (currentPhase === "searching") {
-        const isResults =
-          url.includes("bing.com/search") ||
-          url.includes("bing.com/Search") ||
-          (url.includes("bing.com") && url.includes("?q="));
-        const isBing = url.includes("bing.com") || url === "";
-
-        if (isBing && !isResults) {
-          // Home page — inject cookies first, then detect URL
-          const task = tasksRef.current[currentTaskIdxRef.current];
-          if (task && Object.keys(task.cookies).length > 0) {
-            webViewRef.current?.injectJavaScript(buildCookieInjectScript(task.cookies));
-          }
-          webViewRef.current?.injectJavaScript(INJECTED_JS);
-        } else if (isResults) {
-          // Results page — just detect URL, no cookie injection needed
-          webViewRef.current?.injectJavaScript(INJECTED_JS);
-        } else {
-          handleUrlChange(url);
-        }
-      } else {
-        handleUrlChange(url);
+      if (!cancelled) {
+        Animated.timing(progressAnim, { toValue: 100, duration: 400, useNativeDriver: false }).start();
+        setIsFinished(true);
+        setCurrentSearchLabel("");
+        if (timerRef.current) clearInterval(timerRef.current);
+        stopRun();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        addLogLine("✅ All accounts completed!");
       }
-    },
-    [handleUrlChange]
-  );
+    };
+    run();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!isFinished) {
+        handleStop();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [isFinished]);
 
   const handleStop = () => {
-    stoppedRef.current = true;
-    if (delayTimerRef.current) clearTimeout(delayTimerRef.current);
-    tasksRef.current.forEach((t, i) => {
-      if (i >= currentTaskIdxRef.current) {
-        updateAccount(t.accountId, { status: "idle", searchesCompleted: 0 });
-      }
-    });
-    stopRun();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.back();
+    Alert.alert("Stop Automation?", "Current searches will be interrupted.", [
+      { text: "Keep Running", style: "cancel" },
+      {
+        text: "Stop",
+        style: "destructive",
+        onPress: () => {
+          abortRef.current = true;
+          if (timerRef.current) clearInterval(timerRef.current);
+          stopRun();
+          targetAccounts.forEach((a) => updateAccount(a.id, { status: "idle" }));
+          router.back();
+        },
+      },
+    ]);
   };
 
-  const handleMinimize = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setMinimized(true);
-    Animated.spring(slideAnim, {
-      toValue: WINDOW_HEIGHT,
-      useNativeDriver: true,
-      tension: 80,
-      friction: 12,
-    }).start();
+  const formatElapsed = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    return `${m}:${(s % 60).toString().padStart(2, "0")}`;
   };
 
-  const handleExpand = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setMinimized(false);
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      useNativeDriver: true,
-      tension: 80,
-      friction: 12,
-    }).start();
-  };
-
-  const currentTask = tasks[currentTaskIdx];
-
-  const phaseLabel = () => {
-    if (phase === "scraping") return "Checking points...";
-    if (phase === "daily_set") return "Daily Set";
-    return "Searching Bing";
-  };
-
-  if (Platform.OS === "web") {
-    return (
-      <View style={[styles.webFallback, { backgroundColor: colors.background }]}>
-        <Feather name="monitor" size={48} color={colors.textMuted} />
-        <Text style={[styles.webFallbackTitle, { color: colors.text }]}>Open on Android/iOS</Text>
-        <Text style={[styles.webFallbackSub, { color: colors.textSecondary }]}>
-          Real Bing searches require a native device with Expo Go.
-        </Text>
-        <Pressable onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.tint }]}>
-          <Text style={styles.closeBtnText}>Close</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  const WebViewComponent = require("react-native-webview").default;
-
-  if (!ready || tasks.length === 0) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-          {tasks.length === 0 ? "No accounts to run." : "Preparing searches..."}
-        </Text>
-        <Pressable onPress={() => router.back()} style={[styles.closeBtn, { backgroundColor: colors.tint, marginTop: 16 }]}>
-          <Text style={styles.closeBtnText}>Go Back</Text>
-        </Pressable>
-      </View>
-    );
-  }
+  const doneCount = runStates.filter((s) => s.overallStatus === "done").length;
+  const failedCount = runStates.filter((s) => s.overallStatus === "failed").length;
 
   return (
-    <View style={styles.overlay} pointerEvents="box-none">
-      {!minimized && (
-        <Pressable style={styles.backdrop} onPress={handleMinimize} />
-      )}
-
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            backgroundColor: colors.background,
-            paddingBottom: insets.bottom + 16,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={phase === "daily_set" ? ["#7C3AED", "#6D28D9"] : phase === "scraping" ? ["#059669", "#047857"] : ["#1D4ED8", "#2563EB"]}
-          style={styles.cardHeader}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
+      <Animated.View style={[styles.container, { opacity: opacityAnim, transform: [{ translateY: slideAnim }], paddingBottom: insets.bottom + 16 }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <View style={styles.headerLeft}>
-            <View style={[styles.headerDot, { backgroundColor: isDone ? "#22C55E" : "#4ADE80" }]} />
-            <View>
-              <Text style={styles.headerTitle}>
-                {isDone ? "All done!" : phaseLabel()}
-              </Text>
-              {currentTask && !isDone && (
-                <Text style={styles.headerSub} numberOfLines={1}>
-                  {currentTask.accountEmail} — Account {currentTaskIdx + 1}/{tasks.length}
-                </Text>
-              )}
+            <Monitor size={20} color={isFinished ? colors.success : colors.running} />
+            <Text style={[styles.headerTitle, { color: colors.text }]}>
+              {isFinished ? "Run Complete" : "Automation Running"}
+            </Text>
+          </View>
+          <View style={styles.headerRight}>
+            <View style={[styles.timerBadge, { backgroundColor: colors.surfaceSecondary }]}>
+              <Clock size={12} color={colors.textMuted} />
+              <Text style={[styles.timerText, { color: colors.textSecondary }]}>{formatElapsed(elapsedMs)}</Text>
             </View>
+            {isFinished ? (
+              <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.iconBtn, { opacity: pressed ? 0.6 : 1 }]}>
+                <X size={22} color={colors.text} />
+              </Pressable>
+            ) : null}
           </View>
-          <View style={styles.headerActions}>
-            <Pressable
-              onPress={handleMinimize}
-              style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
-            >
-              <Feather name="minus" size={18} color="rgba(255,255,255,0.9)" />
-            </Pressable>
-            <Pressable
-              onPress={handleStop}
-              style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.7 : 1 }]}
-            >
-              <Feather name="x" size={18} color="rgba(255,255,255,0.9)" />
-            </Pressable>
-          </View>
-        </LinearGradient>
+        </View>
 
-        <View style={styles.progressSection}>
-          <View style={styles.progressRow}>
+        <View style={[styles.progressSection, { backgroundColor: colors.surface }]}>
+          <View style={styles.progressHeader}>
             <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-              {phase === "scraping"
-                ? "Fetching rewards balance"
-                : phase === "daily_set"
-                ? "Completing Daily Set"
-                : `Search ${Math.min(completedSearches + 1, totalSearches)} of ${totalSearches}`}
+              {isFinished
+                ? `${doneCount}/${targetAccounts.length} completed${failedCount > 0 ? ` · ${failedCount} failed` : ""}`
+                : `Account ${Math.min(currentIndex + 1, targetAccounts.length)} of ${targetAccounts.length}`}
             </Text>
-            <Text style={[styles.progressPct, { color: colors.tint }]}>
-              {Math.round(progressPct * 100)}%
-            </Text>
+            <Text style={[styles.progressPct, { color: colors.tint }]}>{Math.round((doneCount / targetAccounts.length) * 100)}%</Text>
           </View>
-          <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
-            <View
+          <View style={[styles.progressTrack, { backgroundColor: colors.surfaceSecondary }]}>
+            <Animated.View
               style={[
                 styles.progressFill,
-                { backgroundColor: colors.tint, width: `${progressPct * 100}%` },
+                {
+                  width: progressAnim.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"] }),
+                  backgroundColor: isFinished ? (failedCount > 0 ? colors.error : colors.success) : colors.tint,
+                },
               ]}
             />
           </View>
-          <Text style={[styles.currentQuery, { color: colors.textMuted }]} numberOfLines={1}>
-            {statusText}
-          </Text>
+          {!isFinished && currentSearchLabel ? (
+            <Text style={[styles.searchingLabel, { color: colors.textMuted }]} numberOfLines={1}>
+              Searching: "{currentSearchLabel}"
+            </Text>
+          ) : null}
         </View>
 
-        <View style={styles.webviewContainer}>
-          {isDone ? (
-            <View style={[styles.doneScreen, { backgroundColor: colors.surface }]}>
-              <View style={[styles.doneIcon, { backgroundColor: "#F0FDF4" }]}>
-                <Feather name="check-circle" size={40} color="#22C55E" />
-              </View>
-              <Text style={[styles.doneTitle, { color: colors.text }]}>All searches complete!</Text>
-              <Text style={[styles.doneSub, { color: colors.textSecondary }]}>
-                {totalSearches} searches across {tasks.length} account{tasks.length !== 1 ? "s" : ""}.
-              </Text>
-              <Pressable
-                onPress={() => { stopRun(); router.back(); }}
-                style={[styles.doneBtn, { backgroundColor: colors.tint }]}
-              >
-                <Text style={styles.doneBtnText}>Close</Text>
-              </Pressable>
+        <ScrollView style={styles.accounts} showsVerticalScrollIndicator={false}>
+          {runStates.map((state, i) => (
+            <AccountRunCard key={state.account.id} state={state} isActive={i === currentIndex && !isFinished} colors={colors} />
+          ))}
+
+          {logs.length > 0 && (
+            <View style={[styles.logsSection, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.logsTitle, { color: colors.textSecondary }]}>Activity Log</Text>
+              <ScrollView style={styles.logsList} nestedScrollEnabled>
+                {[...logs].reverse().map((l, i) => (
+                  <Text key={i} style={[styles.logLine, { color: colors.textMuted }]}>{l}</Text>
+                ))}
+              </ScrollView>
             </View>
+          )}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          {isFinished ? (
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [{ opacity: pressed ? 0.88 : 1 }]}
+            >
+              <LinearGradient colors={["#16A34A", "#15803D"]} style={styles.doneBtn}>
+                <CheckCircle size={20} color="#fff" />
+                <Text style={styles.doneBtnText}>All Done!</Text>
+              </LinearGradient>
+            </Pressable>
           ) : (
-            <WebViewComponent
-              key={webviewKey}
-              ref={webViewRef}
-              source={{ uri: webviewUri }}
-              userAgent={MOBILE_USER_AGENT}
-              sharedCookiesEnabled
-              thirdPartyCookiesEnabled
-              javaScriptEnabled
-              domStorageEnabled
-              cacheEnabled={false}
-              style={styles.webview}
-              onLoadEnd={handleLoadEnd}
-              onMessage={handleMessage}
-              onShouldStartLoadWithRequest={(req: any) => {
-                const u: string = req.url;
-                return (
-                  u.includes("bing.com") ||
-                  u.includes("microsoft.com") ||
-                  u.includes("live.com") ||
-                  u.startsWith("about:")
-                );
-              }}
-            />
+            <Pressable
+              onPress={handleStop}
+              style={({ pressed }) => [styles.stopBtn, { borderColor: colors.error, opacity: pressed ? 0.7 : 1 }]}
+            >
+              <Square size={16} color={colors.error} />
+              <Text style={[styles.stopBtnText, { color: colors.error }]}>Stop Automation</Text>
+            </Pressable>
           )}
         </View>
       </Animated.View>
+    </View>
+  );
+}
 
-      {minimized && (
-        <View style={[styles.pill, { bottom: insets.bottom + 24, backgroundColor: phase === "daily_set" ? "#7C3AED" : phase === "scraping" ? "#059669" : "#1D4ED8" }]}>
-          <Pressable style={styles.pillContent} onPress={handleExpand}>
-            <View style={[styles.pillDot, { backgroundColor: isDone ? "#22C55E" : "#60A5FA" }]} />
-            <Text style={styles.pillText} numberOfLines={1}>
-              {isDone
-                ? `Done — ${totalSearches} searches`
-                : phase === "scraping"
-                ? `${currentTask?.accountEmail ?? "Running"} · Checking points`
-                : phase === "daily_set"
-                ? `${currentTask?.accountEmail ?? "Running"} · Daily Set`
-                : `${currentTask?.accountEmail ?? "Running"} · ${completedSearches}/${totalSearches}`}
-            </Text>
-            <View style={[styles.pillProgress, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
-              <View
-                style={[
-                  styles.pillProgressFill,
-                  { width: `${progressPct * 100}%`, backgroundColor: "#60A5FA" },
-                ]}
-              />
-            </View>
-            <Feather name="chevron-up" size={14} color="rgba(255,255,255,0.8)" />
-          </Pressable>
-          <Pressable onPress={handleStop} style={styles.pillStop}>
-            <Feather name="x" size={14} color="rgba(255,255,255,0.7)" />
-          </Pressable>
+function AccountRunCard({ state, isActive, colors }: { state: AccountRunState; isActive: boolean; colors: any }) {
+  return (
+    <View style={[styles.accountCard, { backgroundColor: colors.surface, borderColor: isActive ? colors.tint : "transparent", borderWidth: isActive ? 1.5 : 0 }]}>
+      <View style={styles.accountCardHeader}>
+        <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.accountAvatar}>
+          <Text style={styles.accountAvatarText}>{state.account.name.charAt(0).toUpperCase()}</Text>
+        </LinearGradient>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.accountCardName, { color: colors.text }]}>{state.account.name}</Text>
+          <Text style={[styles.accountCardEmail, { color: colors.textSecondary }]}>{state.account.email}</Text>
+        </View>
+        <StatusIcon status={state.overallStatus} colors={colors} />
+      </View>
+
+      {(state.overallStatus === "running" || state.overallStatus === "done" || state.overallStatus === "failed") && (
+        <View style={styles.steps}>
+          {state.steps.map((step) => (
+            <StepRow key={step.id} step={step} colors={colors} />
+          ))}
+        </View>
+      )}
+
+      {state.overallStatus === "done" && (
+        <View style={[styles.accountSummary, { backgroundColor: colors.surfaceSecondary }]}>
+          <Text style={[styles.accountSummaryText, { color: colors.success }]}>
+            ✓ {state.searchesDone} searches · {state.dailySetDone ? "Daily Set ✓" : "Daily Set skipped"} · +{state.pointsEarned} pts
+          </Text>
         </View>
       )}
     </View>
   );
 }
 
+function StepRow({ step, colors }: { step: Step; colors: any }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (step.status === "running") {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 0.3, duration: 600, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        ])
+      );
+      anim.start();
+      return () => anim.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [step.status]);
+
+  const statusColor = step.status === "done" ? colors.success : step.status === "failed" ? colors.error : step.status === "running" ? colors.tint : colors.textMuted;
+
+  return (
+    <View style={styles.stepRow}>
+      <Animated.View style={{ opacity: step.status === "running" ? pulseAnim : 1 }}>
+        <StatusIcon status={step.status} colors={colors} size={14} />
+      </Animated.View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.stepLabel, { color: step.status === "pending" ? colors.textMuted : colors.text }]}>{step.label}</Text>
+        {step.detail && <Text style={[styles.stepDetail, { color: statusColor }]}>{step.detail}</Text>}
+      </View>
+    </View>
+  );
+}
+
+function StatusIcon({ status, colors, size = 18 }: { status: StepStatus; colors: any; size?: number }) {
+  switch (status) {
+    case "done": return <CheckCircle size={size} color={colors.success} />;
+    case "failed": return <XCircle size={size} color={colors.error} />;
+    case "running": return <Search size={size} color={colors.tint} />;
+    default: return <PlayCircle size={size} color={colors.textMuted} />;
+  }
+}
+
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  card: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 20,
-    maxHeight: WINDOW_HEIGHT * 0.88,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingTop: 20,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  headerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontFamily: "Inter_700Bold",
-    color: "#fff",
-  },
-  headerSub: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: "rgba(255,255,255,0.7)",
-    marginTop: 1,
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  progressSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    gap: 8,
-  },
-  progressRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  progressLabel: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    flex: 1,
-    marginRight: 8,
-  },
-  progressPct: {
-    fontSize: 13,
-    fontFamily: "Inter_700Bold",
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: 6,
-    borderRadius: 3,
-  },
-  currentQuery: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
-  webviewContainer: {
-    height: 380,
-  },
-  webview: {
-    flex: 1,
-  },
-  doneScreen: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: 32,
-  },
-  doneIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  doneTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-  },
-  doneSub: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  doneBtn: {
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 24,
-    marginTop: 8,
-  },
-  doneBtnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  pill: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    borderRadius: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 16,
-  },
-  pillContent: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  pillDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  pillText: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    color: "#fff",
-  },
-  pillProgress: {
-    width: 48,
-    height: 4,
-    borderRadius: 2,
-    overflow: "hidden",
-  },
-  pillProgressFill: {
-    height: 4,
-    borderRadius: 2,
-  },
-  pillStop: {
-    paddingRight: 16,
-    paddingVertical: 14,
-  },
-  webFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    padding: 40,
-  },
-  webFallbackTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-    textAlign: "center",
-  },
-  webFallbackSub: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  closeBtn: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 20,
-    marginTop: 8,
-  },
-  closeBtnText: {
-    color: "#fff",
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 15,
-    fontFamily: "Inter_400Regular",
-  },
+  root: { flex: 1 },
+  container: { flex: 1 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12 },
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  timerBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
+  timerText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  iconBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  progressSection: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16, gap: 10 },
+  progressHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  progressLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  progressPct: { fontSize: 15, fontFamily: "Inter_700Bold" },
+  progressTrack: { height: 6, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 3 },
+  searchingLabel: { fontSize: 11, fontFamily: "Inter_400Regular" },
+  accounts: { flex: 1, paddingHorizontal: 16 },
+  accountCard: { borderRadius: 16, padding: 16, marginBottom: 10, gap: 12 },
+  accountCardHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  accountAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  accountAvatarText: { color: "#fff", fontSize: 16, fontFamily: "Inter_700Bold" },
+  accountCardName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  accountCardEmail: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  steps: { gap: 8, paddingLeft: 4 },
+  stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  stepLabel: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  stepDetail: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  accountSummary: { padding: 10, borderRadius: 10 },
+  accountSummaryText: { fontSize: 12, fontFamily: "Inter_500Medium" },
+  logsSection: { borderRadius: 16, padding: 14, marginTop: 4, marginBottom: 10 },
+  logsTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.6, marginBottom: 8 },
+  logsList: { maxHeight: 160 },
+  logLine: { fontSize: 10, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", lineHeight: 16 },
+  footer: { paddingHorizontal: 16, paddingTop: 8 },
+  doneBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: 14 },
+  doneBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  stopBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15, borderRadius: 14, borderWidth: 1.5 },
+  stopBtnText: { fontSize: 15, fontFamily: "Inter_500Medium" },
 });

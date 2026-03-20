@@ -1,6 +1,6 @@
-import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import React, { useState } from "react";
+import { Award, Calendar, CheckSquare, Clock, Minus, Play, Plus, RefreshCw, Search } from "lucide-react-native";
+import React from "react";
 import {
   Alert,
   Platform,
@@ -65,9 +65,7 @@ export default function SettingsScreen() {
     >
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Configure automation behavior
-        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Configure automation behavior</Text>
       </View>
 
       <Section title="SEARCH" colors={colors}>
@@ -75,13 +73,11 @@ export default function SettingsScreen() {
           <View style={styles.settingRow}>
             <View style={styles.settingLabel}>
               <View style={[styles.iconBg, { backgroundColor: "#EFF6FF" }]}>
-                <Feather name="search" size={16} color={colors.tint} />
+                <Search size={16} color={colors.tint} />
               </View>
               <View>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Searches per account</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                  Default daily Bing searches (5–50)
-                </Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Default daily Bing searches (5–50)</Text>
               </View>
             </View>
             <View style={styles.counter}>
@@ -89,16 +85,14 @@ export default function SettingsScreen() {
                 onPress={() => handleSearchCountChange(-1)}
                 style={({ pressed }) => [styles.counterBtn, { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 }]}
               >
-                <Feather name="minus" size={16} color={colors.text} />
+                <Minus size={16} color={colors.text} />
               </Pressable>
-              <Text style={[styles.counterVal, { color: colors.text }]}>
-                {settings.defaultSearchCount}
-              </Text>
+              <Text style={[styles.counterVal, { color: colors.text }]}>{settings.defaultSearchCount}</Text>
               <Pressable
                 onPress={() => handleSearchCountChange(1)}
                 style={({ pressed }) => [styles.counterBtn, { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 }]}
               >
-                <Feather name="plus" size={16} color={colors.text} />
+                <Plus size={16} color={colors.text} />
               </Pressable>
             </View>
           </View>
@@ -108,13 +102,11 @@ export default function SettingsScreen() {
           <View style={styles.settingRow}>
             <View style={styles.settingLabel}>
               <View style={[styles.iconBg, { backgroundColor: "#F0F9FF" }]}>
-                <Feather name="clock" size={16} color="#0EA5E9" />
+                <Clock size={16} color="#0EA5E9" />
               </View>
               <View>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Delay between searches</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                  Seconds to wait between each search (3–30)
-                </Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Seconds to wait between each search (3–30)</Text>
               </View>
             </View>
             <View style={styles.counter}>
@@ -122,16 +114,14 @@ export default function SettingsScreen() {
                 onPress={() => handleDelayChange(-1)}
                 style={({ pressed }) => [styles.counterBtn, { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 }]}
               >
-                <Feather name="minus" size={16} color={colors.text} />
+                <Minus size={16} color={colors.text} />
               </Pressable>
-              <Text style={[styles.counterVal, { color: colors.text }]}>
-                {settings.searchDelay ?? 5}s
-              </Text>
+              <Text style={[styles.counterVal, { color: colors.text }]}>{settings.searchDelay ?? 5}s</Text>
               <Pressable
                 onPress={() => handleDelayChange(1)}
                 style={({ pressed }) => [styles.counterBtn, { backgroundColor: colors.surfaceSecondary, opacity: pressed ? 0.7 : 1 }]}
               >
-                <Feather name="plus" size={16} color={colors.text} />
+                <Plus size={16} color={colors.text} />
               </Pressable>
             </View>
           </View>
@@ -143,13 +133,11 @@ export default function SettingsScreen() {
           <View style={styles.settingRow}>
             <View style={styles.settingLabel}>
               <View style={[styles.iconBg, { backgroundColor: "#F0FDF4" }]}>
-                <Feather name="check-square" size={16} color={colors.success} />
+                <CheckSquare size={16} color={colors.success} />
               </View>
               <View>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Enable Daily Set</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                  Complete daily challenges automatically
-                </Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Complete daily challenges automatically</Text>
               </View>
             </View>
             <Switch
@@ -170,13 +158,11 @@ export default function SettingsScreen() {
           <View style={[styles.settingRow, { paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: colors.border }]}>
             <View style={styles.settingLabel}>
               <View style={[styles.iconBg, { backgroundColor: "#FFF7ED" }]}>
-                <Feather name="play-circle" size={16} color={colors.warning} />
+                <Play size={16} color={colors.warning} />
               </View>
               <View>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>First Run</Text>
-                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                  Initial daily automation attempt
-                </Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>Initial daily automation attempt</Text>
               </View>
             </View>
             <Text style={[styles.timeText, { color: colors.tint }]}>
@@ -186,10 +172,8 @@ export default function SettingsScreen() {
 
           <View style={styles.retrySection}>
             <View style={styles.retryHeader}>
-              <Feather name="refresh-cw" size={14} color={colors.running} />
-              <Text style={[styles.retryLabel, { color: colors.textSecondary }]}>
-                Retry schedule for failed accounts
-              </Text>
+              <RefreshCw size={14} color={colors.running} />
+              <Text style={[styles.retryLabel, { color: colors.textSecondary }]}>Retry schedule for failed accounts</Text>
             </View>
             {retryTimes.map((t, i) => (
               <View key={i} style={styles.retryItem}>
@@ -209,12 +193,9 @@ export default function SettingsScreen() {
       <Section title="ACTIONS" colors={colors}>
         <Pressable
           onPress={handleApplySchedule}
-          style={({ pressed }) => [
-            styles.applyBtn,
-            { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 },
-          ]}
+          style={({ pressed }) => [styles.applyBtn, { backgroundColor: colors.tint, opacity: pressed ? 0.85 : 1 }]}
         >
-          <Feather name="calendar" size={18} color="#fff" />
+          <Calendar size={18} color="#fff" />
           <Text style={styles.applyText}>Apply Schedule</Text>
         </Pressable>
 
@@ -241,141 +222,31 @@ function Section({ title, colors, children }: { title: string; colors: any; chil
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontFamily: "Inter_700Bold",
-  },
-  subtitle: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    marginTop: 2,
-  },
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.8,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  card: {
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  settingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-  },
-  settingLabel: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  iconBg: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  settingTitle: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  settingDesc: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    marginTop: 1,
-  },
-  counter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  counterBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  counterVal: {
-    fontSize: 18,
-    fontFamily: "Inter_700Bold",
-    minWidth: 28,
-    textAlign: "center",
-  },
-  timeText: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-  },
-  retrySection: {
-    padding: 16,
-    paddingTop: 12,
-    gap: 10,
-  },
-  retryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-  },
-  retryLabel: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-  },
-  retryItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  retryDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  retryTime: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    flex: 1,
-  },
-  finalBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 20,
-  },
-  finalText: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-  },
-  applyBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 16,
-    borderRadius: 14,
-  },
-  applyText: {
-    color: "#fff",
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
-  webNote: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    marginTop: 8,
-  },
+  header: { paddingHorizontal: 20, paddingBottom: 16 },
+  title: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  section: { paddingHorizontal: 16, marginBottom: 24 },
+  sectionTitle: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, marginBottom: 8, marginLeft: 4 },
+  card: { borderRadius: 16, overflow: "hidden" },
+  settingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 },
+  settingLabel: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  iconBg: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  settingTitle: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  settingDesc: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 1 },
+  counter: { flexDirection: "row", alignItems: "center", gap: 10 },
+  counterBtn: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  counterVal: { fontSize: 18, fontFamily: "Inter_700Bold", minWidth: 28, textAlign: "center" },
   divider: { height: 1, marginHorizontal: 16 },
+  timeText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  retrySection: { padding: 16, paddingTop: 12, gap: 10 },
+  retryHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
+  retryLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  retryItem: { flexDirection: "row", alignItems: "center", gap: 10 },
+  retryDot: { width: 6, height: 6, borderRadius: 3 },
+  retryTime: { fontSize: 14, fontFamily: "Inter_400Regular", flex: 1 },
+  finalBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
+  finalText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
+  applyBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, borderRadius: 14 },
+  applyText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  webNote: { fontSize: 12, fontFamily: "Inter_400Regular", textAlign: "center", marginTop: 8 },
 });
