@@ -190,9 +190,6 @@ The fetch()-based searches already work correctly for per-account isolation and 
 ### P0 — Fix account isolation properly
 Pick one of the three options in Section 5.4 and implement it. Option A is the best bang-for-buck inside Expo Go. Option B is the right long-term answer but needs EAS.
 
-### P1 — Daily Set automation
-Once WebView sessions are correct per account, implement Daily Set automation: navigate to `rewards.bing.com`, find the daily card set, tap each card. This roughly doubles points earned per account per day.
-
 ### P2 — Background scheduling with EAS
 Use `expo-task-manager` + `expo-background-fetch` to run searches on a schedule (e.g. 2am daily) without the user opening the app. This requires an EAS build.
 
@@ -217,3 +214,46 @@ Allow the user to configure a proxy (host:port:user:pass) per account. Routes al
 - The companion API server (`artifacts/api-server`) is not connected to anything. It was scaffolded early. Either wire it up (useful for server-side scheduling, proxy management, multi-device sync) or remove it to reduce confusion.
 - There is no error retry mechanism anywhere in the fetch loop. A single network blip aborts the current search. Wrapping the fetch calls in a simple exponential-backoff utility would make the runner much more resilient.
 - `login-webview.tsx` injects a JS snippet on every page load to capture cookies. The snippet does string manipulation on `document.cookie`. If Microsoft changes their cookie naming, it silently captures nothing. Adding a health-check after capture (e.g. verify the captured cookies can reach the Rewards API) would catch this early.
+
+
+
+What it is
+
+A React Native (Expo) mobile app that automates Microsoft Rewards daily tasks across multiple accounts — specifically the 30 daily Bing searches and the "Daily Set" activities. User adds accounts, saves their session cookies, and the app runs everything automatically in the background via a WebView.
+
+How searches work (this part is solid)
+
+Searches use plain fetch() with the account's cookies passed as an explicit header. This works great because it's completely isolated per-account — no shared state. Each account gets its own independent HTTP request with its own cookies. No issues here.
+
+The big complication — httpOnly cookies
+
+This is the core headache. When a user logs into Microsoft Rewards in the device's browser, their real auth tokens are stored as httpOnly cookies. That means JavaScript running on a page (document.cookie) can't read them. Our app can only capture the non-httpOnly cookies.
+
+This causes two problems:
+
+For searches — not an issue because Bing's search endpoint happens to work with the non-httpOnly cookies we can capture.
+For Daily Set — Microsoft's Rewards API (/api/getuserinfo) requires those httpOnly tokens. So when we tried to fetch the activity list via API, it returned nothing because it saw us as unauthenticated.
+How Daily Set currently works (WebView approach)
+
+The fix was to stop using the API entirely and instead drive the WebView directly. The device's WebView has the full OS cookie store including httpOnly cookies, so it's properly authenticated. The flow is:
+
+Navigate the WebView to rewards.bing.com — it loads as a fully logged-in user
+Wait ~3.5s for the page's JavaScript to render the activity cards
+Inject a JS script that finds the first uncompleted daily-set card and calls .click() on it — this fires Microsoft's own event handlers which register the completion
+Wait for whatever page the click navigates to (quiz, Bing search, etc.)
+Navigate back to rewards.bing.com and repeat until no more cards are found
+This is better than opening the URL directly because Microsoft registers completion through the click event, not the URL visit.
+
+What still isn't perfect
+
+Multi-account isolation for Daily Set — The WebView uses one shared OS cookie store. So whichever account was last logged into the device browser is the one the Daily Set runs as. If you have 3 accounts, the Daily Set will only actually work for the currently active session. The searches don't have this problem because they use isolated fetch() headers.
+Card selectors may break — The JavaScript selectors that find the card elements are based on Microsoft's current DOM structure. If they update their front-end, the selectors could miss cards. There are about 12 fallback selectors stacked up to be resilient, but it's not guaranteed forever.
+No quiz completion — If a Daily Set activity is a quiz (multiple choice), clicking the card opens the quiz but doesn't answer it automatically. Points for quiz completion require answering questions, which we don't do yet.
+Pending things from the original plan
+
+Session health check (detect when cookies expire and alert the user)
+Retry logic on failure
+Points history chart
+Per-account proxy support (would help with the multi-account isolation problem)
+The multi-account Daily Set isolation is the most impactful unresolved issue. The cleanest solution would be per-account proxy routing so each account gets its own WebView context, but that's a significant piece of work.
+
