@@ -102,42 +102,29 @@ async function fetchRewardsPoints(
 
 // ─── JS injected into rewards.bing.com to click the next uncompleted card ─────
 //
-// Rather than extracting URLs and navigating to them (which bypasses click
-// tracking), we find the first uncompleted daily-set card element and call
-// .click() on it directly — exactly what a real user does. Microsoft's page
-// fires XHR requests on click that register the activity completion.
-//
-// After the click the WebView may navigate away (quiz page, Bing search, etc).
-// React Native waits for that load then navigates back to rewards.bing.com and
-// calls this script again for the next card.
+// Accepts a list of already-clicked card IDs so it never repeats the same card.
+// Uses dispatchEvent(MouseEvent) to fire Microsoft's own click handlers — the
+// same path a real user tap takes. Does NOT navigate via href/location.href;
+// the click event itself is what Microsoft registers for rewards credit.
 
-const CLICK_NEXT_CARD_JS = `
+function makeClickScript(alreadyClicked: string[]): string {
+  return `
 (function() {
   try {
-    // Candidate selectors for daily-set activity cards, ordered by specificity.
-    // We try each in turn and click the first match that isn't already completed.
-    var selectors = [
-      // Daily set section cards
-      '[data-activity] a',
-      '[data-bi-id*="dailyset"] a',
-      '[data-bi-id*="DailySet"] a',
-      '.ds-card-sec a',
-      '[class*="ds-card"] a',
-      // Generic activity cards not yet marked done
-      '[class*="daily-set"] a:not([class*="complete"]):not([class*="done"])',
-      '[class*="dailyset"] a:not([class*="complete"]):not([class*="done"])',
-      // Punchcard / streak items
-      '.punchcard-row a[href]',
-      '[class*="punchcard"] a[href]',
-      // Offer tiles
-      '[class*="offer-card"] a[href]',
-      '[class*="offercard"] a[href]',
-      // Fallback: any link pointing to a rewards challenge or go-redirect
-      'a[href*="rewardschallenges"]',
-      'a[href*="rewards.bing.com/go/"]',
-    ];
+    var alreadyClicked = ${JSON.stringify(alreadyClicked)};
 
-    // Also skip cards whose container signals they are already finished
+    // Build a stable ID for a card element from its href + any data attribute
+    function getCardId(el) {
+      var href = (el.href || el.getAttribute('href') || '').toLowerCase().trim();
+      var container = el.closest('[data-activity-id], [data-bi-id], [id]');
+      var attrId = container
+        ? (container.getAttribute('data-activity-id') ||
+           container.getAttribute('data-bi-id') ||
+           container.id || '')
+        : '';
+      return (attrId + '||' + href);
+    }
+
     var completedSignals = [
       '[class*="complete"]', '[class*="completed"]',
       '[class*="done"]', '[aria-checked="true"]',
@@ -148,30 +135,70 @@ const CLICK_NEXT_CARD_JS = `
       for (var s of completedSignals) {
         if (el.closest(s)) return true;
       }
+      // Also check inside the nearest card container
+      var card = el.closest('[class*="card"], [data-activity-id], [class*="ds-"], [class*="punchcard"]');
+      if (card) {
+        for (var s of completedSignals) {
+          if (card.querySelector(s)) return true;
+        }
+      }
       return false;
     }
 
+    var selectors = [
+      '[data-activity-id] a[href]',
+      '[data-bi-id*="dailyset"] a[href]',
+      '[data-bi-id*="DailySet"] a[href]',
+      '.ds-card-sec a[href]',
+      '[class*="ds-card"] a[href]',
+      '[class*="daily-set"] a[href]',
+      '[class*="dailyset"] a[href]',
+      '.punchcard-row a[href]',
+      '[class*="punchcard"] a[href]',
+      '[class*="offer-card"] a[href]',
+      '[class*="offercard"] a[href]',
+      'a[href*="rewardschallenges"]',
+      'a[href*="rewards.bing.com/go/"]',
+    ];
+
     for (var sel of selectors) {
       var matches = Array.from(document.querySelectorAll(sel));
-      for (var el of matches) {
+      for (var i = 0; i < matches.length; i++) {
+        var el = matches[i];
         if (isCompleted(el)) continue;
+
+        var cardId = getCardId(el);
+        var href = (el.href || el.getAttribute('href') || '').toLowerCase().trim();
+
+        // Skip if we already clicked this card in a previous iteration
+        if (alreadyClicked.indexOf(cardId) !== -1) continue;
+        if (href && alreadyClicked.indexOf(href) !== -1) continue;
+
         var text = (
           el.textContent ||
           el.getAttribute('aria-label') ||
           el.getAttribute('title') || ''
         ).trim().replace(/\\s+/g, ' ').slice(0, 60);
-        el.click();
+
+        // Fire a real MouseEvent so Microsoft's click handlers run
+        // (same path as a real user tap — NOT window.location.href navigation)
+        el.dispatchEvent(new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        }));
+
         window.ReactNativeWebView.postMessage(JSON.stringify({
           type: 'card_clicked',
           found: true,
           text: text || 'Activity',
-          url: el.href || '',
+          href: href,
+          cardId: cardId,
         }));
         return;
       }
     }
 
-    // Nothing clickable left
     window.ReactNativeWebView.postMessage(JSON.stringify({
       type: 'card_clicked',
       found: false,
@@ -185,6 +212,7 @@ const CLICK_NEXT_CARD_JS = `
   }
 })(); true;
 `;
+}
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -310,38 +338,38 @@ export default function SearchRunnerScreen() {
   const runDailySetViaWebView = useCallback(async (
     onStatus: (msg: string) => void
   ): Promise<{ completed: number; total: number; alreadyDone: boolean }> => {
-    const MAX_CARDS = 12; // safety limit per account
+    const MAX_CARDS = 10; // safety cap per account
     let completed = 0;
+
+    // Tracks every card we clicked this session so we never repeat one.
+    // Both the composite cardId and the bare href are stored so either key hits.
+    const clickedIds: string[] = [];
+
+    // ── 1. Load the Rewards dashboard once ──────────────────────────────────
+    onStatus("Daily Set: loading Rewards page…");
+    setWebViewUrl("https://rewards.bing.com/");
+    await waitForLoad(15000);
+    // Give the React-rendered SPA time to fully paint activity cards
+    await sleep(4000);
 
     for (let attempt = 0; attempt < MAX_CARDS; attempt++) {
       if (abortRef.current) break;
 
-      // ── 1. Load (or reload) the Rewards dashboard ────────────────────────
-      onStatus(
-        attempt === 0
-          ? "Daily Set: loading Rewards page…"
-          : `Daily Set: back to Rewards (${completed} done so far)…`
-      );
-
-      if (attempt === 0) {
-        // First load — set source prop so WebView initialises to this URL
-        setWebViewUrl("https://rewards.bing.com/");
-      } else {
-        // Subsequent loads — WebView already has source="rewards.bing.com" so
-        // changing the prop does nothing. Use JS injection to force navigation.
+      // ── 2. On subsequent iterations navigate back to Rewards ─────────────
+      if (attempt > 0) {
+        onStatus(`Daily Set: back to Rewards (${completed} done so far)…`);
         navigateTo("https://rewards.bing.com/");
+        await waitForLoad(15000);
+        await sleep(3500);
       }
-      await waitForLoad(15000);
-      // Give React-rendered SPA time to fully paint the activity cards
-      await sleep(3500);
 
-      // ── 2. Inject JS to click the NEXT uncompleted card ──────────────────
+      // ── 3. Inject script with the list of already-clicked IDs ────────────
       onStatus("Daily Set: scanning for next activity…");
-      webViewRef.current?.injectJavaScript(CLICK_NEXT_CARD_JS);
-      const msg = await waitForMessage("card_clicked", 8000);
+      webViewRef.current?.injectJavaScript(makeClickScript(clickedIds));
+      const msg = await waitForMessage("card_clicked", 10000);
 
       if (!msg?.found) {
-        // No more clickable cards — we're done
+        // No more unclicked cards — we're done
         if (completed === 0 && attempt === 0) {
           onStatus("Daily Set: no activities found — try re-logging in");
           await sleep(3000);
@@ -352,14 +380,21 @@ export default function SearchRunnerScreen() {
         break;
       }
 
-      // ── 3. Card was clicked — wait for the resulting page ────────────────
+      // ── 4. Record this card so we never click it again ───────────────────
+      if (msg.cardId) clickedIds.push(msg.cardId);
+      if (msg.href && clickedIds.indexOf(msg.href) === -1) {
+        clickedIds.push(msg.href);
+      }
+
+      // ── 5. Wait for any navigation the click triggered to settle ─────────
       const label = msg.text || `Activity ${completed + 1}`;
       onStatus(`Daily Set: clicked "${label}" — waiting…`);
       setDailySetResult({ completed, total: completed + 1 });
 
-      // The click may navigate to a quiz, Bing search, or stay on the page
-      await waitForLoad(10000);
-      // Let the activity register server-side before going back
+      // Use a short waitForLoad — some clicks navigate, others are AJAX-only.
+      // Either way we cap the wait so we don't block for the full timeout.
+      await waitForLoad(5000);
+      // Extra settle time for server-side registration before going back
       await sleep(2500);
 
       completed++;
