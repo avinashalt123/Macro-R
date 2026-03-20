@@ -163,7 +163,7 @@ The fetch()-based searches already work correctly for per-account isolation and 
 |---|---|---|
 | httpOnly cookies not captured | `document.cookie` JS API limitation | Option A or B above |
 | Visual WebView doesn't match active account | Shared OS cookie store | Option A or B above |
-| Daily Set not automated | Requires clicking UI elements in a real browser session | Implement WebView-based UI automation once account sessions are fixed |
+|
 | No background / scheduled runs | Expo Go doesn't support background tasks | EAS build + `expo-task-manager` + `expo-background-fetch` |
 | Sessions lost on app restart | Incognito WebViews are in-memory | EAS build + native cookie manager (Option B) |
 | Bot detection risk | Identical `fetch()` calls, same User-Agent pattern | Randomise UA per account, vary timing, consider per-account proxy |

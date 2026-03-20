@@ -6,6 +6,7 @@ export const PENDING_RUN_KEY = "@ms_rewards_pending_run";
 // expo-notifications was removed from Expo Go in SDK 53.
 // All functions here are safe to call — they no-op gracefully when the module
 // is unavailable, so the rest of the app never crashes.
+// In a dev build or production build, scheduling works fully.
 
 type NotificationsModule = typeof import("expo-notifications");
 
@@ -91,9 +92,9 @@ export async function scheduleRewardsNotifications(
           sound: true,
         },
         trigger: {
+          type: "daily",
           hour: t.hour,
           minute: t.minute,
-          repeats: true,
         } as any,
       });
       count++;
