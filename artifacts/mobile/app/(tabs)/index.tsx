@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   Animated,
@@ -27,7 +27,7 @@ export default function HomeScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { accounts, runAccount, runAll, stopAll, isRunning } = useAccounts();
+  const { accounts, isRunning, startRun, stopRun } = useAccounts();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -39,17 +39,33 @@ export default function HomeScreen() {
   const handleRunAll = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (isRunning) {
-      Alert.alert("Stop Automation?", "This will stop all running accounts.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Stop", style: "destructive", onPress: stopAll },
+      Alert.alert("Search Running", "Searches are in progress.", [
+        { text: "Keep Running", style: "cancel" },
+        { text: "Stop All", style: "destructive", onPress: stopRun },
       ]);
-    } else {
-      if (accounts.length === 0) {
-        Alert.alert("No Accounts", "Add an account first to run automation.");
-        return;
-      }
-      runAll();
+      return;
     }
+    if (accounts.length === 0) {
+      Alert.alert("No Accounts", "Add an account first to run automation.");
+      return;
+    }
+    startRun();
+    router.push({
+      pathname: "/search-runner",
+      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)) },
+    });
+  };
+
+  const handleRunAccount = (id: string) => {
+    if (isRunning) {
+      Alert.alert("Search Running", "Stop the current run before starting another.");
+      return;
+    }
+    startRun();
+    router.push({
+      pathname: "/search-runner",
+      params: { accountIds: JSON.stringify([id]) },
+    });
   };
 
   const renderItem = useCallback(
@@ -57,11 +73,11 @@ export default function HomeScreen() {
       <AccountCard
         account={item}
         onPress={() => router.push({ pathname: "/account/[id]", params: { id: item.id } })}
-        onRun={() => runAccount(item.id)}
+        onRun={() => handleRunAccount(item.id)}
         isRunningGlobal={isRunning}
       />
     ),
-    [runAccount, isRunning]
+    [isRunning]
   );
 
   const ListHeader = (
@@ -89,9 +105,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {accounts.length > 0 && (
-        <StatsBar accounts={accounts} />
-      )}
+      {accounts.length > 0 && <StatsBar accounts={accounts} />}
     </View>
   );
 
@@ -129,7 +143,9 @@ export default function HomeScreen() {
       <View style={[styles.fab, { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) }]}>
         <Pressable
           onPress={handleRunAll}
-          style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+          style={({ pressed }) => [
+            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+          ]}
         >
           <LinearGradient
             colors={isRunning ? ["#EF4444", "#DC2626"] : ["#3B82F6", "#1D4ED8"]}
@@ -138,7 +154,7 @@ export default function HomeScreen() {
             end={{ x: 1, y: 1 }}
           >
             <Feather name={isRunning ? "square" : "play"} size={22} color="#fff" />
-            <Text style={styles.fabText}>{isRunning ? "Stop All" : "Run All"}</Text>
+            <Text style={styles.fabText}>{isRunning ? "Running..." : "Run All"}</Text>
           </LinearGradient>
         </Pressable>
       </View>

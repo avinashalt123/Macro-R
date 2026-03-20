@@ -16,6 +16,10 @@ function NativeTabLayout() {
         <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
         <Label>Accounts</Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="queries">
+        <Icon sf={{ default: "magnifyingglass.circle", selected: "magnifyingglass.circle.fill" }} />
+        <Label>Queries</Label>
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="logs">
         <Icon sf={{ default: "list.bullet.clipboard", selected: "list.bullet.clipboard.fill" }} />
         <Label>Logs</Label>
@@ -75,6 +79,18 @@ function ClassicTabLayout() {
               <SymbolView name="person.2" tintColor={color} size={24} />
             ) : (
               <Feather name="users" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="queries"
+        options={{
+          title: "Queries",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="magnifyingglass.circle" tintColor={color} size={24} />
+            ) : (
+              <Feather name="search" size={22} color={color} />
             ),
         }}
       />

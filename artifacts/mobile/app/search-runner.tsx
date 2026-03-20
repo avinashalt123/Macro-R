@@ -119,8 +119,6 @@ export default function SearchRunnerScreen() {
       updateAccount(task.accountId, {
         status: "done",
         searchesCompleted: task.queries.length,
-        todayPoints: 0,
-        totalPoints: 0,
         lastRun: new Date().toISOString(),
       });
       addLog({

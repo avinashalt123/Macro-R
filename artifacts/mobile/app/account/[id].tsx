@@ -47,7 +47,7 @@ export default function AccountDetailScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { accounts, updateAccount, removeAccount, runAccount, isRunning, logs } = useAccounts();
+  const { accounts, updateAccount, removeAccount, isRunning, startRun, logs } = useAccounts();
 
   const account = accounts.find((a) => a.id === id);
   const accountLogs = logs.filter((l) => l.accountId === id).slice(0, 5);
@@ -96,7 +96,11 @@ export default function AccountDetailScreen() {
   const handleRun = () => {
     if (isRunning || account.status === "running") return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    runAccount(account.id);
+    startRun();
+    router.push({
+      pathname: "/search-runner",
+      params: { accountIds: JSON.stringify([account.id]) },
+    });
   };
 
   const statusColor = STATUS_COLORS[account.status];
