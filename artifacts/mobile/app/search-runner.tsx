@@ -443,8 +443,8 @@ export default function SearchRunnerScreen() {
         if (isResults) {
           if (pageLoadedRef.current) return;
           pageLoadedRef.current = true;
-          // 5–80 second random wait on results page before next search
-          const delay = 5000 + Math.random() * 75000;
+          // 5–8 second random wait on results page before next search
+          const delay = 5000 + Math.random() * 3000;
           const secs = Math.round(delay / 1000);
           setStatusText(`Waiting ${secs}s before next search...`);
           delayTimerRef.current = setTimeout(goNext, delay);
