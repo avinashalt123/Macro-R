@@ -1,0 +1,18 @@
+Continue building the MS Rewards Automation React Native/Expo app. Here's what needs to be done, in priority order:
+
+1. Fix cookie injection in the search runner
+The search-runner.tsx currently relies on sharedCookiesEnabled to carry the login session to Bing. This works only while the WebView session is live. Instead, after the search runner WebView loads bing.com, inject the stored account cookies object (from AccountsContext) using CookieManager from @react-native-cookies/cookies. This ensures sessions survive app restarts. Install @react-native-cookies/cookies if not present.
+
+2. Real points scraping after each run
+After a search run completes for an account, navigate the WebView to https://rewards.bing.com/ and inject JavaScript to scrape the current points balance from the page (look for the element with class .points-balance-amount or [data-testid="reward-points-amount"]). Post the value back via ReactNativeWebView.postMessage. Use this to update the account's todayPoints and totalPoints in AccountsContext instead of the current random number estimate.
+
+3. Daily Set automation
+When dailySetEnabled is true for an account, after completing searches, navigate the WebView to https://rewards.bing.com/ and inject JS to find and click the Daily Set activity cards. The cards are under .c-card-content or .daily-set-container — click up to 3 of them with a 2-second delay between each. Update the dailySetDone field in the run log to true when completed.
+
+4. Persist & re-inject cookies across sessions
+When login-webview.tsx captures cookies, it only gets document.cookie (non-httpOnly cookies). Enhance this by also using CookieManager.get('https://bing.com') and CookieManager.get('https://login.live.com') (from @react-native-cookies/cookies) in a native message bridge after login. Store the full cookie map on the account. In search-runner.tsx, before loading Bing, call CookieManager.setFromResponse or CookieManager.set for each stored cookie.
+
+5. Show session status on account cards
+On each AccountCard, add a small indicator showing whether the stored cookies are likely still valid. A simple heuristic: if lastRun was more than 24 hours ago or cookies is empty, show a yellow "Session may be expired — tap to refresh" badge. Tapping it should navigate to login-webview.tsx?accountId=<id> to re-login.
+
+Keep all existing UI, context structure, and AsyncStorage keys unchanged. Do not break the existing cookie capture flow in login-webview.tsx. Test by running on Android via Expo Go.

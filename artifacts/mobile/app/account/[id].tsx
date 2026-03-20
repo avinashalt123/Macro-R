@@ -212,21 +212,34 @@ export default function AccountDetailScreen() {
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
             <View style={styles.configRow}>
               <View style={styles.configLeft}>
-                <Feather
-                  name={Object.keys(account.cookies).length > 0 ? "shield" : "shield-off"}
-                  size={16}
-                  color={Object.keys(account.cookies).length > 0 ? colors.success : colors.warning}
-                />
-                <View>
-                  <Text style={[styles.configLabel, { color: colors.text }]}>
-                    {Object.keys(account.cookies).length > 0 ? "Session Active" : "No Session"}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: colors.textMuted, fontFamily: "Inter_400Regular" }}>
-                    {Object.keys(account.cookies).length > 0
-                      ? `${Object.keys(account.cookies).length} cookies stored`
-                      : "Login required for automation"}
-                  </Text>
-                </View>
+                {(() => {
+                  const hasCookies = Object.keys(account.cookies ?? {}).length > 0;
+                  const hoursSince = account.lastRun
+                    ? (Date.now() - new Date(account.lastRun).getTime()) / (1000 * 60 * 60)
+                    : 0;
+                  const maybeExpired = hasCookies && !!account.lastRun && hoursSince > 24;
+                  return (
+                    <>
+                      <Feather
+                        name={!hasCookies ? "shield-off" : maybeExpired ? "clock" : "shield"}
+                        size={16}
+                        color={!hasCookies || maybeExpired ? colors.warning : colors.success}
+                      />
+                      <View>
+                        <Text style={[styles.configLabel, { color: colors.text }]}>
+                          {!hasCookies ? "No Session" : maybeExpired ? "Session May Be Expired" : "Session Active"}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: colors.textMuted, fontFamily: "Inter_400Regular" }}>
+                          {!hasCookies
+                            ? "Login required for automation"
+                            : maybeExpired
+                            ? `Last session ${Math.floor(hoursSince)}h ago — re-login recommended`
+                            : `${Object.keys(account.cookies).length} cookies stored`}
+                        </Text>
+                      </View>
+                    </>
+                  );
+                })()}
               </View>
               <Pressable
                 onPress={() => router.push({ pathname: "/login-webview", params: { accountId: account.id } })}

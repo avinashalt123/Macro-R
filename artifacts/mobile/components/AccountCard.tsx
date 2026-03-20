@@ -18,6 +18,7 @@ interface Props {
   account: Account;
   onPress: () => void;
   onRun: () => void;
+  onRefreshSession: () => void;
   isRunningGlobal: boolean;
 }
 
@@ -68,7 +69,15 @@ function StatusBadge({ status, searchesCompleted, searchCount }: { status: Accou
   );
 }
 
-export function AccountCard({ account, onPress, onRun, isRunningGlobal }: Props) {
+function isSessionExpired(account: Account): boolean {
+  const hasCookies = Object.keys(account.cookies ?? {}).length > 0;
+  if (!hasCookies) return true;
+  if (!account.lastRun) return false;
+  const hoursSinceRun = (Date.now() - new Date(account.lastRun).getTime()) / (1000 * 60 * 60);
+  return hoursSinceRun > 24;
+}
+
+export function AccountCard({ account, onPress, onRun, onRefreshSession, isRunningGlobal }: Props) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -86,11 +95,18 @@ export function AccountCard({ account, onPress, onRun, isRunningGlobal }: Props)
     onRun();
   };
 
+  const handleSessionRefresh = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onRefreshSession();
+  };
+
   const progressPercent = account.searchCount > 0
     ? (account.searchesCompleted / account.searchCount) * 100
     : 0;
 
   const initial = account.name.charAt(0).toUpperCase();
+  const sessionExpired = isSessionExpired(account);
+  const noCookies = Object.keys(account.cookies ?? {}).length === 0;
 
   return (
     <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
@@ -136,22 +152,22 @@ export function AccountCard({ account, onPress, onRun, isRunningGlobal }: Props)
 
             <View style={styles.stats}>
               <View style={styles.statItem}>
-                <Feather
-                  name={Object.keys(account.cookies).length > 0 ? "shield" : "shield-off"}
-                  size={11}
-                  color={Object.keys(account.cookies).length > 0 ? colors.success : colors.warning}
-                />
-                <Text style={[styles.statText, { color: Object.keys(account.cookies).length > 0 ? colors.success : colors.warning }]}>
-                  {Object.keys(account.cookies).length > 0 ? "Cookies set" : "No cookies"}
-                </Text>
-              </View>
-              <View style={styles.statDot} />
-              <View style={styles.statItem}>
                 <Feather name="search" size={11} color={colors.textMuted} />
                 <Text style={[styles.statText, { color: colors.textSecondary }]}>
                   {account.searchCount} searches
                 </Text>
               </View>
+              {account.todayPoints > 0 && (
+                <>
+                  <View style={styles.statDot} />
+                  <View style={styles.statItem}>
+                    <Feather name="star" size={11} color={colors.warning} />
+                    <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                      {account.todayPoints.toLocaleString()} pts today
+                    </Text>
+                  </View>
+                </>
+              )}
               {account.lastRun && (
                 <>
                   <View style={styles.statDot} />
@@ -161,6 +177,62 @@ export function AccountCard({ account, onPress, onRun, isRunningGlobal }: Props)
                 </>
               )}
             </View>
+
+            {/* Session status banner */}
+            {account.status !== "running" && (
+              <Pressable
+                onPress={handleSessionRefresh}
+                style={({ pressed }) => [
+                  styles.sessionBanner,
+                  {
+                    backgroundColor: noCookies
+                      ? scheme === "dark" ? "#7F1D1D22" : "#FEF2F2"
+                      : sessionExpired
+                      ? scheme === "dark" ? "#78350F22" : "#FFFBEB"
+                      : scheme === "dark" ? "#14532D22" : "#F0FDF4",
+                    borderColor: noCookies
+                      ? "#FCA5A5"
+                      : sessionExpired
+                      ? "#FCD34D"
+                      : "#86EFAC",
+                    opacity: pressed ? 0.75 : 1,
+                  },
+                ]}
+              >
+                <Feather
+                  name={noCookies ? "alert-circle" : sessionExpired ? "clock" : "shield"}
+                  size={11}
+                  color={noCookies ? colors.error : sessionExpired ? colors.warning : colors.success}
+                />
+                <Text
+                  style={[
+                    styles.sessionText,
+                    {
+                      color: noCookies
+                        ? colors.error
+                        : sessionExpired
+                        ? "#B45309"
+                        : colors.success,
+                      flex: 1,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {noCookies
+                    ? "No session — tap to sign in"
+                    : sessionExpired
+                    ? "Session may be expired — tap to refresh"
+                    : "Session active"}
+                </Text>
+                {(noCookies || sessionExpired) && (
+                  <Feather
+                    name="refresh-cw"
+                    size={11}
+                    color={noCookies ? colors.error : "#B45309"}
+                  />
+                )}
+              </Pressable>
+            )}
           </View>
 
           <Pressable
@@ -213,7 +285,7 @@ const styles = StyleSheet.create({
   },
   cardContent: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     padding: 16,
     gap: 12,
   },
@@ -224,6 +296,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+    marginTop: 2,
   },
   avatarText: {
     color: "#fff",
@@ -253,6 +326,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     marginTop: 2,
+    flexWrap: "wrap",
   },
   statItem: {
     flexDirection: "row",
@@ -291,6 +365,20 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 2,
   },
+  sessionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 6,
+  },
+  sessionText: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+  },
   runBtn: {
     width: 36,
     height: 36,
@@ -298,5 +386,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+    marginTop: 2,
   },
 });

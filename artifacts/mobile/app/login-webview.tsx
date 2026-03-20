@@ -37,6 +37,7 @@ const INJECT_COOKIES_JS = `
       url: window.location.href,
       title: document.title,
       username: '',
+      localStorageTokens: {},
     };
 
     // Try to get account name from page
@@ -45,7 +46,23 @@ const INJECT_COOKIES_JS = `
 
     // Try meta tags
     var metaUser = document.querySelector('meta[name="og:title"], meta[property="og:title"]');
-    if (metaUser) data.username = metaUser.getAttribute('content') || '';
+    if (metaUser && !data.username) data.username = metaUser.getAttribute('content') || '';
+
+    // Try to grab auth-related localStorage keys for persistence
+    try {
+      var lsKeys = Object.keys(localStorage);
+      for (var i = 0; i < lsKeys.length; i++) {
+        var k = lsKeys[i];
+        if (k.indexOf('token') !== -1 || k.indexOf('auth') !== -1 || k.indexOf('MUID') !== -1 || k.indexOf('session') !== -1) {
+          var val = localStorage.getItem(k);
+          if (val && val.length < 2000) data.localStorageTokens[k] = val;
+        }
+      }
+    } catch(lsErr) {}
+
+    // Try to find email from the page DOM
+    var emailEl = document.querySelector('.id_email, [data-testid="user-email"], .account-header-email');
+    if (emailEl) data.username = emailEl.innerText || emailEl.textContent || data.username;
 
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'cookies', data: data }));
   } catch(e) {
@@ -119,7 +136,15 @@ export default function LoginWebViewScreen() {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type === "cookies" && msg.data) {
         const parsed = parseCookieString(msg.data.cookies || "");
-        setCapturedCookies(parsed);
+
+        // Merge localStorage auth tokens into the cookies dict (prefixed with _ls_)
+        const lsTokens: Record<string, string> = msg.data.localStorageTokens || {};
+        const merged = { ...parsed };
+        Object.entries(lsTokens).forEach(([k, v]) => {
+          merged[`_ls_${k}`] = v;
+        });
+
+        setCapturedCookies(merged);
 
         // Try to detect email from URL or cookies
         const url = msg.data.url || "";
@@ -127,8 +152,9 @@ export default function LoginWebViewScreen() {
         if (emailMatch) setDetectedEmail(emailMatch[0]);
 
         // Set name from title or username
-        if (msg.data.username && !accountName) {
-          setAccountName(msg.data.username.split(" ")[0] || "My Account");
+        const username = (msg.data.username || "").trim();
+        if (username && !accountName) {
+          setAccountName(username.split(" ")[0] || "My Account");
         }
       }
     } catch {}

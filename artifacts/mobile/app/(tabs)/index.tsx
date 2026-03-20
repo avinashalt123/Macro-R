@@ -74,6 +74,9 @@ export default function HomeScreen() {
         account={item}
         onPress={() => router.push({ pathname: "/account/[id]", params: { id: item.id } })}
         onRun={() => handleRunAccount(item.id)}
+        onRefreshSession={() =>
+          router.push({ pathname: "/login-webview", params: { accountId: item.id } })
+        }
         isRunningGlobal={isRunning}
       />
     ),

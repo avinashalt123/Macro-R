@@ -25,25 +25,32 @@ const MOBILE_USER_AGENT =
   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
 
 const BING_HOME = "https://www.bing.com";
+const REWARDS_URL = "https://rewards.bing.com/";
+
+type Phase = "searching" | "scraping" | "daily_set" | "done_all";
 
 type SearchTask = {
   accountId: string;
   accountName: string;
   accountEmail: string;
+  searchCount: number;
+  dailySetEnabled: boolean;
   queries: string[];
+  cookies: Record<string, string>;
 };
 
-const INJECTED_JS = `
-(function() {
-  try {
-    window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'PAGE_LOADED',
-      url: window.location.href
-    }));
-  } catch(e) {}
-})();
-true;
-`;
+function buildCookieInjectScript(cookies: Record<string, string>): string {
+  const entries = Object.entries(cookies);
+  if (entries.length === 0) return "true;";
+  const lines = entries
+    .map(([k, v]) => {
+      const ek = k.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      const ev = v.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+      return `try { document.cookie = '${ek}=${ev}; domain=.bing.com; path=/; SameSite=None; Secure'; } catch(e) {}`;
+    })
+    .join("\n");
+  return `(function(){\n${lines}\nwindow.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify({type:'COOKIES_INJECTED'}));\n})();\ntrue;`;
+}
 
 function getTypingScript(query: string): string {
   const escaped = query
@@ -106,6 +113,93 @@ true;
 `;
 }
 
+const SCRAPE_POINTS_JS = `
+(function() {
+  try {
+    var pts = 0;
+    // Try multiple selectors Microsoft uses
+    var selectors = [
+      '[data-testid="reward-points-amount"]',
+      '.points-balance-amount',
+      '.pointsTotal',
+      '#rewardsBanner .pointsBalance',
+      '.c-heading-3',
+      '[class*="points"]',
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var el = document.querySelector(selectors[i]);
+      if (el) {
+        var txt = (el.innerText || el.textContent || '').replace(/[^0-9]/g, '');
+        if (txt && parseInt(txt, 10) > 0) { pts = parseInt(txt, 10); break; }
+      }
+    }
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'POINTS_SCRAPED', points: pts }));
+  } catch(e) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'POINTS_SCRAPED', points: 0 }));
+  }
+})();
+true;
+`;
+
+function getDailySetScript(): string {
+  return `
+(function() {
+  var clicked = 0;
+  var maxClicks = 3;
+
+  function findCards() {
+    var selectors = [
+      '.c-card-content',
+      '.daily-set-item',
+      '[data-testid*="daily"]',
+      '.mee-icon-AddMedium',
+      '.ng-scope .c-call-to-action',
+    ];
+    var cards = [];
+    for (var i = 0; i < selectors.length; i++) {
+      var found = document.querySelectorAll(selectors[i]);
+      if (found.length > 0) { cards = Array.from(found); break; }
+    }
+    return cards.slice(0, maxClicks);
+  }
+
+  function clickNext(cards, idx) {
+    if (idx >= cards.length || clicked >= maxClicks) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DAILY_SET_DONE', clicked: clicked }));
+      return;
+    }
+    try {
+      cards[idx].click();
+      clicked++;
+    } catch(e) {}
+    setTimeout(function() { clickNext(cards, idx + 1); }, 2000);
+  }
+
+  setTimeout(function() {
+    var cards = findCards();
+    if (cards.length === 0) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DAILY_SET_DONE', clicked: 0 }));
+    } else {
+      clickNext(cards, 0);
+    }
+  }, 1500);
+})();
+true;
+`;
+}
+
+const INJECTED_JS = `
+(function() {
+  try {
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'PAGE_LOADED',
+      url: window.location.href
+    }));
+  } catch(e) {}
+})();
+true;
+`;
+
 export default function SearchRunnerScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
@@ -119,21 +213,25 @@ export default function SearchRunnerScreen() {
   const [minimized, setMinimized] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const [webviewKey, setWebviewKey] = useState(0);
+  const [webviewUri, setWebviewUri] = useState(BING_HOME);
+  const [phase, setPhase] = useState<Phase>("searching");
+  const [currentQuery, setCurrentQuery] = useState("");
+  const [currentTaskIdx, setCurrentTaskIdx] = useState(0);
+  const [currentQueryIdx, setCurrentQueryIdx] = useState(0);
+  const [statusText, setStatusText] = useState("Starting...");
 
+  const phaseRef = useRef<Phase>("searching");
   const currentTaskIdxRef = useRef(0);
   const currentQueryIdxRef = useRef(0);
   const stoppedRef = useRef(false);
   const delayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const webViewRef = useRef<any>(null);
   const pageLoadedRef = useRef(false);
-
-  const [currentTaskIdx, setCurrentTaskIdx] = useState(0);
-  const [currentQueryIdx, setCurrentQueryIdx] = useState(0);
-  const [currentQuery, setCurrentQuery] = useState("");
+  const tasksRef = useRef<SearchTask[]>([]);
+  const dailySetDoneRef = useRef(false);
+  const earnedPointsRef = useRef(0);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
-
-  const tasksRef = useRef<SearchTask[]>([]);
 
   useEffect(() => {
     const targetIds: string[] = JSON.parse(accountIdsParam ?? "[]");
@@ -142,7 +240,10 @@ export default function SearchRunnerScreen() {
       accountId: acc.id,
       accountName: acc.name,
       accountEmail: acc.email,
+      searchCount: acc.searchCount,
+      dailySetEnabled: acc.dailySetEnabled,
       queries: pickQueries(acc.searchCount),
+      cookies: acc.cookies ?? {},
     }));
     tasksRef.current = newTasks;
     setTasks(newTasks);
@@ -153,6 +254,7 @@ export default function SearchRunnerScreen() {
 
     if (newTasks.length > 0 && newTasks[0].queries.length > 0) {
       setCurrentQuery(newTasks[0].queries[0]);
+      setStatusText("Injecting cookies...");
     }
 
     setReady(true);
@@ -165,6 +267,71 @@ export default function SearchRunnerScreen() {
   const completedSearches =
     tasks.slice(0, currentTaskIdx).reduce((sum, t) => sum + t.queries.length, 0) + currentQueryIdx;
   const progressPct = totalSearches > 0 ? completedSearches / totalSearches : 0;
+
+  const finishAllDone = useCallback(() => {
+    setIsDone(true);
+    phaseRef.current = "done_all";
+    setPhase("done_all");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, []);
+
+  const logAndAdvanceAccount = useCallback(
+    (tIdx: number, points: number, dailySetDone: boolean) => {
+      const allTasks = tasksRef.current;
+      const task = allTasks[tIdx];
+      if (!task) return;
+
+      const pointsFields = points > 0 ? { todayPoints: points, totalPoints: points } : {};
+      updateAccount(task.accountId, {
+        status: "done",
+        searchesCompleted: task.queries.length,
+        lastRun: new Date().toISOString(),
+        ...pointsFields,
+      });
+
+      addLog({
+        accountId: task.accountId,
+        accountName: task.accountName,
+        timestamp: new Date().toISOString(),
+        searchesDone: task.queries.length,
+        dailySetDone,
+        pointsEarned: points,
+        status: "success",
+      });
+
+      const nextTIdx = tIdx + 1;
+      if (nextTIdx < allTasks.length && !stoppedRef.current) {
+        currentTaskIdxRef.current = nextTIdx;
+        currentQueryIdxRef.current = 0;
+        dailySetDoneRef.current = false;
+        earnedPointsRef.current = 0;
+        setCurrentTaskIdx(nextTIdx);
+        setCurrentQueryIdx(0);
+        const nextTask = allTasks[nextTIdx];
+        setCurrentQuery(nextTask.queries[0]);
+        updateAccount(nextTask.accountId, { status: "running", searchesCompleted: 0 });
+
+        phaseRef.current = "searching";
+        setPhase("searching");
+        setWebviewUri(BING_HOME);
+        setStatusText("Injecting cookies...");
+        setWebviewKey((k) => k + 1);
+      } else {
+        finishAllDone();
+      }
+    },
+    [updateAccount, addLog, finishAllDone]
+  );
+
+  const startScraping = useCallback(() => {
+    if (stoppedRef.current) return;
+    phaseRef.current = "scraping";
+    setPhase("scraping");
+    setStatusText("Checking points balance...");
+    setWebviewUri(REWARDS_URL);
+    setWebviewKey((k) => k + 1);
+    pageLoadedRef.current = false;
+  }, []);
 
   const goNext = useCallback(() => {
     if (stoppedRef.current) return;
@@ -183,69 +350,58 @@ export default function SearchRunnerScreen() {
       setCurrentQueryIdx(nextQIdx);
       setCurrentQuery(task.queries[nextQIdx]);
       updateAccount(task.accountId, { searchesCompleted: nextQIdx });
+      setWebviewUri(BING_HOME);
       setWebviewKey((k) => k + 1);
     } else {
-      const pointsEarned = Math.floor(Math.random() * 20) + task.queries.length * 3;
-      updateAccount(task.accountId, {
-        status: "done",
-        searchesCompleted: task.queries.length,
-        lastRun: new Date().toISOString(),
-      });
-      addLog({
-        accountId: task.accountId,
-        accountName: task.accountName,
-        timestamp: new Date().toISOString(),
-        searchesDone: task.queries.length,
-        dailySetDone: false,
-        pointsEarned,
-        status: "success",
-      });
-
-      const nextTIdx = tIdx + 1;
-      if (nextTIdx < allTasks.length) {
-        currentTaskIdxRef.current = nextTIdx;
-        currentQueryIdxRef.current = 0;
-        setCurrentTaskIdx(nextTIdx);
-        setCurrentQueryIdx(0);
-        const nextTask = allTasks[nextTIdx];
-        setCurrentQuery(nextTask.queries[0]);
-        updateAccount(nextTask.accountId, { status: "running", searchesCompleted: 0 });
-        setWebviewKey((k) => k + 1);
-      } else {
-        setIsDone(true);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
+      updateAccount(task.accountId, { searchesCompleted: task.queries.length });
+      startScraping();
     }
-  }, [updateAccount, addLog]);
+  }, [updateAccount, startScraping]);
 
   const handleUrlChange = useCallback(
     (url: string) => {
       if (stoppedRef.current) return;
 
-      const isResults =
-        url.includes("bing.com/search") ||
-        url.includes("bing.com/Search") ||
-        (url.includes("bing.com") && url.includes("?q="));
+      const currentPhase = phaseRef.current;
 
-      const isHome =
-        !isResults &&
-        (url.includes("bing.com") || url === "" || url.startsWith(BING_HOME));
+      if (currentPhase === "searching") {
+        const isResults =
+          url.includes("bing.com/search") ||
+          url.includes("bing.com/Search") ||
+          (url.includes("bing.com") && url.includes("?q="));
 
-      if (isResults) {
-        if (pageLoadedRef.current) return;
-        pageLoadedRef.current = true;
-        const delay = 3000 + Math.random() * 2000;
-        delayTimerRef.current = setTimeout(goNext, delay);
-      } else if (isHome) {
-        pageLoadedRef.current = false;
-        const task = tasksRef.current[currentTaskIdxRef.current];
-        const query = task?.queries[currentQueryIdxRef.current];
-        if (query && !stoppedRef.current) {
+        const isHome =
+          !isResults &&
+          (url.includes("bing.com") || url === "" || url.startsWith(BING_HOME));
+
+        if (isResults) {
+          if (pageLoadedRef.current) return;
+          pageLoadedRef.current = true;
+          const delay = 3000 + Math.random() * 2000;
+          setStatusText("Reading results...");
+          delayTimerRef.current = setTimeout(goNext, delay);
+        } else if (isHome) {
+          pageLoadedRef.current = false;
+          const task = tasksRef.current[currentTaskIdxRef.current];
+          const query = task?.queries[currentQueryIdxRef.current];
+          if (query && !stoppedRef.current) {
+            setStatusText(`Typing: "${query.substring(0, 30)}..."`);
+            setTimeout(() => {
+              if (!stoppedRef.current && phaseRef.current === "searching") {
+                webViewRef.current?.injectJavaScript(getTypingScript(query));
+              }
+            }, 600);
+          }
+        }
+      } else if (currentPhase === "scraping") {
+        const isRewards = url.includes("rewards.bing.com") || url.includes("bing.com/rewards");
+        if (isRewards && !pageLoadedRef.current) {
+          pageLoadedRef.current = true;
           setTimeout(() => {
-            if (!stoppedRef.current) {
-              webViewRef.current?.injectJavaScript(getTypingScript(query));
+            if (!stoppedRef.current && phaseRef.current === "scraping") {
+              webViewRef.current?.injectJavaScript(SCRAPE_POINTS_JS);
             }
-          }, 600);
+          }, 2000);
         }
       }
     },
@@ -256,18 +412,60 @@ export default function SearchRunnerScreen() {
     (event: any) => {
       try {
         const data = JSON.parse(event.nativeEvent.data);
+
         if (data.type === "PAGE_LOADED") {
           handleUrlChange(data.url ?? "");
+        } else if (data.type === "COOKIES_INJECTED") {
+          const task = tasksRef.current[currentTaskIdxRef.current];
+          if (task && phaseRef.current === "searching") {
+            const query = task.queries[currentQueryIdxRef.current];
+            if (query) {
+              setStatusText(`Typing: "${query.substring(0, 30)}..."`);
+            }
+          }
+        } else if (data.type === "POINTS_SCRAPED") {
+          const pts = typeof data.points === "number" ? data.points : 0;
+          earnedPointsRef.current = pts;
+          const tIdx = currentTaskIdxRef.current;
+          const task = tasksRef.current[tIdx];
+
+          if (task?.dailySetEnabled) {
+            phaseRef.current = "daily_set";
+            setPhase("daily_set");
+            setStatusText("Completing Daily Set...");
+            pageLoadedRef.current = false;
+            setTimeout(() => {
+              if (!stoppedRef.current) {
+                webViewRef.current?.injectJavaScript(getDailySetScript());
+              }
+            }, 1000);
+          } else {
+            logAndAdvanceAccount(tIdx, pts, false);
+          }
+        } else if (data.type === "DAILY_SET_DONE") {
+          const tIdx = currentTaskIdxRef.current;
+          const clicked = typeof data.clicked === "number" ? data.clicked : 0;
+          logAndAdvanceAccount(tIdx, earnedPointsRef.current, clicked > 0);
         }
       } catch (_) {}
     },
-    [handleUrlChange]
+    [handleUrlChange, logAndAdvanceAccount]
   );
 
   const handleLoadEnd = useCallback(
     (e?: any) => {
       const url: string = e?.nativeEvent?.url ?? "";
-      handleUrlChange(url);
+      const currentPhase = phaseRef.current;
+
+      if (currentPhase === "searching" && (url.includes("bing.com") || url === "")) {
+        const task = tasksRef.current[currentTaskIdxRef.current];
+        if (task && Object.keys(task.cookies).length > 0) {
+          webViewRef.current?.injectJavaScript(buildCookieInjectScript(task.cookies));
+        }
+        webViewRef.current?.injectJavaScript(INJECTED_JS);
+      } else {
+        handleUrlChange(url);
+      }
     },
     [handleUrlChange]
   );
@@ -309,6 +507,12 @@ export default function SearchRunnerScreen() {
 
   const currentTask = tasks[currentTaskIdx];
 
+  const phaseLabel = () => {
+    if (phase === "scraping") return "Checking points...";
+    if (phase === "daily_set") return "Daily Set";
+    return "Searching Bing";
+  };
+
   if (Platform.OS === "web") {
     return (
       <View style={[styles.webFallback, { backgroundColor: colors.background }]}>
@@ -342,10 +546,7 @@ export default function SearchRunnerScreen() {
   return (
     <View style={styles.overlay} pointerEvents="box-none">
       {!minimized && (
-        <Pressable
-          style={styles.backdrop}
-          onPress={handleMinimize}
-        />
+        <Pressable style={styles.backdrop} onPress={handleMinimize} />
       )}
 
       <Animated.View
@@ -359,16 +560,16 @@ export default function SearchRunnerScreen() {
         ]}
       >
         <LinearGradient
-          colors={["#1D4ED8", "#2563EB"]}
+          colors={phase === "daily_set" ? ["#7C3AED", "#6D28D9"] : phase === "scraping" ? ["#059669", "#047857"] : ["#1D4ED8", "#2563EB"]}
           style={styles.cardHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
           <View style={styles.headerLeft}>
-            <View style={styles.headerDot} />
+            <View style={[styles.headerDot, { backgroundColor: isDone ? "#22C55E" : "#4ADE80" }]} />
             <View>
               <Text style={styles.headerTitle}>
-                {isDone ? "All done!" : "Searching Bing"}
+                {isDone ? "All done!" : phaseLabel()}
               </Text>
               {currentTask && !isDone && (
                 <Text style={styles.headerSub} numberOfLines={1}>
@@ -396,7 +597,11 @@ export default function SearchRunnerScreen() {
         <View style={styles.progressSection}>
           <View style={styles.progressRow}>
             <Text style={[styles.progressLabel, { color: colors.textSecondary }]}>
-              Search {Math.min(completedSearches + 1, totalSearches)} of {totalSearches}
+              {phase === "scraping"
+                ? "Fetching rewards balance"
+                : phase === "daily_set"
+                ? "Completing Daily Set"
+                : `Search ${Math.min(completedSearches + 1, totalSearches)} of ${totalSearches}`}
             </Text>
             <Text style={[styles.progressPct, { color: colors.tint }]}>
               {Math.round(progressPct * 100)}%
@@ -410,11 +615,9 @@ export default function SearchRunnerScreen() {
               ]}
             />
           </View>
-          {currentQuery ? (
-            <Text style={[styles.currentQuery, { color: colors.textMuted }]} numberOfLines={1}>
-              <Text style={{ color: colors.textSecondary }}>Searching: </Text>"{currentQuery}"
-            </Text>
-          ) : null}
+          <Text style={[styles.currentQuery, { color: colors.textMuted }]} numberOfLines={1}>
+            {statusText}
+          </Text>
         </View>
 
         <View style={styles.webviewContainer}>
@@ -438,7 +641,7 @@ export default function SearchRunnerScreen() {
             <WebViewComponent
               key={webviewKey}
               ref={webViewRef}
-              source={{ uri: BING_HOME }}
+              source={{ uri: webviewUri }}
               userAgent={MOBILE_USER_AGENT}
               sharedCookiesEnabled
               thirdPartyCookiesEnabled
@@ -447,6 +650,7 @@ export default function SearchRunnerScreen() {
               cacheEnabled={false}
               style={styles.webview}
               onLoadEnd={handleLoadEnd}
+              onMessage={handleMessage}
               onShouldStartLoadWithRequest={(req: any) => {
                 const u: string = req.url;
                 return (
@@ -462,12 +666,16 @@ export default function SearchRunnerScreen() {
       </Animated.View>
 
       {minimized && (
-        <View style={[styles.pill, { bottom: insets.bottom + 24, backgroundColor: "#1D4ED8" }]}>
+        <View style={[styles.pill, { bottom: insets.bottom + 24, backgroundColor: phase === "daily_set" ? "#7C3AED" : phase === "scraping" ? "#059669" : "#1D4ED8" }]}>
           <Pressable style={styles.pillContent} onPress={handleExpand}>
             <View style={[styles.pillDot, { backgroundColor: isDone ? "#22C55E" : "#60A5FA" }]} />
             <Text style={styles.pillText} numberOfLines={1}>
               {isDone
                 ? `Done — ${totalSearches} searches`
+                : phase === "scraping"
+                ? `${currentTask?.accountEmail ?? "Running"} · Checking points`
+                : phase === "daily_set"
+                ? `${currentTask?.accountEmail ?? "Running"} · Daily Set`
                 : `${currentTask?.accountEmail ?? "Running"} · ${completedSearches}/${totalSearches}`}
             </Text>
             <View style={[styles.pillProgress, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
@@ -527,7 +735,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#4ADE80",
   },
   headerTitle: {
     fontSize: 16,
@@ -565,6 +772,8 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontSize: 13,
     fontFamily: "Inter_500Medium",
+    flex: 1,
+    marginRight: 8,
   },
   progressPct: {
     fontSize: 13,
