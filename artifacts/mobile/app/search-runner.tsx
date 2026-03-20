@@ -37,41 +37,114 @@ function getTypingScript(query: string): string {
   const escaped = query
     .replace(/\\/g, "\\\\")
     .replace(/'/g, "\\'")
-    .replace(/\r?\n/g, " ");
+    .replace(/\r?\n/g, " ")
+    .replace(/"/g, '\\"');
+
   return `
 (function() {
-  function tryType() {
-    var input = document.querySelector('#sb_form_q')
-      || document.querySelector('input[name="q"]')
-      || document.querySelector('input[type="search"]');
-    if (!input) { setTimeout(tryType, 400); return; }
+  var MAX_WAIT = 12000;
+  var waited = 0;
+
+  function findInput() {
+    var selectors = [
+      '#sb_form_q',
+      'input[name="q"]',
+      '.b_searchbox',
+      '[aria-label="Enter your search term"]',
+      'input[type="search"]',
+      '[role="searchbox"]',
+      'input[placeholder]'
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var el = document.querySelector(selectors[i]);
+      if (el && el.tagName === 'INPUT') return el;
+    }
+    return null;
+  }
+
+  function submit(input) {
+    var form = document.getElementById('sb_form') || document.querySelector('form[action*="search"]') || input.form;
+    if (form) {
+      form.submit();
+    } else {
+      ['keydown','keypress','keyup'].forEach(function(type) {
+        input.dispatchEvent(new KeyboardEvent(type, {key:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true}));
+      });
+    }
+  }
+
+  function typeQuery(input) {
+    // Clear the field first
+    input.click();
     input.focus();
-    input.value = '';
+
+    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+    var setValue = nativeSetter && nativeSetter.set
+      ? function(val) { nativeSetter.set.call(input, val); }
+      : function(val) { input.value = val; };
+
+    setValue('');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
     var query = '${escaped}';
-    var idx = 0;
-    function typeNext() {
-      if (idx >= query.length) {
-        setTimeout(function() {
-          var form = document.querySelector('#sb_form') || input.closest('form');
-          if (form) { form.submit(); }
-          else {
-            input.dispatchEvent(new KeyboardEvent('keydown', {key:'Enter',keyCode:13,which:13,bubbles:true}));
-            input.dispatchEvent(new KeyboardEvent('keyup',  {key:'Enter',keyCode:13,which:13,bubbles:true}));
-          }
-        }, 350);
+    var pos = 0;
+
+    function tick() {
+      if (pos >= query.length) {
+        setTimeout(function() { submit(input); }, 500);
         return;
       }
-      var ch = query[idx];
-      input.value += ch;
-      input.dispatchEvent(new Event('input',   { bubbles: true }));
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: ch, bubbles: true }));
-      input.dispatchEvent(new KeyboardEvent('keyup',   { key: ch, bubbles: true }));
-      idx++;
-      setTimeout(typeNext, 55 + Math.random() * 55);
+
+      var ch = query[pos];
+      var current = query.substring(0, pos + 1);
+
+      // 1. Fire keydown
+      input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: ch, code: 'Key' + ch.toUpperCase(),
+        keyCode: ch.charCodeAt(0), which: ch.charCodeAt(0),
+        bubbles: true, cancelable: true
+      }));
+
+      // 2. Try execCommand first (most reliable in WebKit/Blink WebView)
+      var typed = false;
+      if (document.execCommand) {
+        try {
+          typed = document.execCommand('insertText', false, ch);
+        } catch(e) {}
+      }
+
+      // 3. Fallback: set value with native setter + fire input event
+      if (!typed) {
+        setValue(current);
+        input.dispatchEvent(new Event('input', { inputType: 'insertText', data: ch, bubbles: true }));
+      }
+
+      // 4. Fire keyup
+      input.dispatchEvent(new KeyboardEvent('keyup', {
+        key: ch, keyCode: ch.charCodeAt(0), which: ch.charCodeAt(0), bubbles: true
+      }));
+
+      // 5. Move cursor to end
+      try { input.setSelectionRange(current.length, current.length); } catch(e) {}
+
+      pos++;
+      setTimeout(tick, 120 + Math.random() * 80);
     }
-    setTimeout(typeNext, 200);
+
+    setTimeout(tick, 400);
   }
-  setTimeout(tryType, 700);
+
+  function tryFind() {
+    var input = findInput();
+    if (input) {
+      typeQuery(input);
+      return;
+    }
+    waited += 600;
+    if (waited < MAX_WAIT) setTimeout(tryFind, 600);
+  }
+
+  setTimeout(tryFind, 1200);
 })();
 true;
 `;
@@ -89,6 +162,7 @@ export default function SearchRunnerScreen() {
   const [ready, setReady] = useState(false);
   const [minimized, setMinimized] = useState(false);
   const [isDone, setIsDone] = useState(false);
+  const [webviewKey, setWebviewKey] = useState(0);
 
   const currentTaskIdxRef = useRef(0);
   const currentQueryIdxRef = useRef(0);
@@ -153,7 +227,7 @@ export default function SearchRunnerScreen() {
       setCurrentQueryIdx(nextQIdx);
       setCurrentQuery(task.queries[nextQIdx]);
       updateAccount(task.accountId, { searchesCompleted: nextQIdx });
-      webViewRef.current?.injectJavaScript(`window.location.href = '${BING_HOME}'; true;`);
+      setWebviewKey((k) => k + 1);
     } else {
       const pointsEarned = Math.floor(Math.random() * 20) + task.queries.length * 3;
       updateAccount(task.accountId, {
@@ -180,7 +254,7 @@ export default function SearchRunnerScreen() {
         const nextTask = allTasks[nextTIdx];
         setCurrentQuery(nextTask.queries[0]);
         updateAccount(nextTask.accountId, { status: "running", searchesCompleted: 0 });
-        webViewRef.current?.injectJavaScript(`window.location.href = '${BING_HOME}'; true;`);
+        setWebviewKey((k) => k + 1);
       } else {
         setIsDone(true);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -387,12 +461,15 @@ export default function SearchRunnerScreen() {
             </View>
           ) : (
             <WebViewComponent
+              key={webviewKey}
               ref={webViewRef}
               source={{ uri: BING_HOME }}
               userAgent={MOBILE_USER_AGENT}
               sharedCookiesEnabled
               thirdPartyCookiesEnabled
               javaScriptEnabled
+              domStorageEnabled
+              cacheEnabled={false}
               style={styles.webview}
               onLoadEnd={handleLoadEnd}
               onShouldStartLoadWithRequest={(req: any) => {
