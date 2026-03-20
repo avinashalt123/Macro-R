@@ -257,9 +257,9 @@ export default function LoginWebViewScreen() {
         // Refreshing an existing account skips sign-out so the session stays valid.
         source={{ uri: existingAccount ? LOGIN_URL : SIGNOUT_URL }}
         userAgent={MOBILE_USER_AGENT}
-        // On Android, incognito mode gives each login a fresh, isolated cookie store
-        // so old session cookies can never leak into a new account login.
-        incognito={Platform.OS === "android" && !existingAccount}
+        // Incognito mode gives each login a fresh, isolated cookie store on both
+        // Android and iOS so old session cookies can never leak into a new account login.
+        incognito={!existingAccount}
         onNavigationStateChange={handleNavigationStateChange}
         onMessage={handleMessage}
         onLoadStart={() => setIsLoading(true)}

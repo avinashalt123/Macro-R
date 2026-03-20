@@ -1,0 +1,31 @@
+To: Senior Dev
+From: Junior Dev
+Re: Account switching is broken — two separate root causes
+
+Hi, I need help. The multi-account system has a fundamental flaw I wasn't aware of. Two separate things are broken:
+
+Problem 1 — Adding a second account always shows the first account's Rewards page
+
+When the user opens the login WebView to add Account 2, the WebView is not a clean browser. react-native-webview uses a single shared, persistent cookie store on the device — it's the same store across every WebView opened in the app. So when Account 1 logged into Microsoft, those session cookies were saved at the OS level in the WebView store. When the WebView opens again for Account 2, Microsoft reads those existing cookies, sees a valid session, and automatically logs Account 2 in as Account 1 — never showing a login page.
+
+The user can't log into a second account unless we clear the WebView's cookie store first. We never do that. There is no code that wipes the WebView session between adding accounts.
+
+Fix needed: Before opening the login WebView for any new account (or when a user explicitly starts a new session), we need to call CookieManager.clearAll() from @react-native-cookies/cookies to flush the shared WebView cookie store, so Microsoft presents a fresh login page.
+
+Problem 2 — Search runner doesn't actually isolate accounts either
+
+Even if the user somehow captures cookies for two separate accounts, the search runner is still broken. Here's why:
+
+We use React Native's fetch() with a manually set Cookie: header. The problem is that fetch() in React Native uses the OS's native HTTP stack (OkHttp on Android, NSURLSession on iOS), which has its own built-in cookie jar. When Microsoft's server returns responses with Set-Cookie headers, those get saved into the native cookie jar automatically. On subsequent requests — even for a different account — the cookie jar may inject those saved cookies on top of our manually set header, or override it entirely.
+
+This means Account 1's response cookies can silently contaminate Account 2's requests. Microsoft sees Account 1 on both.
+
+Fix needed: All fetch calls in the search runner need credentials: 'omit' to prevent the native cookie jar from touching requests. With credentials: 'omit', only our explicitly set Cookie: header is sent — no automatic cookie jar injection. Change every fetch() call in performBingSearch and fetchRewardsPoints to include that option.
+
+Summary of what needs doing:
+
+Install @react-native-cookies/cookies
+In login-webview.tsx, call CookieManager.clearAll() before the WebView loads for a new account login
+In search-runner.tsx, add credentials: 'omit' to every fetch() call so the OS cookie jar doesn't interfere
+These are the actual causes. The rest of the search runner logic (per-account cookie headers, sequential rotation, real HTTP calls to Bing) is correct — it's just being undermined by the shared cookie store at the OS level.
+
