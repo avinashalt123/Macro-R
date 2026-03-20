@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "9kfcKCZdC8bf-eG_evakw"
+uri = "file://report.md"
+type = "text"
+title = "MS Rewards Automation — Project Report"
