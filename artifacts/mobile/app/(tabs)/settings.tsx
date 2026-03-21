@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Moon, RotateCcw, Search, Zap } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Minus, Moon, Plus, RotateCcw, Search, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -43,7 +43,7 @@ function formatSlot(slot: OvernightSlot): string {
   return `${hour}:${mm} ${isAm ? "AM" : "PM"}`;
 }
 
-const SLOT_LABELS = ["Run 1", "Run 2", "Run 3", "Run 4"];
+const MAX_SLOTS = 10;
 
 function initHourTexts(slots: OvernightSlot[]): string[] {
   return slots.map((s) => String(from24h(s.hour).hour));
@@ -156,6 +156,28 @@ export default function SettingsScreen() {
     const updated = [...settings.overnightSlots];
     updated[index] = { ...slot, hour: newHour24 };
     updateSettings({ overnightSlots: updated });
+    setScheduledCount(null);
+  };
+
+  // ── Add / Remove slots ────────────────────────────────────────────────────
+  const addSlot = () => {
+    if (settings.overnightSlots.length >= MAX_SLOTS) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newSlot: OvernightSlot = { hour: 0, minute: 0 };
+    const updated = [...settings.overnightSlots, newSlot];
+    updateSettings({ overnightSlots: updated });
+    setSlotHourTexts((prev) => [...prev, "12"]);
+    setSlotMinuteTexts((prev) => [...prev, "00"]);
+    setScheduledCount(null);
+  };
+
+  const removeSlot = (index: number) => {
+    if (settings.overnightSlots.length <= 1) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const updated = settings.overnightSlots.filter((_, i) => i !== index);
+    updateSettings({ overnightSlots: updated });
+    setSlotHourTexts((prev) => prev.filter((_, i) => i !== index));
+    setSlotMinuteTexts((prev) => prev.filter((_, i) => i !== index));
     setScheduledCount(null);
   };
 
@@ -377,7 +399,7 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            {/* 4 slot rows */}
+            {/* Slot rows (dynamic, 1–10) */}
             {settings.overnightSlots.map((slot, i) => {
               const { isAm } = from24h(slot.hour);
               return (
@@ -387,18 +409,26 @@ export default function SettingsScreen() {
                   )}
                   <View style={styles.slotRow}>
                     <View style={styles.slotLabelWrap}>
+                      {settings.overnightSlots.length > 1 && (
+                        <Pressable
+                          onPress={() => removeSlot(i)}
+                          hitSlop={8}
+                          style={[styles.removeBtn, { backgroundColor: "#FEE2E2" }]}
+                        >
+                          <Minus size={12} color="#DC2626" />
+                        </Pressable>
+                      )}
                       <View style={[styles.slotBadge, { backgroundColor: colors.surfaceSecondary }]}>
                         <Text style={[styles.slotBadgeText, { color: colors.textMuted }]}>
                           {i + 1}
                         </Text>
                       </View>
                       <Text style={[styles.slotLabel, { color: colors.textSecondary }]}>
-                        {SLOT_LABELS[i]}
+                        Run {i + 1}
                       </Text>
                     </View>
 
                     <View style={styles.slotPicker}>
-                      {/* Hour */}
                       <TextInput
                         style={slotInputStyle}
                         value={slotHourTexts[i] ?? "12"}
@@ -413,7 +443,6 @@ export default function SettingsScreen() {
 
                       <Text style={[styles.colonSep, { color: colors.textMuted }]}>:</Text>
 
-                      {/* Minute */}
                       <TextInput
                         style={slotInputStyle}
                         value={slotMinuteTexts[i] ?? "00"}
@@ -426,7 +455,6 @@ export default function SettingsScreen() {
                         selectTextOnFocus
                       />
 
-                      {/* AM / PM */}
                       <Pressable
                         onPress={() => toggleSlotAmPm(i)}
                         style={[
@@ -441,6 +469,25 @@ export default function SettingsScreen() {
                 </View>
               );
             })}
+
+            {/* Add Run button */}
+            {settings.overnightSlots.length < MAX_SLOTS && (
+              <>
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                <Pressable
+                  onPress={addSlot}
+                  style={({ pressed }) => [
+                    styles.addSlotBtn,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Plus size={16} color={colors.tint} />
+                  <Text style={[styles.addSlotText, { color: colors.tint }]}>
+                    Add Run ({settings.overnightSlots.length}/{MAX_SLOTS})
+                  </Text>
+                </Pressable>
+              </>
+            )}
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
@@ -711,6 +758,21 @@ const styles = StyleSheet.create({
   },
   slotBadgeText: { fontSize: 13, fontFamily: "Inter_700Bold" },
   slotLabel: { fontSize: 14, fontFamily: "Inter_500Medium" },
+  removeBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addSlotBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+  },
+  addSlotText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   slotPicker: {
     flexDirection: "row",
     alignItems: "center",
