@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AccountsProvider } from "@/context/AccountsContext";
 import { QueriesProvider } from "@/context/QueriesContext";
 import { SettingsProvider } from "@/context/SettingsContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import {
   addNotificationResponseListener,
   setupNotificationHandler,
@@ -84,13 +85,15 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView>
             <KeyboardProvider>
-              <AccountsProvider>
-                <QueriesProvider>
-                  <SettingsProvider>
-                    <RootLayoutNav />
-                  </SettingsProvider>
-                </QueriesProvider>
-              </AccountsProvider>
+              <ThemeProvider>
+                <AccountsProvider>
+                  <QueriesProvider>
+                    <SettingsProvider>
+                      <RootLayoutNav />
+                    </SettingsProvider>
+                  </QueriesProvider>
+                </AccountsProvider>
+              </ThemeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

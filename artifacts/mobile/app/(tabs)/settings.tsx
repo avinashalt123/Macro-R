@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Moon, RotateCcw, Search, Zap } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Moon, RotateCcw, Search, Sun, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -12,12 +12,12 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { DEFAULT_OVERNIGHT_SLOTS, OvernightSlot, useSettings } from "@/context/SettingsContext";
+import { useAppTheme } from "@/context/ThemeContext";
 import {
   cancelAllScheduledNotifications,
   isNotificationsAvailable,
@@ -53,7 +53,7 @@ function initMinuteTexts(slots: OvernightSlot[]): string[] {
 }
 
 export default function SettingsScreen() {
-  const scheme = useColorScheme() ?? "light";
+  const { scheme, themeMode, setThemeMode } = useAppTheme();
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
@@ -256,6 +256,52 @@ export default function SettingsScreen() {
             Configure automation behavior
           </Text>
         </View>
+
+        {/* ── APPEARANCE ───────────────────────────────────── */}
+        <Section title="APPEARANCE" colors={colors}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={styles.settingRow}>
+              <View style={styles.settingLabel}>
+                <View style={[styles.iconBg, { backgroundColor: scheme === "dark" ? "#1E1B4B" : "#EFF6FF" }]}>
+                  {scheme === "dark" ? (
+                    <Moon size={16} color="#818CF8" />
+                  ) : (
+                    <Sun size={16} color="#F59E0B" />
+                  )}
+                </View>
+                <View style={styles.labelText}>
+                  <Text style={[styles.settingTitle, { color: colors.text }]}>Theme</Text>
+                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                    {themeMode === "system" ? "Follows device setting" : themeMode === "dark" ? "Always dark" : "Always light"}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.themeSegment, { backgroundColor: colors.surfaceSecondary }]}>
+                {(["system", "light", "dark"] as const).map((mode) => (
+                  <Pressable
+                    key={mode}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setThemeMode(mode);
+                    }}
+                    style={[
+                      styles.themeOption,
+                      themeMode === mode && { backgroundColor: colors.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.themeOptionText,
+                      { color: themeMode === mode ? colors.text : colors.textMuted },
+                      themeMode === mode && { fontFamily: "Inter_600SemiBold" },
+                    ]}>
+                      {mode === "system" ? "Auto" : mode === "light" ? "Light" : "Dark"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Section>
 
         {/* ── SEARCH ────────────────────────────────────────── */}
         <Section title="SEARCH" colors={colors}>
@@ -789,4 +835,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   clearText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  themeSegment: {
+    flexDirection: "row",
+    borderRadius: 10,
+    padding: 3,
+    gap: 2,
+  },
+  themeOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  themeOptionText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
 });

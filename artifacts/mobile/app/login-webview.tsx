@@ -13,12 +13,12 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { WebViewNavigation, WebViewMessageEvent } from "react-native-webview";
 
 import Colors from "@/constants/colors";
+import { useAppTheme } from "@/context/ThemeContext";
 import { useAccounts } from "@/context/AccountsContext";
 
 const MOBILE_USER_AGENT =
@@ -101,7 +101,7 @@ function getCookieManager(): any {
 type LoginStatus = "loading" | "browsing" | "loggedIn";
 
 export default function LoginWebViewScreen() {
-  const scheme = useColorScheme() ?? "light";
+  const { scheme } = useAppTheme();
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { addAccount, updateAccount, accounts } = useAccounts();
