@@ -38,7 +38,8 @@ function buildCookieHeader(cookies: Record<string, string>): string {
 async function injectAccountCookies(cookies: Record<string, string>): Promise<void> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const CookieManager = require("@react-native-cookies/cookies").default;
+    const mod = require("@react-native-cookies/cookies");
+    const CookieManager = mod.default || mod;
     await CookieManager.clearAll(true);
 
     const targets = [

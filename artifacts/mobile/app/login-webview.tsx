@@ -91,7 +91,8 @@ true;
 
 function getCookieManager(): any {
   try {
-    return require("@react-native-cookies/cookies").default;
+    const mod = require("@react-native-cookies/cookies");
+    return mod.default || mod;
   } catch {
     return null;
   }
