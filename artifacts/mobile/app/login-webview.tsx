@@ -206,6 +206,8 @@ export default function LoginWebViewScreen() {
         "https://www.bing.com",
         "https://rewards.bing.com",
         "https://login.live.com",
+        "https://login.microsoftonline.com",
+        "https://account.microsoft.com",
       ];
       for (const domain of domains) {
         try {

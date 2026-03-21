@@ -40,18 +40,36 @@ async function injectAccountCookies(cookies: Record<string, string>): Promise<vo
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const CookieManager = require("@react-native-cookies/cookies").default;
     await CookieManager.clearAll(true);
-    const domains = [
-      "https://www.bing.com",
-      "https://rewards.bing.com",
-      "https://login.live.com",
+
+    const targets = [
+      { url: "https://www.bing.com", domain: ".bing.com" },
+      { url: "https://rewards.bing.com", domain: ".bing.com" },
+      { url: "https://login.live.com", domain: ".live.com" },
+      { url: "https://login.microsoftonline.com", domain: ".microsoftonline.com" },
+      { url: "https://account.microsoft.com", domain: ".microsoft.com" },
     ];
+
     for (const [name, value] of Object.entries(cookies)) {
       if (name.startsWith("_ls_") || !value) continue;
-      for (const domain of domains) {
+      for (const { url, domain } of targets) {
         try {
-          await CookieManager.set(domain, { name, value, path: "/" }, true);
+          await CookieManager.set(
+            url,
+            { name, value, path: "/", domain },
+            true
+          );
         } catch {}
       }
+    }
+
+    await CookieManager.flush();
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        const bingCookies = await CookieManager.get("https://www.bing.com", true);
+        if (bingCookies && Object.keys(bingCookies).length > 0) return;
+      } catch {}
+      await new Promise<void>((r) => setTimeout(r, 200));
     }
   } catch {}
 }
@@ -268,7 +286,7 @@ export default function SearchRunnerScreen() {
   const webViewLoadResolverRef = useRef<(() => void) | null>(null);
   const webViewMsgHandlerRef = useRef<((data: any) => void) | null>(null);
 
-  const [webViewUrl, setWebViewUrl] = useState("https://www.bing.com");
+  const [webViewUrl, setWebViewUrl] = useState("about:blank");
 
   // Status display
   const [currentAccountIdx, setCurrentAccountIdx] = useState(0);
