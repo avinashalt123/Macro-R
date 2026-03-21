@@ -12,16 +12,16 @@ import {
   Text,
   TextInput,
   View,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { useAppTheme } from "@/context/ThemeContext";
 import { useAccounts } from "@/context/AccountsContext";
 import { useSettings } from "@/context/SettingsContext";
 
 export default function AddAccountScreen() {
-  const { scheme } = useAppTheme();
+  const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { addAccount } = useAccounts();

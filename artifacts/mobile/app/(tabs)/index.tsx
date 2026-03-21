@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -23,11 +24,10 @@ import { StatsBar } from "@/components/StatsBar";
 import Colors from "@/constants/colors";
 import { Account, useAccounts } from "@/context/AccountsContext";
 import { useSettings } from "@/context/SettingsContext";
-import { useAppTheme } from "@/context/ThemeContext";
 import { consumePendingRun } from "@/utils/notifications";
 
 export default function HomeScreen() {
-  const { scheme } = useAppTheme();
+  const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { accounts, isRunning, startRun, stopRun } = useAccounts();
@@ -357,8 +357,10 @@ export default function HomeScreen() {
           <Pressable
             onPress={handleDailySetAll}
             style={({ pressed }) => [
-              styles.fabItem,
-              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+              {
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              },
             ]}
           >
             <LinearGradient
@@ -377,8 +379,10 @@ export default function HomeScreen() {
           <Pressable
             onPress={handleRunBothAll}
             style={({ pressed }) => [
-              styles.fabItem,
-              { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+              {
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              },
             ]}
           >
             <LinearGradient
@@ -394,10 +398,12 @@ export default function HomeScreen() {
         )}
 
         <Pressable
-          onPress={handleRunAll}
+          onPress={isRunning ? handleRunAll : handleRunAll}
           style={({ pressed }) => [
-            styles.fabItem,
-            { opacity: pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+            {
+              opacity: pressed ? 0.9 : 1,
+              transform: [{ scale: pressed ? 0.96 : 1 }],
+            },
           ]}
         >
           <LinearGradient
@@ -498,22 +504,17 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    left: 16,
     right: 16,
     flexDirection: "row",
     gap: 8,
-    alignItems: "stretch",
-  },
-  fabItem: {
-    flex: 1,
+    alignItems: "center",
   },
   fabBtn: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 6,
-    paddingVertical: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 24,
     shadowColor: "#2563EB",
     shadowOffset: { width: 0, height: 4 },

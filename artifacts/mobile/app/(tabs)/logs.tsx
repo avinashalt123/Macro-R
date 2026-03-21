@@ -8,17 +8,17 @@ import {
   StyleSheet,
   Text,
   View,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
 import { LogItem } from "@/components/LogItem";
 import Colors from "@/constants/colors";
-import { useAppTheme } from "@/context/ThemeContext";
 import { RunLog, useAccounts } from "@/context/AccountsContext";
 
 export default function LogsScreen() {
-  const { scheme } = useAppTheme();
+  const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { logs, clearLogs } = useAccounts();

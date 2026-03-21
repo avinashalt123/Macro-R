@@ -10,11 +10,11 @@ import {
   StyleSheet,
   Text,
   View,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { useAppTheme } from "@/context/ThemeContext";
 import { Account, useAccounts } from "@/context/AccountsContext";
 import { useQueries } from "@/context/QueriesContext";
 import { useSettings } from "@/context/SettingsContext";
@@ -270,7 +270,7 @@ function makeClickScript(alreadyClicked: string[]): string {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function SearchRunnerScreen() {
-  const { scheme } = useAppTheme();
+  const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
 

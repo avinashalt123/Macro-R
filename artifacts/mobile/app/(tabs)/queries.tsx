@@ -9,17 +9,17 @@ import {
   Text,
   TextInput,
   View,
+  useColorScheme,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
-import { useAppTheme } from "@/context/ThemeContext";
 import { useQueries } from "@/context/QueriesContext";
 
 type SubTab = "pool" | "used";
 
 export default function QueriesScreen() {
-  const { scheme } = useAppTheme();
+  const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { unusedQueries, usedQueries, setUnusedQueries, moveToUnused, deleteUsedQuery, clearAllUsed, restoreAllUsed } =
