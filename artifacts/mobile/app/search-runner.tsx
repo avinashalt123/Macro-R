@@ -279,8 +279,8 @@ export default function SearchRunnerScreen() {
   const { pickQueries } = useQueries();
   const { settings } = useSettings();
 
-  // mode: "both" = searches + daily set  |  "dailyset" = daily set only
-  const mode = (rawMode === "dailyset" ? "dailyset" : "both") as "both" | "dailyset";
+  // mode: "searchonly" = searches only | "dailyset" = daily set only | "both" = searches + daily set
+  const mode = (rawMode === "dailyset" ? "dailyset" : rawMode === "searchonly" ? "searchonly" : "both") as "both" | "dailyset" | "searchonly";
 
   const accountIds: string[] = rawIds ? JSON.parse(rawIds) : [];
   const targetAccounts = useRef<Account[]>(
@@ -469,7 +469,7 @@ export default function SearchRunnerScreen() {
 
         const account = targetAccounts[ai];
         const hasCookies = Object.keys(account.cookies ?? {}).length > 0;
-        const searchCount = account.searchCount > 0 ? account.searchCount : settings.defaultSearchCount;
+        const searchCount = settings.defaultSearchCount;
         const queries = pickQueries(searchCount);
         const delay = (settings.searchDelay ?? 5) * 1000;
 
@@ -566,6 +566,7 @@ export default function SearchRunnerScreen() {
 
         const shouldRunDailySet =
           !networkLost &&
+          mode !== "searchonly" &&
           (mode === "dailyset"
             ? true
             : settings.dailySetEnabled && (account.dailySetEnabled ?? true));
@@ -684,6 +685,8 @@ export default function SearchRunnerScreen() {
           <Text style={styles.topSub}>
             {mode === "dailyset"
               ? `Daily Set Only · Account ${Math.min(currentAccountIdx + 1, targetAccounts.length)}/${targetAccounts.length}`
+              : mode === "searchonly"
+              ? `Searches Only · Account ${Math.min(currentAccountIdx + 1, targetAccounts.length)}/${targetAccounts.length} · ${currentSearchIdx}/${totalSearches}`
               : phase === "dailyset"
               ? `Account ${Math.min(currentAccountIdx + 1, targetAccounts.length)}/${targetAccounts.length} · Daily Set`
               : `Account ${Math.min(currentAccountIdx + 1, targetAccounts.length)}/${targetAccounts.length} · Search ${currentSearchIdx}/${totalSearches}`}

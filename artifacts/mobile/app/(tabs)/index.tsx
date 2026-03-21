@@ -72,7 +72,7 @@ export default function HomeScreen() {
     startRun();
     router.push({
       pathname: "/search-runner",
-      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)) },
+      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)), mode: "searchonly" },
     });
   };
 
@@ -87,7 +87,7 @@ export default function HomeScreen() {
     startRun();
     router.push({
       pathname: "/search-runner",
-      params: { accountIds: JSON.stringify([id]) },
+      params: { accountIds: JSON.stringify([id]), mode: "searchonly" },
     });
   };
 
@@ -145,10 +145,9 @@ export default function HomeScreen() {
           })
         }
         isRunningGlobal={isRunning}
-        showDailySet={settings.dailySetEnabled}
       />
     ),
-    [isRunning, settings.dailySetEnabled],
+    [isRunning],
   );
 
   const ListHeader = (
@@ -330,8 +329,7 @@ export default function HomeScreen() {
           { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) },
         ]}
       >
-        {/* Daily Set button — hidden while a run is active or Daily Set is disabled */}
-        {!isRunning && settings.dailySetEnabled && (
+        {!isRunning && (
           <Pressable
             onPress={handleDailySetAll}
             style={({ pressed }) => [
@@ -374,7 +372,7 @@ export default function HomeScreen() {
               <Play size={20} color="#fff" />
             )}
             <Text style={styles.fabText}>
-              {isRunning ? "Running..." : "Run All"}
+              {isRunning ? "Running..." : "Search All"}
             </Text>
           </LinearGradient>
         </Pressable>
