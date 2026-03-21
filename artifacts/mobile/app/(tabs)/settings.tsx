@@ -364,12 +364,17 @@ export default function SettingsScreen() {
               </Text>
             </View>
 
-            {/* Column header labels */}
-            <View style={styles.slotHeaderRow}>
-              <View style={{ width: 72 }} />
-              <Text style={[styles.slotHeaderLabel, { color: colors.textMuted }]}>Hour</Text>
-              <Text style={[styles.slotHeaderLabel, { color: colors.textMuted }]}>Min</Text>
-              <View style={{ width: 50 }} />
+            {/* Column header labels — mirrors slotPicker layout for alignment */}
+            <View style={styles.slotRow}>
+              <View style={styles.slotLabelWrap} />
+              <View style={styles.slotPicker}>
+                <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Hour</Text>
+                <Text style={[styles.colonSep, { opacity: 0 }]}>:</Text>
+                <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Min</Text>
+                <View style={[styles.amPmBtn, { opacity: 0 }]}>
+                  <Text style={styles.amPmText}>PM</Text>
+                </View>
+              </View>
             </View>
 
             {/* 4 slot rows */}
@@ -676,16 +681,7 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 17,
   },
-  slotHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 4,
-    gap: 6,
-  },
-  slotHeaderLabel: {
+  slotHeaderText: {
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
     letterSpacing: 0.5,
