@@ -450,6 +450,8 @@ export default function SearchRunnerScreen() {
         setDailySetResult(null);
 
         updateAccount(account.id, { status: "running", searchesCompleted: 0 });
+        setStatusLine(`[${account.name}]  Preparing session…`);
+        await injectAccountCookies(account.cookies ?? {});
 
         if (!hasCookies) {
           setStatusLine(`${account.name}: no session — skipping`);
@@ -527,8 +529,6 @@ export default function SearchRunnerScreen() {
 
         if (shouldRunDailySet) {
           setPhase("dailyset");
-          setStatusLine(`[${account.name}]  Preparing session…`);
-          await injectAccountCookies(account.cookies ?? {});
 
           const ds = await runDailySetViaWebView(setStatusLine);
           dailySetDone = ds.completed > 0 || ds.alreadyDone;
