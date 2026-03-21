@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Moon, Plus, RotateCcw, Search, Sun, X, Zap } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Moon, Plus, RotateCcw, Search, X, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -53,7 +53,7 @@ function initMinuteTexts(slots: OvernightSlot[]): string[] {
 }
 
 export default function SettingsScreen() {
-  const { scheme, themeMode, setThemeMode } = useAppTheme();
+  const { scheme } = useAppTheme();
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
@@ -278,65 +278,6 @@ export default function SettingsScreen() {
             Configure automation behavior
           </Text>
         </View>
-
-        {/* ── APPEARANCE ───────────────────────────────────── */}
-        <Section title="APPEARANCE" colors={colors}>
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-            {/* Title row */}
-            <View style={styles.settingRow}>
-              <View style={styles.settingLabel}>
-                <View style={[styles.iconBg, { backgroundColor: scheme === "dark" ? "#1E1B4B" : "#FEF9C3" }]}>
-                  {scheme === "dark" ? (
-                    <Moon size={16} color="#818CF8" />
-                  ) : (
-                    <Sun size={16} color="#F59E0B" />
-                  )}
-                </View>
-                <View style={styles.labelText}>
-                  <Text style={[styles.settingTitle, { color: colors.text }]}>Theme</Text>
-                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                    {themeMode === "system" ? "Follows device setting" : themeMode === "dark" ? "Always dark" : "Always light"}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Full-width segment row */}
-            <View style={[styles.themeSegmentRow, { backgroundColor: colors.surfaceSecondary }]}>
-              {(["system", "light", "dark"] as const).map((mode) => {
-                const active = themeMode === mode;
-                return (
-                  <Pressable
-                    key={mode}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setThemeMode(mode);
-                    }}
-                    style={[
-                      styles.themeSegmentOption,
-                      active && {
-                        backgroundColor: colors.surface,
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.12,
-                        shadowRadius: 3,
-                        elevation: 2,
-                      },
-                    ]}
-                  >
-                    <Text style={[
-                      styles.themeSegmentText,
-                      { color: active ? colors.tint : colors.textMuted },
-                      active && { fontFamily: "Inter_600SemiBold" },
-                    ]}>
-                      {mode === "system" ? "Auto" : mode === "light" ? "Light" : "Dark"}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </Section>
 
         {/* ── SEARCH ────────────────────────────────────────── */}
         <Section title="SEARCH" colors={colors}>
@@ -899,27 +840,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   clearText: { fontSize: 15, fontFamily: "Inter_500Medium" },
-  themeSegmentRow: {
-    flexDirection: "row",
-    borderRadius: 12,
-    padding: 4,
-    marginHorizontal: 16,
-    marginBottom: 14,
-    gap: 4,
-  },
-  themeSegmentOption: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingVertical: 10,
-    borderRadius: 9,
-  },
-  themeSegmentText: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-  },
   deleteSlotBtn: {
     width: 28,
     height: 28,
