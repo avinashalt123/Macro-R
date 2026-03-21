@@ -1,0 +1,48 @@
+To: Senior Developer
+Re: MS Rewards Automation — EAS Build Status & Handoff
+
+Hey,
+
+Here's a full status dump on where things stand.
+
+What the project is:
+A React Native (Expo SDK 54) mobile app that automates Microsoft Rewards daily Bing searches across multiple accounts. User logs into accounts via in-app WebView, cookies are captured per account, and the app fires real Bing search HTTP requests using those cookies. There's also a Daily Set runner that uses WebView JS injection to click reward activity cards. It's in a pnpm monorepo at artifacts/mobile.
+
+What was already working before I touched it:
+
+Multi-account management (add/remove accounts)
+Search runner logic — fires real Bing fetches with per-account cookies (search-runner.tsx — do not touch, user confirmed it's perfect)
+Daily Set WebView runner
+Settings screen with schedule time picker UI
+What I fixed/built this session:
+
+1. Scheduled notifications — Two bugs were present: the expo-notifications plugin was missing from app.json, and the trigger used the deprecated format { hour, minute, repeats: true }. Updated to { type: "daily", hour, minute } per expo-notifications v0.29+. Full flow now works: user sets time → taps Apply Schedule → daily notification fires → tapping it auto-starts the search run.
+
+2. QueriesContext split — The context file was 3162 lines because the entire default query pool was inline. Extracted DEFAULT_QUERIES to constants/defaultQueries.ts. QueriesContext.tsx is now ~120 lines.
+
+3. EAS build configuration — Created eas.json with development, preview, and production profiles. Added bundle identifiers to app.json. Added expo-dev-client to dependencies. Ran eas init to link the project (project ID: bde8726b-e427-47c3-bfef-bac4d4e46de4, account: shroud.dev).
+
+4. Series of EAS build blockers resolved — in order:
+
+Problem	Fix
+@workspace/api-client-react: workspace:* in devDeps — unused, breaks cloud builds	Removed it
+catalog: version references — EAS cloud can't resolve pnpm workspace catalog	Replaced all with real version numbers
+Root preinstall script blocked EAS (rejects non-pnpm installs)	Added EAS_BUILD=1 env check that exits early on EAS servers
+"packageManager": "pnpm@9.15.0" caused pnpm to try installing itself, crashing Replit	Removed from both root and mobile package.json
+expo-dev-client was in package.json but not in node_modules — EAS CLI rejected the build	Ran pnpm install from workspace root
+EAS project not initialized — no projectId in app.json	Ran eas init --force, project linked successfully
+Current state:
+All blockers resolved. The user needs to run one command from the Replit shell:
+
+cd artifacts/mobile && eas build --platform android --profile development --non-interactive
+EAS cannot be triggered from the agent directly because Replit blocks the git operations EAS CLI uses internally to package files for upload. The user must run it from their own interactive shell.
+
+What's not done yet (post-build work remaining):
+
+Multi-account native cookie persistence via @react-native-cookies/cookies (package already installed, not wired up yet) — requires real device build first to test
+No retry logic on failed searches
+No expired session detection before a run starts
+All accounts share the same User-Agent (bot detection risk long-term)
+The user is non-technical — keep all instructions concrete and command-by-command.
+
+— Agent
