@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Minus, Moon, Plus, RotateCcw, Search, Zap } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Minus, Moon, Pencil, Plus, RotateCcw, Search, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -39,8 +39,8 @@ function from24h(hour24: number): { hour: number; isAm: boolean } {
 
 function formatSlot(slot: OvernightSlot): string {
   const { hour, isAm } = from24h(slot.hour);
-  const mm = slot.minute.toString().padStart(2, "0");
-  return `${hour}:${mm} ${isAm ? "AM" : "PM"}`;
+  const min = String(slot.minute).padStart(2, "0");
+  return `${hour}:${min} ${isAm ? "AM" : "PM"}`;
 }
 
 const MAX_SLOTS = 10;
@@ -74,6 +74,7 @@ export default function SettingsScreen() {
 
   const [previousUserSlots, setPreviousUserSlots] = useState<OvernightSlot[] | null>(null);
   const isShowingDefaults = previousUserSlots !== null;
+  const [isEditingSchedule, setIsEditingSchedule] = useState(false);
 
   const commitSearchCount = () => {
     const parsed = parseInt(searchCountText, 10);
@@ -375,182 +376,251 @@ export default function SettingsScreen() {
         </Section>
 
         {/* ── OVERNIGHT MODE ────────────────────────────────── */}
-        <Section title="OVERNIGHT MODE" colors={colors}>
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-
-            {/* Info banner */}
-            <View style={[styles.infoBanner, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
-              <Moon size={14} color={colors.tint} />
-              <Text style={[styles.infoText, { color: "#1E40AF" }]}>
-                Microsoft resets search points at midnight. Runs before (10 PM, 11 PM) and after (1 AM, 2 AM) to maximize daily points.
-              </Text>
-            </View>
-
-            {/* Column header labels — mirrors slotPicker layout for alignment */}
-            <View style={[styles.slotRow, { paddingTop: 8, paddingBottom: 0 }]}>
-              <View style={styles.slotLabelWrap} />
-              <View style={styles.slotPicker}>
-                <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Hour</Text>
-                <Text style={[styles.colonSep, { opacity: 0 }]}>:</Text>
-                <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Min</Text>
-                <View style={[styles.amPmBtn, { opacity: 0 }]}>
-                  <Text style={styles.amPmText}>PM</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Slot rows (dynamic, 1–10) */}
-            {settings.overnightSlots.map((slot, i) => {
-              const { isAm } = from24h(slot.hour);
-              return (
-                <View key={i}>
-                  {i > 0 && (
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                  )}
-                  <View style={styles.slotRow}>
-                    <View style={styles.slotLabelWrap}>
-                      {settings.overnightSlots.length > 1 && (
-                        <Pressable
-                          onPress={() => removeSlot(i)}
-                          hitSlop={8}
-                          style={[styles.removeBtn, { backgroundColor: "#FEE2E2" }]}
-                        >
-                          <Minus size={12} color="#DC2626" />
-                        </Pressable>
-                      )}
-                      <View style={[styles.slotBadge, { backgroundColor: colors.surfaceSecondary }]}>
-                        <Text style={[styles.slotBadgeText, { color: colors.textMuted }]}>
-                          {i + 1}
-                        </Text>
-                      </View>
-                      <Text style={[styles.slotLabel, { color: colors.textSecondary }]}>
-                        Run {i + 1}
-                      </Text>
-                    </View>
-
-                    <View style={styles.slotPicker}>
-                      <TextInput
-                        style={slotInputStyle}
-                        value={slotHourTexts[i] ?? "12"}
-                        onChangeText={(t) => updateSlotHourText(i, t)}
-                        onBlur={() => commitSlotHour(i)}
-                        onSubmitEditing={() => commitSlotHour(i)}
-                        keyboardType="number-pad"
-                        returnKeyType="next"
-                        maxLength={2}
-                        selectTextOnFocus
-                      />
-
-                      <Text style={[styles.colonSep, { color: colors.textMuted }]}>:</Text>
-
-                      <TextInput
-                        style={slotInputStyle}
-                        value={slotMinuteTexts[i] ?? "00"}
-                        onChangeText={(t) => updateSlotMinuteText(i, t)}
-                        onBlur={() => commitSlotMinute(i)}
-                        onSubmitEditing={() => commitSlotMinute(i)}
-                        keyboardType="number-pad"
-                        returnKeyType="done"
-                        maxLength={2}
-                        selectTextOnFocus
-                      />
-
-                      <Pressable
-                        onPress={() => toggleSlotAmPm(i)}
-                        style={[
-                          styles.amPmBtn,
-                          { backgroundColor: isAm ? "#0EA5E9" : "#7C3AED" },
-                        ]}
-                      >
-                        <Text style={styles.amPmText}>{isAm ? "AM" : "PM"}</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              );
-            })}
-
-            {/* Add Run button */}
-            {settings.overnightSlots.length < MAX_SLOTS && (
-              <>
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                <Pressable
-                  onPress={addSlot}
-                  style={({ pressed }) => [
-                    styles.addSlotBtn,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                >
-                  <Plus size={16} color={colors.tint} />
-                  <Text style={[styles.addSlotText, { color: colors.tint }]}>
-                    Add Run ({settings.overnightSlots.length}/{MAX_SLOTS})
-                  </Text>
-                </Pressable>
-              </>
-            )}
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            {/* Default / Restore toggle button */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted, marginBottom: 0 }]}>
+              OVERNIGHT MODE
+            </Text>
             <Pressable
-              onPress={handleDefaultToggle}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (isEditingSchedule) {
+                  settings.overnightSlots.forEach((_, i) => {
+                    commitSlotHour(i);
+                    commitSlotMinute(i);
+                  });
+                }
+                setIsEditingSchedule((p) => !p);
+              }}
               style={({ pressed }) => [
-                styles.defaultBtn,
+                styles.editBtn,
                 {
-                  backgroundColor: isShowingDefaults ? "#FFF7ED" : colors.surfaceSecondary,
-                  borderColor: isShowingDefaults ? "#FDE68A" : "transparent",
+                  backgroundColor: isEditingSchedule ? colors.tint : colors.surfaceSecondary,
                   opacity: pressed ? 0.7 : 1,
                 },
               ]}
             >
-              {isShowingDefaults ? (
-                <RotateCcw size={15} color="#D97706" />
+              {isEditingSchedule ? (
+                <Text style={[styles.editBtnText, { color: "#fff" }]}>Done</Text>
               ) : (
-                <Zap size={15} color={colors.tint} />
+                <>
+                  <Pencil size={12} color={colors.tint} />
+                  <Text style={[styles.editBtnText, { color: colors.tint }]}>Edit</Text>
+                </>
               )}
-              <Text
-                style={[
-                  styles.defaultBtnText,
-                  { color: isShowingDefaults ? "#D97706" : colors.tint },
-                ]}
-              >
-                {isShowingDefaults
-                  ? "Restore my schedule"
-                  : "Default  (10 PM · 11 PM · 1 AM · 2 AM)"}
-              </Text>
             </Pressable>
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            {/* Daily Sets in overnight toggle */}
-            <View style={styles.settingRow}>
-              <View style={styles.settingLabel}>
-                <View style={[styles.iconBg, { backgroundColor: "#F5F3FF" }]}>
-                  <CheckSquare size={16} color="#7C3AED" />
-                </View>
-                <View style={styles.labelText}>
-                  <Text style={[styles.settingTitle, { color: colors.text }]}>
-                    Daily Sets in overnight runs
-                  </Text>
-                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                    {settings.overnightDailySet
-                      ? "Daily Set will run after searches"
-                      : "Searches only — Daily Set skipped"}
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={settings.overnightDailySet}
-                onValueChange={(val) => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  updateSettings({ overnightDailySet: val });
-                }}
-                trackColor={{ false: colors.border, true: "#7C3AED" }}
-                thumbColor="#fff"
-              />
-            </View>
           </View>
-        </Section>
+
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+
+            {!isEditingSchedule ? (
+              <>
+                {/* ── Clean summary view ──────────────────────────── */}
+                {settings.overnightSlots.map((slot, i) => (
+                  <View key={i}>
+                    {i > 0 && (
+                      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                    )}
+                    <View style={styles.summaryRow}>
+                      <View style={[styles.summaryDot, { backgroundColor: from24h(slot.hour).isAm ? "#0EA5E9" : "#7C3AED" }]} />
+                      <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
+                        Run {i + 1}
+                      </Text>
+                      <Text style={[styles.summaryTime, { color: colors.text }]}>
+                        {formatSlot(slot)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+
+                {/* Daily set status line */}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                <View style={styles.summaryRow}>
+                  <View style={[styles.summaryDot, { backgroundColor: settings.overnightDailySet ? "#7C3AED" : colors.border }]} />
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
+                    Daily Sets
+                  </Text>
+                  <Text style={[styles.summaryTime, { color: colors.textMuted }]}>
+                    {settings.overnightDailySet ? "Enabled" : "Off"}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* ── Edit view ──────────────────────────────────── */}
+
+                {/* Info banner */}
+                <View style={[styles.infoBanner, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
+                  <Moon size={14} color={colors.tint} />
+                  <Text style={[styles.infoText, { color: "#1E40AF" }]}>
+                    Microsoft resets search points at midnight. Runs before and after the reset to maximize daily points.
+                  </Text>
+                </View>
+
+                {/* Column header labels */}
+                <View style={[styles.slotRow, { paddingTop: 8, paddingBottom: 0 }]}>
+                  <View style={styles.slotLabelWrap} />
+                  <View style={styles.slotPicker}>
+                    <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Hour</Text>
+                    <Text style={[styles.colonSep, { opacity: 0 }]}>:</Text>
+                    <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Min</Text>
+                    <View style={[styles.amPmBtn, { opacity: 0 }]}>
+                      <Text style={styles.amPmText}>PM</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Slot rows */}
+                {settings.overnightSlots.map((slot, i) => {
+                  const { isAm } = from24h(slot.hour);
+                  return (
+                    <View key={i}>
+                      {i > 0 && (
+                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                      )}
+                      <View style={styles.slotRow}>
+                        <View style={styles.slotLabelWrap}>
+                          {settings.overnightSlots.length > 1 && (
+                            <Pressable
+                              onPress={() => removeSlot(i)}
+                              hitSlop={8}
+                              style={[styles.removeBtn, { backgroundColor: "#FEE2E2" }]}
+                            >
+                              <Minus size={12} color="#DC2626" />
+                            </Pressable>
+                          )}
+                          <View style={[styles.slotBadge, { backgroundColor: colors.surfaceSecondary }]}>
+                            <Text style={[styles.slotBadgeText, { color: colors.textMuted }]}>
+                              {i + 1}
+                            </Text>
+                          </View>
+                          <Text style={[styles.slotLabel, { color: colors.textSecondary }]}>
+                            Run {i + 1}
+                          </Text>
+                        </View>
+
+                        <View style={styles.slotPicker}>
+                          <TextInput
+                            style={slotInputStyle}
+                            value={slotHourTexts[i] ?? "12"}
+                            onChangeText={(t) => updateSlotHourText(i, t)}
+                            onBlur={() => commitSlotHour(i)}
+                            onSubmitEditing={() => commitSlotHour(i)}
+                            keyboardType="number-pad"
+                            returnKeyType="next"
+                            maxLength={2}
+                            selectTextOnFocus
+                          />
+                          <Text style={[styles.colonSep, { color: colors.textMuted }]}>:</Text>
+                          <TextInput
+                            style={slotInputStyle}
+                            value={slotMinuteTexts[i] ?? "00"}
+                            onChangeText={(t) => updateSlotMinuteText(i, t)}
+                            onBlur={() => commitSlotMinute(i)}
+                            onSubmitEditing={() => commitSlotMinute(i)}
+                            keyboardType="number-pad"
+                            returnKeyType="done"
+                            maxLength={2}
+                            selectTextOnFocus
+                          />
+                          <Pressable
+                            onPress={() => toggleSlotAmPm(i)}
+                            style={[
+                              styles.amPmBtn,
+                              { backgroundColor: isAm ? "#0EA5E9" : "#7C3AED" },
+                            ]}
+                          >
+                            <Text style={styles.amPmText}>{isAm ? "AM" : "PM"}</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {/* Add Run */}
+                {settings.overnightSlots.length < MAX_SLOTS && (
+                  <>
+                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                    <Pressable
+                      onPress={addSlot}
+                      style={({ pressed }) => [
+                        styles.addSlotBtn,
+                        { opacity: pressed ? 0.7 : 1 },
+                      ]}
+                    >
+                      <Plus size={16} color={colors.tint} />
+                      <Text style={[styles.addSlotText, { color: colors.tint }]}>
+                        Add Run ({settings.overnightSlots.length}/{MAX_SLOTS})
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                {/* Default / Restore toggle */}
+                <Pressable
+                  onPress={handleDefaultToggle}
+                  style={({ pressed }) => [
+                    styles.defaultBtn,
+                    {
+                      backgroundColor: isShowingDefaults ? "#FFF7ED" : colors.surfaceSecondary,
+                      borderColor: isShowingDefaults ? "#FDE68A" : "transparent",
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  {isShowingDefaults ? (
+                    <RotateCcw size={15} color="#D97706" />
+                  ) : (
+                    <Zap size={15} color={colors.tint} />
+                  )}
+                  <Text
+                    style={[
+                      styles.defaultBtnText,
+                      { color: isShowingDefaults ? "#D97706" : colors.tint },
+                    ]}
+                  >
+                    {isShowingDefaults
+                      ? "Restore my schedule"
+                      : "Default  (10 PM · 11 PM · 1 AM · 2 AM)"}
+                  </Text>
+                </Pressable>
+
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                {/* Daily Sets toggle */}
+                <View style={styles.settingRow}>
+                  <View style={styles.settingLabel}>
+                    <View style={[styles.iconBg, { backgroundColor: "#F5F3FF" }]}>
+                      <CheckSquare size={16} color="#7C3AED" />
+                    </View>
+                    <View style={styles.labelText}>
+                      <Text style={[styles.settingTitle, { color: colors.text }]}>
+                        Daily Sets in overnight runs
+                      </Text>
+                      <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                        {settings.overnightDailySet
+                          ? "Daily Set will run after searches"
+                          : "Searches only — Daily Set skipped"}
+                      </Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={settings.overnightDailySet}
+                    onValueChange={(val) => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      updateSettings({ overnightDailySet: val });
+                    }}
+                    trackColor={{ false: colors.border, true: "#7C3AED" }}
+                    thumbColor="#fff"
+                  />
+                </View>
+              </>
+            )}
+          </View>
+        </View>
 
         {/* ── SCHEDULE ACTIONS ──────────────────────────────── */}
         <Section title="SCHEDULE" colors={colors}>
@@ -727,6 +797,44 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     flex: 1,
     lineHeight: 17,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+    marginLeft: 4,
+    marginRight: 4,
+  },
+  editBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+  },
+  editBtnText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    gap: 10,
+  },
+  summaryDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    flex: 1,
+  },
+  summaryTime: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
   },
   slotHeaderText: {
     fontSize: 11,
