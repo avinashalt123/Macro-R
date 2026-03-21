@@ -302,19 +302,9 @@ export default function SettingsScreen() {
                       },
                     ]}
                   >
-                    {mode === "system" ? (
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-                        <Sun size={13} color={active ? "#F59E0B" : colors.textMuted} />
-                        <Moon size={13} color={active ? "#818CF8" : colors.textMuted} />
-                      </View>
-                    ) : mode === "light" ? (
-                      <Sun size={14} color={active ? "#F59E0B" : colors.textMuted} />
-                    ) : (
-                      <Moon size={14} color={active ? "#818CF8" : colors.textMuted} />
-                    )}
                     <Text style={[
                       styles.themeSegmentText,
-                      { color: active ? colors.text : colors.textMuted },
+                      { color: active ? colors.tint : colors.textMuted },
                       active && { fontFamily: "Inter_600SemiBold" },
                     ]}>
                       {mode === "system" ? "Auto" : mode === "light" ? "Light" : "Dark"}
