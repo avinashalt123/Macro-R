@@ -333,17 +333,19 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               </View>
-              <TextInput
-                style={inputStyle}
-                value={searchCountText}
-                onChangeText={setSearchCountText}
-                onBlur={commitSearchCount}
-                onSubmitEditing={commitSearchCount}
-                keyboardType="number-pad"
-                returnKeyType="done"
-                maxLength={2}
-                selectTextOnFocus
-              />
+              <View style={styles.inputCol}>
+                <TextInput
+                  style={inputStyle}
+                  value={searchCountText}
+                  onChangeText={setSearchCountText}
+                  onBlur={commitSearchCount}
+                  onSubmitEditing={commitSearchCount}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  maxLength={2}
+                  selectTextOnFocus
+                />
+              </View>
             </View>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -362,17 +364,20 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               </View>
-              <TextInput
-                style={inputStyle}
-                value={delayText}
-                onChangeText={setDelayText}
-                onBlur={commitDelay}
-                onSubmitEditing={commitDelay}
-                keyboardType="number-pad"
-                returnKeyType="done"
-                maxLength={2}
-                selectTextOnFocus
-              />
+              <View style={styles.inputCol}>
+                <TextInput
+                  style={inputStyle}
+                  value={delayText}
+                  onChangeText={setDelayText}
+                  onBlur={commitDelay}
+                  onSubmitEditing={commitDelay}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  maxLength={2}
+                  selectTextOnFocus
+                />
+                <Text style={[styles.unitLabel, { color: colors.textMuted }]}>s</Text>
+              </View>
             </View>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -708,6 +713,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 17,
     fontFamily: "Inter_700Bold",
+  },
+  inputCol: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: 72,
+    gap: 4,
+  },
+  unitLabel: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 40,
   },
   divider: { height: 1, marginHorizontal: 16 },
   // Overnight
