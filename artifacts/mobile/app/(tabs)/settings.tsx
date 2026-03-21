@@ -274,17 +274,19 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               </View>
-              <TextInput
-                style={inputStyle}
-                value={searchCountText}
-                onChangeText={setSearchCountText}
-                onBlur={commitSearchCount}
-                onSubmitEditing={commitSearchCount}
-                keyboardType="number-pad"
-                returnKeyType="done"
-                maxLength={2}
-                selectTextOnFocus
-              />
+              <View style={styles.inputWithUnit}>
+                <TextInput
+                  style={inputStyle}
+                  value={searchCountText}
+                  onChangeText={setSearchCountText}
+                  onBlur={commitSearchCount}
+                  onSubmitEditing={commitSearchCount}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  maxLength={2}
+                  selectTextOnFocus
+                />
+              </View>
             </View>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -653,6 +655,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    width: 76,
   },
   unit: { fontSize: 14, fontFamily: "Inter_500Medium" },
   divider: { height: 1, marginHorizontal: 16 },
