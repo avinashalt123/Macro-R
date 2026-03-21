@@ -35,7 +35,9 @@ function buildCookieHeader(cookies: Record<string, string>): string {
 // it so the Daily Set WebView is always authenticated as the correct account.
 // Uses dynamic require so the native module is only loaded in real device builds
 // (not in Expo Go where it would crash the whole file).
-async function injectAccountCookies(cookies: Record<string, string>): Promise<void> {
+async function injectAccountCookies(
+  cookies: Record<string, string>
+): Promise<{ ok: boolean; injected: number; verified: number; error?: string }> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require("@react-native-cookies/cookies");
@@ -50,15 +52,13 @@ async function injectAccountCookies(cookies: Record<string, string>): Promise<vo
       { url: "https://account.microsoft.com", domain: ".microsoft.com" },
     ];
 
+    let injected = 0;
     for (const [name, value] of Object.entries(cookies)) {
       if (name.startsWith("_ls_") || !value) continue;
       for (const { url, domain } of targets) {
         try {
-          await CookieManager.set(
-            url,
-            { name, value, path: "/", domain },
-            true
-          );
+          await CookieManager.set(url, { name, value, path: "/", domain }, true);
+          injected++;
         } catch {}
       }
     }
@@ -68,11 +68,15 @@ async function injectAccountCookies(cookies: Record<string, string>): Promise<vo
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const bingCookies = await CookieManager.get("https://www.bing.com", true);
-        if (bingCookies && Object.keys(bingCookies).length > 0) return;
+        const count = bingCookies ? Object.keys(bingCookies).length : 0;
+        if (count > 0) return { ok: true, injected, verified: count };
       } catch {}
       await new Promise<void>((r) => setTimeout(r, 200));
     }
-  } catch {}
+    return { ok: false, injected, verified: 0, error: "Cookie verification timed out" };
+  } catch (e: any) {
+    return { ok: false, injected: 0, verified: 0, error: e?.message ?? "CookieManager unavailable" };
+  }
 }
 
 function sleep(ms: number) {
@@ -465,7 +469,7 @@ export default function SearchRunnerScreen() {
 
         const account = targetAccounts[ai];
         const hasCookies = Object.keys(account.cookies ?? {}).length > 0;
-        const searchCount = settings.defaultSearchCount;
+        const searchCount = account.searchCount > 0 ? account.searchCount : settings.defaultSearchCount;
         const queries = pickQueries(searchCount);
         const delay = (settings.searchDelay ?? 5) * 1000;
 
@@ -484,7 +488,12 @@ export default function SearchRunnerScreen() {
         const hasU = "_U" in acctCookies;
 
         setStatusLine(`[${account.name}] Loading ${cookieCount} cookies (_U: ${hasU ? "yes" : "no"})…`);
-        await injectAccountCookies(acctCookies);
+        const injectResult = await injectAccountCookies(acctCookies);
+        if (injectResult.error) {
+          setStatusLine(`[${account.name}] Cookie inject warning: ${injectResult.error}`);
+        } else {
+          setStatusLine(`[${account.name}] Injected ${injectResult.injected} cookies, verified ${injectResult.verified} in WebView`);
+        }
         await sleep(500);
 
         if (!hasCookies) {
@@ -525,7 +534,7 @@ export default function SearchRunnerScreen() {
             }
 
             try {
-              const result = await performBingSearch(query, account.cookies);
+              const result = await performBingSearch(query, acctCookies);
               if (result.ok) {
                 searchesDone++;
                 setNetworkError(false);
@@ -572,7 +581,7 @@ export default function SearchRunnerScreen() {
 
         // ── Points ─────────────────────────────────────────────────────────
         setStatusLine(`[${account.name}]  Fetching points…`);
-        const points = await fetchRewardsPoints(account.cookies ?? {});
+        const points = await fetchRewardsPoints(acctCookies);
         const prevPoints = account.todayPoints ?? 0;
         const pointsEarned = points > prevPoints ? points - prevPoints : 0;
 

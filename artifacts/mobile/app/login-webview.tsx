@@ -232,26 +232,27 @@ export default function LoginWebViewScreen() {
     const hasU = "_U" in allCookies;
     const hasMUID = "MUID" in allCookies;
 
+    const saveAndGoBack = () => {
+      if (existingAccount) {
+        updateAccount(existingAccount.id, { cookies: allCookies, email: detectedEmail.trim() || existingAccount.email });
+      } else {
+        addAccount({
+          name: accountName.trim() || "MS Rewards Account",
+          email: detectedEmail.trim() || "user@outlook.com",
+          searchCount: 30,
+          dailySetEnabled: true,
+          lastRun: null,
+          cookies: allCookies,
+        });
+      }
+      router.back();
+    };
+
     Alert.alert(
       "Cookie Capture Result",
       `JS cookies: ${jsCount}\nNative cookies: ${nativeCount}\nTotal: ${totalCount}\n_U token: ${hasU ? "YES ✓" : "MISSING ✗"}\nMUID: ${hasMUID ? "YES ✓" : "MISSING ✗"}`,
-      [{ text: "OK" }]
+      [{ text: "OK", onPress: saveAndGoBack }]
     );
-
-    if (existingAccount) {
-      updateAccount(existingAccount.id, { cookies: allCookies, email: detectedEmail.trim() || existingAccount.email });
-      router.back();
-      return;
-    }
-    addAccount({
-      name: accountName.trim() || "MS Rewards Account",
-      email: detectedEmail.trim() || "user@outlook.com",
-      searchCount: 30,
-      dailySetEnabled: true,
-      lastRun: null,
-      cookies: allCookies,
-    });
-    router.back();
   };
 
   const handleSavePress = () => {

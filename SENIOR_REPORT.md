@@ -149,14 +149,62 @@ The top-level `import CookieManager from "@react-native-cookies/cookies"` was ad
 
 ---
 
-## 5. File Map — What Was Changed
+## 5. Full Codebase Audit — March 21, 2026
+
+### Bugs Fixed in This Audit
+
+| # | Severity | File | Issue | Fix |
+|---|----------|------|-------|-----|
+| 1 | **CRITICAL** | `login-webview.tsx`, `search-runner.tsx` | `require("@react-native-cookies/cookies").default` returns `undefined` — module uses CommonJS `module.exports`, not ES default export. Native CookieManager was never loaded. | Changed to `mod.default \|\| mod` |
+| 2 | **CRITICAL** | `login-webview.tsx` | `Alert.alert()` is non-blocking; `router.back()` fires immediately, navigating away before user sees diagnostic alert | Moved save + `router.back()` into Alert's `onPress` callback |
+| 3 | **MEDIUM** | `search-runner.tsx` | `performBingSearch` and `fetchRewardsPoints` used `account.cookies` directly instead of the null-safe `acctCookies` variable | Changed both calls to use `acctCookies` |
+| 4 | **MEDIUM** | `search-runner.tsx` | `injectAccountCookies` swallowed all errors silently — impossible to debug injection failures in release builds | Function now returns `{ ok, injected, verified, error }` and caller surfaces results via status line |
+| 5 | **MEDIUM** | `search-runner.tsx` | Runner always used `settings.defaultSearchCount`, ignoring per-account `searchCount` | Runner now uses `account.searchCount > 0 ? account.searchCount : settings.defaultSearchCount` |
+
+### Reviewed & Confirmed Correct (No Changes Needed)
+
+| File | Notes |
+|---|---|
+| `context/AccountsContext.tsx` | Clean. AsyncStorage fire-and-forget writes inside setState is an anti-pattern but works reliably. |
+| `context/QueriesContext.tsx` | Pool exhaustion is by design (user restores via UI). Ref+state dual-track pattern is correct. |
+| `context/SettingsContext.tsx` | Clean. Proper merge of defaults with persisted values. |
+| `app/(tabs)/index.tsx` | Clean. Notification auto-run, FAB gating, and account card rendering all correct. |
+| `app/(tabs)/settings.tsx` | Clean. Time picker, schedule, and toggle all correct. |
+| `app/(tabs)/queries.tsx` | Clean. Edit/restore/clear flows all correct. |
+| `app/(tabs)/logs.tsx` | Clean. |
+| `app/add-account.tsx` | Clean. Validation, manual add flow, login redirect all correct. |
+| `app/account/[id].tsx` | Clean. Edit, delete, session refresh flows all correct. |
+| `app/_layout.tsx` | Clean. Provider nesting order is correct. |
+| `app/(tabs)/_layout.tsx` | Clean. Native/classic tab layout branching correct. |
+| `components/AccountCard.tsx` | Clean. Session expiry heuristic, status badge, and progress bar all correct. |
+| `components/StatsBar.tsx` | Clean. |
+| `components/EmptyState.tsx` | Clean. |
+| `components/LogItem.tsx` | Clean. |
+| `components/ErrorBoundary.tsx` | Clean. Class-based error boundary is required by React's API. |
+| `components/ErrorFallback.tsx` | Clean. |
+| `constants/colors.ts` | Clean. |
+| `constants/defaultQueries.ts` | Clean. 3000+ queries, well-categorized. |
+| `utils/notifications.ts` | Clean. Dynamic require, permission flow, schedule/cancel, pending run flag all correct. |
+
+### Known Issues Not Fixed (Documented)
+
+| Issue | Severity | Notes |
+|---|----------|-------|
+| Cookies stored in AsyncStorage (plaintext) | Low for this use case | SecureStore would be more appropriate but adds complexity. Acceptable for personal automation tool. |
+| No pre-run session validity check | Low | `isSessionExpired` in AccountCard is time-based only. A real auth check (HEAD to rewards.bing.com) could be added. |
+| `login-webview.tsx` hardcodes `searchCount: 30` for new accounts | Low | Should use `settings.defaultSearchCount` but requires importing `useSettings`. Runner now correctly prefers per-account value. |
+
+---
+
+## 6. File Map — What Was Changed
 
 | File | Change |
 |---|---|
 | `app.json` | Added `extra.eas.projectId` and `owner` |
 | `eas.json` | Removed `cli.version` constraint |
 | `package.json` | Removed `expo-dev-client` dependency |
-| `app/search-runner.tsx` | Added `injectAccountCookies()`, dynamic require pattern, call at start of each account run |
+| `app/search-runner.tsx` | Fixed CookieManager import, added error return from `injectAccountCookies`, used `acctCookies` consistently, honored per-account searchCount |
+| `app/login-webview.tsx` | Fixed CookieManager import, moved save logic into Alert callback |
 | `app/(tabs)/settings.tsx` | Added Daily Set toggle (Switch) in Search section |
 | `app/(tabs)/index.tsx` | Gated Daily Set FAB on `settings.dailySetEnabled`, passed `showDailySet` to AccountCard |
 | `components/AccountCard.tsx` | Added `showDailySet` prop, conditionally renders Daily Set button |
