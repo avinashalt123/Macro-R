@@ -1,4 +1,3 @@
-import CookieManager from "@react-native-cookies/cookies";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle, Square, Wifi, WifiOff } from "lucide-react-native";
@@ -34,8 +33,12 @@ function buildCookieHeader(cookies: Record<string, string>): string {
 
 // Flushes the WebView OS cookie jar and loads the given account's cookies into
 // it so the Daily Set WebView is always authenticated as the correct account.
+// Uses dynamic require so the native module is only loaded in real device builds
+// (not in Expo Go where it would crash the whole file).
 async function injectAccountCookies(cookies: Record<string, string>): Promise<void> {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const CookieManager = require("@react-native-cookies/cookies").default;
     await CookieManager.clearAll(true);
     const domains = [
       "https://www.bing.com",
