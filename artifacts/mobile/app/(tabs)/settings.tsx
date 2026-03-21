@@ -362,20 +362,17 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               </View>
-              <View style={styles.inputWithUnit}>
-                <TextInput
-                  style={inputStyle}
-                  value={delayText}
-                  onChangeText={setDelayText}
-                  onBlur={commitDelay}
-                  onSubmitEditing={commitDelay}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  maxLength={2}
-                  selectTextOnFocus
-                />
-                <Text style={[styles.unit, { color: colors.textMuted }]}>s</Text>
-              </View>
+              <TextInput
+                style={inputStyle}
+                value={delayText}
+                onChangeText={setDelayText}
+                onBlur={commitDelay}
+                onSubmitEditing={commitDelay}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                maxLength={2}
+                selectTextOnFocus
+              />
             </View>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -402,7 +399,7 @@ export default function SettingsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   updateSettings({ dailySetEnabled: val });
                 }}
-                trackColor={{ false: colors.border, true: "#7C3AED" }}
+                trackColor={{ false: colors.border, true: colors.tint }}
                 thumbColor="#fff"
               />
             </View>
@@ -554,7 +551,7 @@ export default function SettingsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   updateSettings({ overnightDailySet: val });
                 }}
-                trackColor={{ false: colors.border, true: "#7C3AED" }}
+                trackColor={{ false: colors.border, true: colors.tint }}
                 thumbColor="#fff"
               />
             </View>
@@ -712,12 +709,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "Inter_700Bold",
   },
-  inputWithUnit: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  unit: { fontSize: 14, fontFamily: "Inter_500Medium", lineHeight: 40, alignSelf: "center" },
   divider: { height: 1, marginHorizontal: 16 },
   // Overnight
   infoBanner: {
