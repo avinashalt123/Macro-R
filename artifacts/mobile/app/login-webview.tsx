@@ -32,7 +32,7 @@ const SIGNOUT_URL =
     "https://login.live.com/login.srf?wa=wsignin1.0&wreply=https://rewards.bing.com/"
   );
 const LOGIN_URL = "https://login.live.com/login.srf?wa=wsignin1.0&wreply=https://rewards.bing.com/";
-const REWARDS_DOMAINS = ["rewards.bing.com", "bing.com/rewards"];
+
 
 // Injected on every page load — captures cookies for that domain and any detectable account info
 const INJECT_COOKIES_JS = `
@@ -116,6 +116,7 @@ export default function LoginWebViewScreen() {
   const [accountName, setAccountName] = useState("");
   const [showNameInput, setShowNameInput] = useState(false);
   const [cookiesReady, setCookiesReady] = useState(!!existingAccount);
+  const [isSaving, setIsSaving] = useState(false);
 
   React.useEffect(() => {
     if (!existingAccount) {
@@ -150,13 +151,18 @@ export default function LoginWebViewScreen() {
     (navState: WebViewNavigation) => {
       setPageUrl(navState.url);
       setIsLoading(navState.loading);
-      // Capture cookies from EVERY page the user visits during login
-      // so we get cookies from login.live.com, bing.com, rewards.bing.com, etc.
       if (!navState.loading && navState.url.startsWith("http")) {
         webViewRef.current?.injectJavaScript(INJECT_COOKIES_JS);
       }
-      const isOnRewards = REWARDS_DOMAINS.some((d) => navState.url.includes(d));
-      if (isOnRewards && status !== "loggedIn") {
+      let isOnRewards = false;
+      try {
+        const parsed = new URL(navState.url);
+        isOnRewards =
+          parsed.hostname === "rewards.bing.com" ||
+          (parsed.hostname === "www.bing.com" && parsed.pathname.startsWith("/rewards")) ||
+          (parsed.hostname === "bing.com" && parsed.pathname.startsWith("/rewards"));
+      } catch {}
+      if (isOnRewards && !navState.loading && status !== "loggedIn") {
         setStatus("loggedIn");
         showSuccessBanner();
       } else if (!navState.loading && status === "loading") {
@@ -187,6 +193,8 @@ export default function LoginWebViewScreen() {
   }, []);
 
   const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // Capture native cookies (including httpOnly) via CookieManager
