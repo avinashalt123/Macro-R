@@ -365,7 +365,7 @@ export default function SettingsScreen() {
             </View>
 
             {/* Column header labels — mirrors slotPicker layout for alignment */}
-            <View style={styles.slotRow}>
+            <View style={[styles.slotRow, { paddingTop: 8, paddingBottom: 0 }]}>
               <View style={styles.slotLabelWrap} />
               <View style={styles.slotPicker}>
                 <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Hour</Text>
