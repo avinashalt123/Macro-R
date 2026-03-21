@@ -208,7 +208,7 @@ export default function HomeScreen() {
       <View
         style={[
           styles.settingsCard,
-          { backgroundColor: colors.surfaceSecondary, borderColor: colors.border },
+          { backgroundColor: colors.surface, borderColor: colors.border },
         ]}
       >
         <View style={styles.settingsRow}>

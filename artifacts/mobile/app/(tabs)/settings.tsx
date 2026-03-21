@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Moon, Plus, RotateCcw, Search, X, Zap } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Moon, RotateCcw, Search, Sun, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -43,7 +43,7 @@ function formatSlot(slot: OvernightSlot): string {
   return `${hour}:${mm} ${isAm ? "AM" : "PM"}`;
 }
 
-const MAX_SLOTS = 10;
+const SLOT_LABELS = ["Run 1", "Run 2", "Run 3", "Run 4"];
 
 function initHourTexts(slots: OvernightSlot[]): string[] {
   return slots.map((s) => String(from24h(s.hour).hour));
@@ -53,7 +53,7 @@ function initMinuteTexts(slots: OvernightSlot[]): string[] {
 }
 
 export default function SettingsScreen() {
-  const { scheme } = useAppTheme();
+  const { scheme, themeMode, setThemeMode } = useAppTheme();
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
@@ -159,28 +159,6 @@ export default function SettingsScreen() {
     setScheduledCount(null);
   };
 
-  // ── Add / Remove slots ───────────────────────────────────────────────────
-  const addSlot = () => {
-    if (settings.overnightSlots.length >= MAX_SLOTS) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newSlot: OvernightSlot = { hour: 12, minute: 0 };
-    const updated = [...settings.overnightSlots, newSlot];
-    updateSettings({ overnightSlots: updated });
-    setSlotHourTexts([...slotHourTexts, "12"]);
-    setSlotMinuteTexts([...slotMinuteTexts, "00"]);
-    setScheduledCount(null);
-  };
-
-  const removeSlot = (index: number) => {
-    if (settings.overnightSlots.length <= 1) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const updated = settings.overnightSlots.filter((_, i) => i !== index);
-    updateSettings({ overnightSlots: updated });
-    setSlotHourTexts(slotHourTexts.filter((_, i) => i !== index));
-    setSlotMinuteTexts(slotMinuteTexts.filter((_, i) => i !== index));
-    setScheduledCount(null);
-  };
-
   // ── Default / Restore toggle ─────────────────────────────────────────────
   const handleDefaultToggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -279,6 +257,52 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
+        {/* ── APPEARANCE ───────────────────────────────────── */}
+        <Section title="APPEARANCE" colors={colors}>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <View style={styles.settingRow}>
+              <View style={styles.settingLabel}>
+                <View style={[styles.iconBg, { backgroundColor: scheme === "dark" ? "#1E1B4B" : "#EFF6FF" }]}>
+                  {scheme === "dark" ? (
+                    <Moon size={16} color="#818CF8" />
+                  ) : (
+                    <Sun size={16} color="#F59E0B" />
+                  )}
+                </View>
+                <View style={styles.labelText}>
+                  <Text style={[styles.settingTitle, { color: colors.text }]}>Theme</Text>
+                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                    {themeMode === "system" ? "Follows device setting" : themeMode === "dark" ? "Always dark" : "Always light"}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.themeSegment, { backgroundColor: colors.surfaceSecondary }]}>
+                {(["system", "light", "dark"] as const).map((mode) => (
+                  <Pressable
+                    key={mode}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setThemeMode(mode);
+                    }}
+                    style={[
+                      styles.themeOption,
+                      themeMode === mode && { backgroundColor: colors.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.themeOptionText,
+                      { color: themeMode === mode ? colors.text : colors.textMuted },
+                      themeMode === mode && { fontFamily: "Inter_600SemiBold" },
+                    ]}>
+                      {mode === "system" ? "Auto" : mode === "light" ? "Light" : "Dark"}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </View>
+        </Section>
+
         {/* ── SEARCH ────────────────────────────────────────── */}
         <Section title="SEARCH" colors={colors}>
           <View style={[styles.card, { backgroundColor: colors.surface }]}>
@@ -296,19 +320,17 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               </View>
-              <View style={styles.inputCol}>
-                <TextInput
-                  style={inputStyle}
-                  value={searchCountText}
-                  onChangeText={setSearchCountText}
-                  onBlur={commitSearchCount}
-                  onSubmitEditing={commitSearchCount}
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  maxLength={2}
-                  selectTextOnFocus
-                />
-              </View>
+              <TextInput
+                style={inputStyle}
+                value={searchCountText}
+                onChangeText={setSearchCountText}
+                onBlur={commitSearchCount}
+                onSubmitEditing={commitSearchCount}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                maxLength={2}
+                selectTextOnFocus
+              />
             </View>
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -327,7 +349,7 @@ export default function SettingsScreen() {
                   </Text>
                 </View>
               </View>
-              <View style={styles.inputCol}>
+              <View style={styles.inputWithUnit}>
                 <TextInput
                   style={inputStyle}
                   value={delayText}
@@ -339,7 +361,7 @@ export default function SettingsScreen() {
                   maxLength={2}
                   selectTextOnFocus
                 />
-                <Text style={[styles.unitLabel, { color: colors.textMuted }]}>s</Text>
+                <Text style={[styles.unit, { color: colors.textMuted }]}>s</Text>
               </View>
             </View>
 
@@ -367,7 +389,7 @@ export default function SettingsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   updateSettings({ dailySetEnabled: val });
                 }}
-                trackColor={{ false: colors.border, true: colors.tint }}
+                trackColor={{ false: colors.border, true: "#7C3AED" }}
                 thumbColor="#fff"
               />
             </View>
@@ -386,10 +408,17 @@ export default function SettingsScreen() {
               </Text>
             </View>
 
-            {/* Slot rows */}
+            {/* Column header labels */}
+            <View style={styles.slotHeaderRow}>
+              <View style={{ width: 72 }} />
+              <Text style={[styles.slotHeaderLabel, { color: colors.textMuted }]}>Hour</Text>
+              <Text style={[styles.slotHeaderLabel, { color: colors.textMuted }]}>Min</Text>
+              <View style={{ width: 50 }} />
+            </View>
+
+            {/* 4 slot rows */}
             {settings.overnightSlots.map((slot, i) => {
               const { isAm } = from24h(slot.hour);
-              const canDelete = settings.overnightSlots.length > 1;
               return (
                 <View key={i}>
                   {i > 0 && (
@@ -403,99 +432,54 @@ export default function SettingsScreen() {
                         </Text>
                       </View>
                       <Text style={[styles.slotLabel, { color: colors.textSecondary }]}>
-                        {`Run ${i + 1}`}
+                        {SLOT_LABELS[i]}
                       </Text>
                     </View>
 
                     <View style={styles.slotPicker}>
-                      {/* Hour column */}
-                      <View style={styles.slotInputCol}>
-                        {i === 0 && (
-                          <Text style={[styles.slotColLabel, { color: colors.textMuted }]}>Hour</Text>
-                        )}
-                        <TextInput
-                          style={slotInputStyle}
-                          value={slotHourTexts[i] ?? "12"}
-                          onChangeText={(t) => updateSlotHourText(i, t)}
-                          onBlur={() => commitSlotHour(i)}
-                          onSubmitEditing={() => commitSlotHour(i)}
-                          keyboardType="number-pad"
-                          returnKeyType="next"
-                          maxLength={2}
-                          selectTextOnFocus
-                        />
-                      </View>
+                      {/* Hour */}
+                      <TextInput
+                        style={slotInputStyle}
+                        value={slotHourTexts[i] ?? "12"}
+                        onChangeText={(t) => updateSlotHourText(i, t)}
+                        onBlur={() => commitSlotHour(i)}
+                        onSubmitEditing={() => commitSlotHour(i)}
+                        keyboardType="number-pad"
+                        returnKeyType="next"
+                        maxLength={2}
+                        selectTextOnFocus
+                      />
 
-                      <Text style={[styles.colonSep, { color: colors.textMuted }, i === 0 && { marginTop: 17 }]}>:</Text>
+                      <Text style={[styles.colonSep, { color: colors.textMuted }]}>:</Text>
 
-                      {/* Minute column */}
-                      <View style={styles.slotInputCol}>
-                        {i === 0 && (
-                          <Text style={[styles.slotColLabel, { color: colors.textMuted }]}>Min</Text>
-                        )}
-                        <TextInput
-                          style={slotInputStyle}
-                          value={slotMinuteTexts[i] ?? "00"}
-                          onChangeText={(t) => updateSlotMinuteText(i, t)}
-                          onBlur={() => commitSlotMinute(i)}
-                          onSubmitEditing={() => commitSlotMinute(i)}
-                          keyboardType="number-pad"
-                          returnKeyType="done"
-                          maxLength={2}
-                          selectTextOnFocus
-                        />
-                      </View>
+                      {/* Minute */}
+                      <TextInput
+                        style={slotInputStyle}
+                        value={slotMinuteTexts[i] ?? "00"}
+                        onChangeText={(t) => updateSlotMinuteText(i, t)}
+                        onBlur={() => commitSlotMinute(i)}
+                        onSubmitEditing={() => commitSlotMinute(i)}
+                        keyboardType="number-pad"
+                        returnKeyType="done"
+                        maxLength={2}
+                        selectTextOnFocus
+                      />
 
                       {/* AM / PM */}
-                      <View style={i === 0 ? { marginTop: 17 } : undefined}>
-                        <Pressable
-                          onPress={() => toggleSlotAmPm(i)}
-                          style={[
-                            styles.amPmBtn,
-                            { backgroundColor: isAm ? "#0EA5E9" : "#7C3AED" },
-                          ]}
-                        >
-                          <Text style={styles.amPmText}>{isAm ? "AM" : "PM"}</Text>
-                        </Pressable>
-                      </View>
-
-                      {/* Delete button */}
-                      <View style={i === 0 ? { marginTop: 17 } : undefined}>
-                        <Pressable
-                          onPress={() => removeSlot(i)}
-                          disabled={!canDelete}
-                          style={[
-                            styles.deleteSlotBtn,
-                            {
-                              backgroundColor: canDelete ? "#FEE2E2" : colors.surfaceSecondary,
-                              opacity: canDelete ? 1 : 0.35,
-                            },
-                          ]}
-                        >
-                          <X size={13} color={canDelete ? "#EF4444" : colors.textMuted} />
-                        </Pressable>
-                      </View>
+                      <Pressable
+                        onPress={() => toggleSlotAmPm(i)}
+                        style={[
+                          styles.amPmBtn,
+                          { backgroundColor: isAm ? "#0EA5E9" : "#7C3AED" },
+                        ]}
+                      >
+                        <Text style={styles.amPmText}>{isAm ? "AM" : "PM"}</Text>
+                      </Pressable>
                     </View>
                   </View>
                 </View>
               );
             })}
-
-            {/* Add Run button */}
-            {settings.overnightSlots.length < MAX_SLOTS && (
-              <Pressable
-                onPress={addSlot}
-                style={({ pressed }) => [
-                  styles.addSlotBtn,
-                  { borderColor: colors.tint, opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                <Plus size={14} color={colors.tint} />
-                <Text style={[styles.addSlotText, { color: colors.tint }]}>
-                  Add Run ({settings.overnightSlots.length}/{MAX_SLOTS})
-                </Text>
-              </Pressable>
-            )}
 
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
@@ -553,7 +537,7 @@ export default function SettingsScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   updateSettings({ overnightDailySet: val });
                 }}
-                trackColor={{ false: colors.border, true: colors.tint }}
+                trackColor={{ false: colors.border, true: "#7C3AED" }}
                 thumbColor="#fff"
               />
             </View>
@@ -711,17 +695,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontFamily: "Inter_700Bold",
   },
-  inputCol: {
+  inputWithUnit: {
     flexDirection: "row",
     alignItems: "center",
-    width: 72,
     gap: 4,
   },
-  unitLabel: {
-    fontSize: 13,
-    fontFamily: "Inter_500Medium",
-    lineHeight: 40,
-  },
+  unit: { fontSize: 14, fontFamily: "Inter_500Medium" },
   divider: { height: 1, marginHorizontal: 16 },
   // Overnight
   infoBanner: {
@@ -739,6 +718,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     flex: 1,
     lineHeight: 17,
+  },
+  slotHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+    gap: 6,
+  },
+  slotHeaderLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.5,
+    width: 44,
+    textAlign: "center",
   },
   slotRow: {
     flexDirection: "row",
@@ -840,39 +835,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   clearText: { fontSize: 15, fontFamily: "Inter_500Medium" },
-  deleteSlotBtn: {
-    width: 28,
-    height: 28,
+  themeSegment: {
+    flexDirection: "row",
+    borderRadius: 10,
+    padding: 3,
+    gap: 2,
+  },
+  themeOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
-  addSlotBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 12,
-    marginHorizontal: 16,
-    marginTop: 2,
-    marginBottom: 4,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
-  },
-  addSlotText: {
-    fontSize: 13,
-    fontFamily: "Inter_600SemiBold",
-  },
-  slotInputCol: {
-    alignItems: "center",
-    gap: 2,
-  },
-  slotColLabel: {
-    fontSize: 10,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-    textAlign: "center",
+  themeOptionText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
   },
 });

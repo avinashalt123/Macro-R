@@ -9,8 +9,8 @@ import {
   StyleSheet,
   Text,
   View,
+  useColorScheme,
 } from "react-native";
-import { useAppTheme } from "@/context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type ErrorFallbackProps = {
@@ -19,16 +19,16 @@ export type ErrorFallbackProps = {
 };
 
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
-  const { scheme } = useAppTheme();
-  const isDark = scheme === "dark";
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === "dark";
   const insets = useSafeAreaInsets();
 
   const theme = {
-    background: isDark ? "#0D1B2A" : "#FFFFFF",
-    backgroundSecondary: isDark ? "#132336" : "#F2F2F7",
+    background: isDark ? "#000000" : "#FFFFFF",
+    backgroundSecondary: isDark ? "#1C1C1E" : "#F2F2F7",
     text: isDark ? "#FFFFFF" : "#000000",
     textSecondary: isDark ? "rgba(255, 255, 255, 0.7)" : "rgba(0, 0, 0, 0.7)",
-    link: "#3B82F6",
+    link: "#007AFF",
     buttonText: "#FFFFFF",
   };
 
