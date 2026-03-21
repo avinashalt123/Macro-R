@@ -6,3 +6,9 @@ id = "9kfcKCZdC8bf-eG_evakw"
 uri = "file://report.md"
 type = "text"
 title = "MS Rewards Automation — Junior Dev Report"
+
+[[outputs]]
+id = "x9LAQdHMmlszVepo1odWn"
+uri = "file://SENIOR_REPORT.md"
+type = "text"
+title = "MS Rewards Automation — Senior Developer Report"
