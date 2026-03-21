@@ -1,11 +1,12 @@
 import { CheckCircle, Circle, LucideIcon, Search, Star } from "lucide-react-native";
 import React from "react";
-import { StyleSheet, Text, View, useColorScheme } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import Colors from "@/constants/colors";
 import { RunLog } from "@/context/AccountsContext";
+import { useAppTheme } from "@/context/ThemeContext";
 
 export function LogItem({ log }: { log: RunLog }) {
-  const scheme = useColorScheme() ?? "light";
+  const { scheme } = useAppTheme();
   const colors = Colors[scheme];
   const isSuccess = log.status === "success";
 

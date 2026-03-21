@@ -2,8 +2,9 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { LucideIcon, Plus } from "lucide-react-native";
 import React from "react";
-import { Pressable, StyleSheet, Text, View, useColorScheme } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Colors from "@/constants/colors";
+import { useAppTheme } from "@/context/ThemeContext";
 
 interface Props {
   icon: LucideIcon;
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export function EmptyState({ icon: Icon, title, subtitle, actionLabel, onAction }: Props) {
-  const scheme = useColorScheme() ?? "light";
+  const { scheme } = useAppTheme();
   const colors = Colors[scheme];
 
   return (
