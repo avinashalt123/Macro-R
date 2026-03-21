@@ -21,6 +21,7 @@ interface Props {
   onDailySet: () => void;
   onRefreshSession: () => void;
   isRunningGlobal: boolean;
+  showDailySet?: boolean;
 }
 
 function StatusBadge({ status, searchesCompleted, searchCount }: { status: AccountStatus; searchesCompleted: number; searchCount: number }) {
@@ -76,7 +77,7 @@ function isSessionExpired(account: Account): boolean {
   return hoursSinceRun > 24;
 }
 
-export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSession, isRunningGlobal }: Props) {
+export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSession, isRunningGlobal, showDailySet = true }: Props) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -231,24 +232,26 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
               )}
             </Pressable>
 
-            <Pressable
-              onPress={handleDailySet}
-              disabled={account.status === "running" || isRunningGlobal}
-              style={({ pressed }) => [
-                styles.dsBtn,
-                {
-                  backgroundColor:
-                    account.status === "running" || isRunningGlobal
-                      ? colors.border
-                      : pressed
-                      ? "#5B21B6"
-                      : "#7C3AED",
-                  opacity: account.status === "running" || isRunningGlobal ? 0.4 : 1,
-                },
-              ]}
-            >
-              <CheckSquare size={13} color="#fff" />
-            </Pressable>
+            {showDailySet && (
+              <Pressable
+                onPress={handleDailySet}
+                disabled={account.status === "running" || isRunningGlobal}
+                style={({ pressed }) => [
+                  styles.dsBtn,
+                  {
+                    backgroundColor:
+                      account.status === "running" || isRunningGlobal
+                        ? colors.border
+                        : pressed
+                        ? "#5B21B6"
+                        : "#7C3AED",
+                    opacity: account.status === "running" || isRunningGlobal ? 0.4 : 1,
+                  },
+                ]}
+              >
+                <CheckSquare size={13} color="#fff" />
+              </Pressable>
+            )}
           </View>
         </View>
       </Pressable>

@@ -2,7 +2,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router";
-import { CheckSquare, Play, Plus, Square, Users } from "lucide-react-native";
+import { CheckSquare, Play, PlayCircle, Plus, Square, Users } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Alert,
@@ -129,6 +129,26 @@ export default function HomeScreen() {
     });
   };
 
+  const handleRunBothAll = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (isRunning) {
+      Alert.alert("Already Running", "Stop the current run before starting another.", [
+        { text: "Keep Running", style: "cancel" },
+        { text: "Stop All", style: "destructive", onPress: stopRun },
+      ]);
+      return;
+    }
+    if (accounts.length === 0) {
+      Alert.alert("No Accounts", "Add an account first to run automation.");
+      return;
+    }
+    startRun();
+    router.push({
+      pathname: "/search-runner",
+      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)) },
+    });
+  };
+
   const renderItem = useCallback(
     ({ item }: { item: Account }) => (
       <AccountCard
@@ -145,9 +165,10 @@ export default function HomeScreen() {
           })
         }
         isRunningGlobal={isRunning}
+        showDailySet={settings.dailySetEnabled}
       />
     ),
-    [isRunning],
+    [isRunning, settings.dailySetEnabled],
   );
 
   const ListHeader = (
@@ -329,7 +350,7 @@ export default function HomeScreen() {
           { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) },
         ]}
       >
-        {!isRunning && (
+        {!isRunning && settings.dailySetEnabled && (
           <Pressable
             onPress={handleDailySetAll}
             style={({ pressed }) => [
@@ -345,14 +366,36 @@ export default function HomeScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <CheckSquare size={20} color="#fff" />
+              <CheckSquare size={18} color="#fff" />
               <Text style={styles.fabText}>Daily Set</Text>
             </LinearGradient>
           </Pressable>
         )}
 
+        {!isRunning && settings.dailySetEnabled && (
+          <Pressable
+            onPress={handleRunBothAll}
+            style={({ pressed }) => [
+              {
+                opacity: pressed ? 0.9 : 1,
+                transform: [{ scale: pressed ? 0.96 : 1 }],
+              },
+            ]}
+          >
+            <LinearGradient
+              colors={["#059669", "#047857"]}
+              style={styles.fabBtn}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <PlayCircle size={18} color="#fff" />
+              <Text style={styles.fabText}>Run All</Text>
+            </LinearGradient>
+          </Pressable>
+        )}
+
         <Pressable
-          onPress={handleRunAll}
+          onPress={isRunning ? handleRunAll : handleRunAll}
           style={({ pressed }) => [
             {
               opacity: pressed ? 0.9 : 1,
@@ -367,12 +410,12 @@ export default function HomeScreen() {
             end={{ x: 1, y: 1 }}
           >
             {isRunning ? (
-              <Square size={20} color="#fff" />
+              <Square size={18} color="#fff" />
             ) : (
-              <Play size={20} color="#fff" />
+              <Play size={18} color="#fff" />
             )}
             <Text style={styles.fabText}>
-              {isRunning ? "Running..." : "Search All"}
+              {isRunning ? "Stop" : "Search All"}
             </Text>
           </LinearGradient>
         </Pressable>
@@ -458,23 +501,23 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    right: 20,
+    right: 16,
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
     alignItems: "center",
   },
   fabBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 22,
-    borderRadius: 28,
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 24,
     shadowColor: "#2563EB",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
   },
-  fabText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  fabText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
 });
