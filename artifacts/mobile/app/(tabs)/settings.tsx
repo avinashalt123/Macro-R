@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, Clock, Play, RefreshCw, Search } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Play, RefreshCw, Search } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   Alert,
@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -231,6 +232,35 @@ export default function SettingsScreen() {
                 />
                 <Text style={[styles.unit, { color: colors.textMuted }]}>s</Text>
               </View>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            <View style={styles.settingRow}>
+              <View style={styles.settingLabel}>
+                <View style={[styles.iconBg, { backgroundColor: "#F5F3FF" }]}>
+                  <CheckSquare size={16} color="#7C3AED" />
+                </View>
+                <View style={styles.labelText}>
+                  <Text style={[styles.settingTitle, { color: colors.text }]}>
+                    Daily Set
+                  </Text>
+                  <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                    {settings.dailySetEnabled
+                      ? "Runs after searches & Daily Set button visible"
+                      : "Searches only — Daily Set button hidden"}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={settings.dailySetEnabled}
+                onValueChange={(val) => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  updateSettings({ dailySetEnabled: val });
+                }}
+                trackColor={{ false: colors.border, true: "#7C3AED" }}
+                thumbColor="#fff"
+              />
             </View>
           </View>
         </Section>

@@ -145,9 +145,10 @@ export default function HomeScreen() {
           })
         }
         isRunningGlobal={isRunning}
+        showDailySet={settings.dailySetEnabled}
       />
     ),
-    [isRunning],
+    [isRunning, settings.dailySetEnabled],
   );
 
   const ListHeader = (
@@ -329,8 +330,8 @@ export default function HomeScreen() {
           { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) },
         ]}
       >
-        {/* Daily Set button — hidden while a run is active */}
-        {!isRunning && (
+        {/* Daily Set button — hidden while a run is active or Daily Set is disabled */}
+        {!isRunning && settings.dailySetEnabled && (
           <Pressable
             onPress={handleDailySetAll}
             style={({ pressed }) => [
