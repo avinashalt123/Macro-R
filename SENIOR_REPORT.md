@@ -80,17 +80,30 @@ Removed `"cli": { "version": ">= 16.0.0" }` which was causing EAS to silently re
 
 **Fix:** Removed `expo-dev-client` from `dependencies`. Switched from the `development` EAS profile to the `preview` profile, which produces a standard APK without the dev client. All native features still work.
 
-### Fix 4 — Account Cookie Isolation (`app/search-runner.tsx`)
+### Fix 4 — Account Cookie Isolation (Full Rewrite)
 
-Wired up `@react-native-cookies/cookies` (already installed, not connected) to solve the Daily Set session conflict.
+Wired up `@react-native-cookies/cookies` (already installed, not connected) across both the login and the search runner to fully solve multi-account session conflicts.
 
-**Added `injectAccountCookies(cookies)`:** Before every account's run begins (covering both searches and the Daily Set), this function:
+**Problem root cause:** The original architecture had two conflicting approaches:
+- `document.cookie` was used to capture cookies during login, but this cannot read httpOnly cookies (which contain the real auth tokens like `_U`)
+- Incognito WebView mode was used to isolate login sessions, but `CookieManager` cannot read cookies from incognito WebViews
+
+This meant the stored cookies were always incomplete — missing the httpOnly tokens that Bing actually uses for authentication.
+
+**Login phase fix (`app/login-webview.tsx`):**
+1. Removed incognito mode from the login WebView
+2. Added `CookieManager.clearAll(true)` before each new account login to replace incognito isolation — the cookie jar is flushed before the WebView loads, preventing any prior session from leaking
+3. Added a `cookiesReady` gate so the WebView doesn't render until the cookie jar is confirmed clear
+4. On save, `CookieManager.get()` is called across `bing.com`, `rewards.bing.com`, and `login.live.com` to capture ALL cookies including httpOnly — these are merged with the JS-captured cookies for a complete set
+
+**Run phase fix (`app/search-runner.tsx`):**
+Added `injectAccountCookies(cookies)` — before every account's run begins (covering both searches and the Daily Set), this function:
 1. Calls `CookieManager.clearAll(true)` — flushes the entire WebView OS cookie jar
-2. Calls `CookieManager.set()` for each stored cookie across `bing.com`, `rewards.bing.com`, and `login.live.com`
+2. Calls `CookieManager.set()` for each stored cookie (now including httpOnly) across `bing.com`, `rewards.bing.com`, and `login.live.com`
 
 This ensures the WebView always reflects the correct account's session at the start of every run, regardless of what was previously in the OS jar.
 
-**Dynamic require pattern:** The library is loaded via `require()` inside the function rather than a top-level import. This is intentional — `@react-native-cookies/cookies` is a native module that crashes Expo Go on import. The dynamic require catches the error silently in Expo Go while working fully in the compiled APK.
+**Dynamic require pattern:** Both files load `@react-native-cookies/cookies` via `require()` inside functions rather than top-level imports. This is intentional — it's a native module that crashes Expo Go on import. The dynamic require catches the error silently in Expo Go while working fully in the compiled APK.
 
 ### Fix 5 — Daily Set Toggle (`settings.tsx`, `index.tsx`, `AccountCard.tsx`)
 

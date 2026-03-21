@@ -89,6 +89,14 @@ const INJECT_COOKIES_JS = `
 true;
 `;
 
+function getCookieManager(): any {
+  try {
+    return require("@react-native-cookies/cookies").default;
+  } catch {
+    return null;
+  }
+}
+
 type LoginStatus = "loading" | "browsing" | "loggedIn";
 
 export default function LoginWebViewScreen() {
@@ -107,6 +115,20 @@ export default function LoginWebViewScreen() {
   const [detectedEmail, setDetectedEmail] = useState("");
   const [accountName, setAccountName] = useState("");
   const [showNameInput, setShowNameInput] = useState(false);
+  const [cookiesReady, setCookiesReady] = useState(!!existingAccount);
+
+  React.useEffect(() => {
+    if (!existingAccount) {
+      const cm = getCookieManager();
+      if (cm) {
+        cm.clearAll(true)
+          .then(() => setCookiesReady(true))
+          .catch(() => setCookiesReady(true));
+      } else {
+        setCookiesReady(true);
+      }
+    }
+  }, []);
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
 
@@ -164,10 +186,37 @@ export default function LoginWebViewScreen() {
     } catch {}
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Capture native cookies (including httpOnly) via CookieManager
+    // document.cookie only sees non-httpOnly — the real auth tokens are httpOnly
+    let nativeCookies: Record<string, string> = {};
+    const cm = getCookieManager();
+    if (cm) {
+      const domains = [
+        "https://www.bing.com",
+        "https://rewards.bing.com",
+        "https://login.live.com",
+      ];
+      for (const domain of domains) {
+        try {
+          const cookies = await cm.get(domain, true);
+          if (cookies && typeof cookies === "object") {
+            for (const [name, cookie] of Object.entries(cookies)) {
+              if (cookie && typeof cookie === "object" && "value" in (cookie as any)) {
+                nativeCookies[name] = (cookie as any).value;
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    const allCookies = { ...capturedCookies, ...nativeCookies };
+
     if (existingAccount) {
-      updateAccount(existingAccount.id, { cookies: capturedCookies, email: detectedEmail.trim() || existingAccount.email });
+      updateAccount(existingAccount.id, { cookies: allCookies, email: detectedEmail.trim() || existingAccount.email });
       router.back();
       return;
     }
@@ -177,7 +226,7 @@ export default function LoginWebViewScreen() {
       searchCount: 30,
       dailySetEnabled: true,
       lastRun: null,
-      cookies: capturedCookies,
+      cookies: allCookies,
     });
     router.back();
   };
@@ -250,34 +299,35 @@ export default function LoginWebViewScreen() {
         {!isLoading && <View style={{ width: 20 }} />}
       </View>
 
-      <WebViewComponent
-        ref={webViewRef}
-        // New accounts start at the sign-out URL so any existing WebView session
-        // is cleared server-side before the login page appears.
-        // Refreshing an existing account skips sign-out so the session stays valid.
-        source={{ uri: existingAccount ? LOGIN_URL : SIGNOUT_URL }}
-        userAgent={MOBILE_USER_AGENT}
-        // Incognito mode gives each login a fresh, isolated cookie store on both
-        // Android and iOS so old session cookies can never leak into a new account login.
-        incognito={!existingAccount}
-        onNavigationStateChange={handleNavigationStateChange}
-        onMessage={handleMessage}
-        onLoadStart={() => setIsLoading(true)}
-        onLoadEnd={() => setIsLoading(false)}
-        style={styles.webView}
-        sharedCookiesEnabled
-        thirdPartyCookiesEnabled
-        domStorageEnabled
-        javaScriptEnabled
-        allowsBackForwardNavigationGestures
-        startInLoadingState
-        renderLoading={() => (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#3B82F6" />
-            <Text style={styles.loadingText}>Loading Microsoft login...</Text>
-          </View>
-        )}
-      />
+      {cookiesReady ? (
+        <WebViewComponent
+          ref={webViewRef}
+          source={{ uri: existingAccount ? LOGIN_URL : SIGNOUT_URL }}
+          userAgent={MOBILE_USER_AGENT}
+          onNavigationStateChange={handleNavigationStateChange}
+          onMessage={handleMessage}
+          onLoadStart={() => setIsLoading(true)}
+          onLoadEnd={() => setIsLoading(false)}
+          style={styles.webView}
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          domStorageEnabled
+          javaScriptEnabled
+          allowsBackForwardNavigationGestures
+          startInLoadingState
+          renderLoading={() => (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#3B82F6" />
+              <Text style={styles.loadingText}>Loading Microsoft login...</Text>
+            </View>
+          )}
+        />
+      ) : (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Preparing clean session...</Text>
+        </View>
+      )}
 
       {status === "loggedIn" && !showNameInput && (
         <Animated.View
