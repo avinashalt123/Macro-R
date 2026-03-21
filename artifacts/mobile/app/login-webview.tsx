@@ -198,6 +198,14 @@ export default function LoginWebViewScreen() {
     setIsSaving(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+    // Navigate WebView to www.bing.com to trigger auth redirect that sets _U
+    // (_U is often set via Set-Cookie during the redirect chain from login → bing.com,
+    //  which may not happen if user only visited rewards.bing.com)
+    try {
+      webViewRef.current?.injectJavaScript(`window.location.href = 'https://www.bing.com';true;`);
+      await new Promise<void>((r) => setTimeout(r, 3000));
+    } catch {}
+
     // Capture native cookies (including httpOnly) via CookieManager
     // document.cookie only sees non-httpOnly — the real auth tokens are httpOnly
     let nativeCookies: Record<string, string> = {};
@@ -205,10 +213,13 @@ export default function LoginWebViewScreen() {
     if (cm) {
       const domains = [
         "https://www.bing.com",
+        "https://bing.com",
         "https://rewards.bing.com",
+        "https://rewards.microsoft.com",
         "https://login.live.com",
         "https://login.microsoftonline.com",
         "https://account.microsoft.com",
+        "https://www.microsoft.com",
       ];
       for (const domain of domains) {
         try {
@@ -217,6 +228,8 @@ export default function LoginWebViewScreen() {
             for (const [name, cookie] of Object.entries(cookies)) {
               if (cookie && typeof cookie === "object" && "value" in (cookie as any)) {
                 nativeCookies[name] = (cookie as any).value;
+              } else if (typeof cookie === "string") {
+                nativeCookies[name] = cookie;
               }
             }
           }
@@ -231,6 +244,7 @@ export default function LoginWebViewScreen() {
     const totalCount = Object.keys(allCookies).length;
     const hasU = "_U" in allCookies;
     const hasMUID = "MUID" in allCookies;
+    const nativeNames = Object.keys(nativeCookies).sort().join(", ");
 
     const saveAndGoBack = () => {
       if (existingAccount) {
@@ -250,7 +264,7 @@ export default function LoginWebViewScreen() {
 
     Alert.alert(
       "Cookie Capture Result",
-      `JS cookies: ${jsCount}\nNative cookies: ${nativeCount}\nTotal: ${totalCount}\n_U token: ${hasU ? "YES ✓" : "MISSING ✗"}\nMUID: ${hasMUID ? "YES ✓" : "MISSING ✗"}`,
+      `JS: ${jsCount} | Native: ${nativeCount} | Total: ${totalCount}\n_U: ${hasU ? "YES ✓" : "MISSING ✗"} | MUID: ${hasMUID ? "YES ✓" : "MISSING ✗"}\n\nNative cookie names:\n${nativeNames}`,
       [{ text: "OK", onPress: saveAndGoBack }]
     );
   };
