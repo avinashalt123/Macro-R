@@ -246,27 +246,23 @@ export default function LoginWebViewScreen() {
     const hasMUID = "MUID" in allCookies;
     const nativeNames = Object.keys(nativeCookies).sort().join(", ");
 
-    const saveAndGoBack = () => {
-      if (existingAccount) {
-        updateAccount(existingAccount.id, { cookies: allCookies, email: detectedEmail.trim() || existingAccount.email });
-      } else {
-        addAccount({
-          name: accountName.trim() || "MS Rewards Account",
-          email: detectedEmail.trim() || "user@outlook.com",
-          searchCount: 30,
-          dailySetEnabled: true,
-          lastRun: null,
-          cookies: allCookies,
-        });
-      }
-      router.back();
-    };
+    console.log(`[CookieCapture] JS: ${jsCount} | Native: ${nativeCount} | Total: ${totalCount}`);
+    console.log(`[CookieCapture] _U: ${hasU ? "YES" : "MISSING"} | MUID: ${hasMUID ? "YES" : "MISSING"}`);
+    console.log(`[CookieCapture] Native names: ${nativeNames}`);
 
-    Alert.alert(
-      "Cookie Capture Result",
-      `JS: ${jsCount} | Native: ${nativeCount} | Total: ${totalCount}\n_U: ${hasU ? "YES ✓" : "MISSING ✗"} | MUID: ${hasMUID ? "YES ✓" : "MISSING ✗"}\n\nNative cookie names:\n${nativeNames}`,
-      [{ text: "OK", onPress: saveAndGoBack }]
-    );
+    if (existingAccount) {
+      updateAccount(existingAccount.id, { cookies: allCookies, email: detectedEmail.trim() || existingAccount.email });
+    } else {
+      addAccount({
+        name: accountName.trim() || "MS Rewards Account",
+        email: detectedEmail.trim() || "user@outlook.com",
+        searchCount: 30,
+        dailySetEnabled: true,
+        lastRun: null,
+        cookies: allCookies,
+      });
+    }
+    router.back();
   };
 
   const handleSavePress = () => {
