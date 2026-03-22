@@ -502,7 +502,7 @@ export default function HomeScreen() {
               <Play size={18} color="#fff" />
             )}
             <Text style={styles.fabText}>
-              {isRunning ? "Stop" : "Search All"}
+              {isRunning ? "Stop" : "Search"}
             </Text>
           </LinearGradient>
         </Pressable>
