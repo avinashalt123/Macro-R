@@ -211,18 +211,13 @@ export default function HomeScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerLeft}>
           <Image
-            source={require("@/assets/images/icon.png")}
-            style={styles.headerLogo}
+            source={require("@/assets/images/macro-rewards-logo.png")}
+            style={styles.headerBrandLogo}
+            resizeMode="contain"
           />
-          <View>
-            <Text style={styles.headerTitle}>
-              <Text style={{ color: "#3B82F6", fontFamily: "Inter_800ExtraBold" }}>Macro</Text>
-              <Text style={{ color: colors.textSecondary, fontFamily: "Inter_300Light" }}> Rewards</Text>
-            </Text>
-            <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-              {accounts.length} account{accounts.length !== 1 ? "s" : ""}
-            </Text>
-          </View>
+          <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+            {accounts.length} account{accounts.length !== 1 ? "s" : ""}
+          </Text>
         </View>
         <View style={styles.headerActions}>
           <Pressable
@@ -525,14 +520,13 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 2,
   },
-  headerLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
+  headerBrandLogo: {
+    width: 160,
+    height: 48,
   },
   headerTitle: { fontSize: 28, fontFamily: "Inter_700Bold" },
   headerSub: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
