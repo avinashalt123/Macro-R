@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, CheckSquare, Clock, Edit2, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
+import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, Clock, Edit2, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -10,7 +10,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -35,13 +34,11 @@ export default function AccountDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(account?.name ?? "");
   const [editEmail, setEditEmail] = useState(account?.email ?? "");
-  const [editDailySet, setEditDailySet] = useState(account?.dailySetEnabled ?? true);
 
   useEffect(() => {
     if (account && !isEditing) {
       setEditName(account.name);
       setEditEmail(account.email);
-      setEditDailySet(account.dailySetEnabled);
     }
   }, [account?.id, isEditing]);
 
@@ -79,7 +76,6 @@ export default function AccountDetailScreen() {
     updateAccount(id, {
       name: editName.trim(),
       email: editEmail.trim(),
-      dailySetEnabled: editDailySet,
     });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsEditing(false);
@@ -121,7 +117,6 @@ export default function AccountDetailScreen() {
                 setIsEditing(false);
                 setEditName(account.name);
                 setEditEmail(account.email);
-                setEditDailySet(account.dailySetEnabled);
               } else {
                 router.back();
               }
@@ -236,39 +231,19 @@ export default function AccountDetailScreen() {
             </Pressable>
           </Card>
 
-          <Card title="CONFIGURATION" colors={colors}>
-            <View style={styles.configRow}>
-              <View style={styles.configLabel}>
-                <CheckSquare size={16} color={colors.textMuted} />
-                <Text style={[styles.configText, { color: colors.text }]}>Daily Set</Text>
-              </View>
-              {isEditing ? (
-                <Switch
-                  value={editDailySet}
-                  onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEditDailySet(v); }}
-                  trackColor={{ false: colors.border, true: colors.tint }}
-                  thumbColor="#fff"
-                />
-              ) : (
-                <Text style={[styles.configValue, { color: colors.textSecondary }]}>{account.dailySetEnabled ? "Enabled" : "Disabled"}</Text>
-              )}
-            </View>
-
-            {account.lastRun && (
-              <>
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                <View style={styles.configRow}>
-                  <View style={styles.configLabel}>
-                    <Calendar size={16} color={colors.textMuted} />
-                    <Text style={[styles.configText, { color: colors.text }]}>Last run</Text>
-                  </View>
-                  <Text style={[styles.configValue, { color: colors.textSecondary }]}>
-                    {new Date(account.lastRun).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </Text>
+          {account.lastRun && (
+            <Card title="CONFIGURATION" colors={colors}>
+              <View style={styles.configRow}>
+                <View style={styles.configLabel}>
+                  <Calendar size={16} color={colors.textMuted} />
+                  <Text style={[styles.configText, { color: colors.text }]}>Last run</Text>
                 </View>
-              </>
-            )}
-          </Card>
+                <Text style={[styles.configValue, { color: colors.textSecondary }]}>
+                  {new Date(account.lastRun).toLocaleDateString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </Text>
+              </View>
+            </Card>
+          )}
 
           {!isEditing && (
             <View style={styles.actions}>
