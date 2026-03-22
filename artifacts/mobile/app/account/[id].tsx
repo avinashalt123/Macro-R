@@ -5,6 +5,7 @@ import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, Clock, Edit2, R
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -31,6 +32,7 @@ export default function AccountDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const { showAlert, AlertComponent } = useCustomAlert();
+  const [avatarError, setAvatarError] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(account?.name ?? "");
   const [editEmail, setEditEmail] = useState(account?.email ?? "");
@@ -141,9 +143,13 @@ export default function AccountDetailScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 40 }]}>
           <View style={styles.profileSection}>
-            <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.avatar}>
-              <Text style={styles.avatarText}>{initial}</Text>
-            </LinearGradient>
+            {account.avatarUrl && !avatarError ? (
+              <Image source={{ uri: account.avatarUrl }} style={styles.avatar} onError={() => setAvatarError(true)} />
+            ) : (
+              <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.avatar}>
+                <Text style={styles.avatarText}>{initial}</Text>
+              </LinearGradient>
+            )}
             {isEditing ? (
               <View style={styles.editNameBlock}>
                 <TextInput

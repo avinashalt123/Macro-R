@@ -44,6 +44,7 @@ const INJECT_COOKIES_JS = `
       domain: window.location.hostname,
       username: '',
       email: '',
+      avatarUrl: '',
       localStorageTokens: {},
     };
     // Detect account name
@@ -66,6 +67,40 @@ const INJECT_COOKIES_JS = `
     for (var es = 0; es < emailSelectors.length; es++) {
       var ee = document.querySelector(emailSelectors[es]);
       if (ee && ee.innerText) { data.email = ee.innerText.trim(); break; }
+    }
+    // Detect profile picture
+    var avatarSelectors = [
+      '#mectrl_currentAccount_picture img',
+      '.mectrl_accountpic img',
+      '.mectrl_profilepic img',
+      'img.mectrl_accountpic',
+      'img.id_avatar',
+      '#id_p img',
+      '#meControl img[alt]',
+      '.c-image-account img',
+      'img[data-testid="user-avatar"]',
+      '#mectrl_main_trigger img',
+      '.mectrl_trigger img',
+    ];
+    for (var as = 0; as < avatarSelectors.length; as++) {
+      var ae = document.querySelector(avatarSelectors[as]);
+      if (ae && ae.src && ae.src.indexOf('data:') !== 0 && ae.src.indexOf('default') === -1) {
+        data.avatarUrl = ae.src;
+        break;
+      }
+    }
+    if (!data.avatarUrl) {
+      var allImgs = document.querySelectorAll('img');
+      for (var ai = 0; ai < allImgs.length; ai++) {
+        var img = allImgs[ai];
+        var s = img.src || '';
+        if ((s.indexOf('graph.microsoft.com') !== -1 && s.indexOf('photo') !== -1) ||
+            s.indexOf('dsimages-') !== -1 ||
+            (s.indexOf('blob:') === 0 && img.width >= 30 && img.width <= 120 && img.height >= 30 && img.height <= 120)) {
+          data.avatarUrl = s;
+          break;
+        }
+      }
     }
     // Relevant localStorage tokens
     try {
@@ -115,6 +150,7 @@ export default function LoginWebViewScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [capturedCookies, setCapturedCookies] = useState<Record<string, string>>({});
   const [detectedEmail, setDetectedEmail] = useState("");
+  const [detectedAvatar, setDetectedAvatar] = useState("");
   const [accountName, setAccountName] = useState("");
   const [showNameInput, setShowNameInput] = useState(false);
   const [cookiesReady, setCookiesReady] = useState(!!existingAccount);
@@ -167,6 +203,21 @@ export default function LoginWebViewScreen() {
       if (isOnRewards && !navState.loading && status !== "loggedIn") {
         setStatus("loggedIn");
         showSuccessBanner();
+        // Click the me-control to open the account flyout (reveals profile pic, name, email)
+        try {
+          webViewRef.current?.injectJavaScript(`
+            (function() {
+              try {
+                var trigger = document.querySelector('#mectrl_main_trigger') || document.querySelector('.mectrl_trigger');
+                if (trigger) trigger.click();
+                setTimeout(function() {
+                  ${INJECT_COOKIES_JS}
+                }, 1500);
+              } catch(e) {}
+            })();
+            true;
+          `);
+        } catch {}
       } else if (!navState.loading && status === "loading") {
         setStatus("browsing");
       }
@@ -190,6 +241,9 @@ export default function LoginWebViewScreen() {
         // Pick up username
         const username = (msg.data.username || "").trim();
         if (username) setAccountName((prev) => prev || username.split(" ")[0] || "My Account");
+        // Pick up avatar URL
+        const avatar = (msg.data.avatarUrl || "").trim();
+        if (avatar && avatar.startsWith("http")) setDetectedAvatar((prev) => prev || avatar);
       }
     } catch {}
   }, []);
@@ -251,12 +305,51 @@ export default function LoginWebViewScreen() {
     console.log(`[CookieCapture] _U: ${hasU ? "YES" : "MISSING"} | MUID: ${hasMUID ? "YES" : "MISSING"}`);
     console.log(`[CookieCapture] Native names: ${nativeNames}`);
 
+    let finalAvatar = detectedAvatar;
+    let finalName = accountName.trim();
+    let finalEmail = detectedEmail.trim();
+
+    // Try fetching profile info from Bing rewards dashboard API
+    if (!finalAvatar || !finalEmail || !finalName) {
+      try {
+        const cookieStr = Object.entries(allCookies)
+          .filter(([k]) => !k.startsWith("_ls_"))
+          .map(([k, v]) => `${k}=${v}`)
+          .join("; ");
+        const resp = await fetch("https://rewards.bing.com/api/getuserinfo?type=1", {
+          credentials: "omit",
+          headers: {
+            Cookie: cookieStr,
+            "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+          },
+        });
+        if (resp.ok) {
+          const info = await resp.json();
+          const dashboard = info?.dashboard;
+          if (dashboard) {
+            if (!finalName && dashboard.firstName) finalName = dashboard.firstName;
+            if (!finalEmail && dashboard.email) finalEmail = dashboard.email;
+            if (!finalAvatar && dashboard.userProfileUrl) finalAvatar = dashboard.userProfileUrl;
+            if (!finalAvatar && dashboard.imageUrl) finalAvatar = dashboard.imageUrl;
+            console.log(`[Profile] Fetched from rewards API — name: ${dashboard.firstName}, email: ${dashboard.email}, avatar: ${finalAvatar ? "YES" : "NO"}`);
+          }
+        }
+      } catch (e) {
+        console.log("[Profile] Rewards API fetch failed:", e);
+      }
+    }
+
     if (existingAccount) {
-      updateAccount(existingAccount.id, { cookies: allCookies, email: detectedEmail.trim() || existingAccount.email });
+      updateAccount(existingAccount.id, {
+        cookies: allCookies,
+        email: finalEmail || existingAccount.email,
+        avatarUrl: finalAvatar || existingAccount.avatarUrl,
+      });
     } else {
       addAccount({
-        name: accountName.trim() || "Macro Rewards Account",
-        email: detectedEmail.trim() || "user@outlook.com",
+        name: finalName || "Macro Rewards Account",
+        email: finalEmail || "user@outlook.com",
+        avatarUrl: finalAvatar || undefined,
         searchCount: 30,
         dailySetEnabled: true,
         lastRun: null,

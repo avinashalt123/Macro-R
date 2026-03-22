@@ -1,9 +1,10 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { AlertCircle, CheckCircle, CheckSquare, Clock, Loader, Play, RefreshCw, Search, Shield, Star, XCircle } from "lucide-react-native";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -110,6 +111,7 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
     : 0;
 
   const initial = account.name.charAt(0).toUpperCase();
+  const [avatarError, setAvatarError] = useState(false);
   const sessionExpired = isSessionExpired(account);
   const noCookies = Object.keys(account.cookies ?? {}).length === 0;
 
@@ -122,9 +124,13 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
         style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.cardShadow }]}
       >
         <View style={styles.cardContent}>
-          <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.avatar}>
-            <Text style={styles.avatarText}>{initial}</Text>
-          </LinearGradient>
+          {account.avatarUrl && !avatarError ? (
+            <Image source={{ uri: account.avatarUrl }} style={styles.avatar} onError={() => setAvatarError(true)} />
+          ) : (
+            <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.avatar}>
+              <Text style={styles.avatarText}>{initial}</Text>
+            </LinearGradient>
+          )}
 
           <View style={styles.info}>
             <View style={styles.nameRow}>

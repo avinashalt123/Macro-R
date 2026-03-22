@@ -13,9 +13,10 @@ import {
   Star,
   XCircle,
 } from "lucide-react-native";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -71,6 +72,7 @@ export function AccountGridTile({
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const initial = account.name.charAt(0).toUpperCase();
+  const [avatarError, setAvatarError] = useState(false);
   const noCookies = Object.keys(account.cookies ?? {}).length === 0;
   const sessionExpired = isSessionExpired(account);
   const progressPercent =
@@ -184,12 +186,20 @@ export function AccountGridTile({
                 </Text>
               </View>
             )}
-            <LinearGradient
-              colors={["#3B82F6", "#1D4ED8"]}
-              style={styles.avatar}
-            >
-              <Text style={styles.avatarText}>{initial}</Text>
-            </LinearGradient>
+            {account.avatarUrl && !avatarError ? (
+              <Image
+                source={{ uri: account.avatarUrl }}
+                style={styles.avatar}
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <LinearGradient
+                colors={["#3B82F6", "#1D4ED8"]}
+                style={styles.avatar}
+              >
+                <Text style={styles.avatarText}>{initial}</Text>
+              </LinearGradient>
+            )}
           </View>
 
           <View style={styles.info}>

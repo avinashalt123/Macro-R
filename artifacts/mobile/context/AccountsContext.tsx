@@ -13,6 +13,7 @@ export interface Account {
   id: string;
   name: string;
   email: string;
+  avatarUrl?: string;
   status: AccountStatus;
   totalPoints: number;
   todayPoints: number;
