@@ -216,7 +216,7 @@ export default function HomeScreen() {
           />
           <View>
             <Text style={[styles.headerTitle, { color: colors.text }]}>
-              MS Rewards
+              MY Rewards
             </Text>
             <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
               {accounts.length} account{accounts.length !== 1 ? "s" : ""}
