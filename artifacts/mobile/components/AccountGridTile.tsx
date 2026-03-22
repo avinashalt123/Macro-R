@@ -111,24 +111,6 @@ export function AccountGridTile({
     }).start();
   };
 
-  const sessionBannerColor = noCookies
-    ? { bg: scheme === "dark" ? "#7F1D1D22" : "#FEF2F2", text: colors.error ?? "#EF4444", border: "#FCA5A5" }
-    : sessionExpired
-    ? { bg: scheme === "dark" ? "#78350F22" : "#FFFBEB", text: "#B45309", border: "#FCD34D" }
-    : { bg: scheme === "dark" ? "#14532D22" : "#F0FDF4", text: colors.success ?? "#22C55E", border: "#86EFAC" };
-
-  const sessionLabel = noCookies
-    ? "No session \u2014 tap to sign in"
-    : sessionExpired
-    ? "Session may be expired"
-    : "Session active";
-
-  const SessionIcon = noCookies
-    ? AlertCircle
-    : sessionExpired
-    ? Clock
-    : Shield;
-
   const statusColor =
     account.status === "idle"
       ? "#94A3B8"
@@ -158,52 +140,12 @@ export function AccountGridTile({
           { backgroundColor: colors.surface, shadowColor: colors.cardShadow },
         ]}
       >
-        {/* Session banner */}
-        {account.status !== "running" && (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onRefreshSession();
-            }}
-            style={[
-              styles.sessionBanner,
-              {
-                backgroundColor: sessionBannerColor.bg,
-                borderColor: sessionBannerColor.border,
-              },
-            ]}
-          >
-            <SessionIcon size={9} color={sessionBannerColor.text} />
-            <Text
-              style={[styles.sessionText, { color: sessionBannerColor.text }]}
-              numberOfLines={1}
-            >
-              {sessionLabel}
-            </Text>
-            <View style={styles.statusBadge}>
-              <Animated.View
-                style={{
-                  opacity: account.status === "running" ? pulseAnim : 1,
-                }}
-              >
-                <StatusIcon size={8} color={statusColor} />
-              </Animated.View>
-              <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-                {account.status === "running"
-                  ? `${account.searchesCompleted}/${account.searchCount}`
-                  : statusLabels[account.status]}
-              </Text>
-            </View>
-          </Pressable>
-        )}
-
-        {/* Running progress banner */}
         {account.status === "running" && (
           <View style={[styles.runningBanner, { backgroundColor: "#EDE9FE" }]}>
             <Animated.View style={{ opacity: pulseAnim }}>
               <RefreshCw size={9} color="#7C3AED" />
             </Animated.View>
-            <Text style={[styles.sessionText, { color: "#7C3AED", flex: 1 }]} numberOfLines={1}>
+            <Text style={[styles.bannerText, { color: "#7C3AED", flex: 1 }]} numberOfLines={1}>
               {account.searchesCompleted}/{account.searchCount}
             </Text>
             <View style={[styles.miniProgress, { backgroundColor: "#C4B5FD" }]}>
@@ -220,7 +162,6 @@ export function AccountGridTile({
           </View>
         )}
 
-        {/* Large avatar */}
         <View style={styles.avatarWrap}>
           <LinearGradient
             colors={["#3B82F6", "#1D4ED8"]}
@@ -230,7 +171,6 @@ export function AccountGridTile({
           </LinearGradient>
         </View>
 
-        {/* Name & email */}
         <Text
           style={[styles.name, { color: colors.text }]}
           numberOfLines={1}
@@ -244,7 +184,6 @@ export function AccountGridTile({
           {account.email}
         </Text>
 
-        {/* Action buttons */}
         <View style={styles.actions}>
           <Pressable
             onPress={() => {
@@ -267,9 +206,9 @@ export function AccountGridTile({
             ]}
           >
             {account.status === "running" ? (
-              <Loader size={16} color="#fff" />
+              <Loader size={14} color="#fff" />
             ) : (
-              <Play size={16} color="#fff" />
+              <Play size={14} color="#fff" />
             )}
           </Pressable>
 
@@ -294,7 +233,7 @@ export function AccountGridTile({
                 },
               ]}
             >
-              <CheckSquare size={16} color="#fff" />
+              <CheckSquare size={14} color="#fff" />
             </Pressable>
           )}
         </View>
@@ -306,21 +245,13 @@ export function AccountGridTile({
 const styles = StyleSheet.create({
   tile: {
     borderRadius: 16,
-    paddingBottom: 12,
+    paddingBottom: 10,
     marginVertical: 4,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
     shadowRadius: 6,
     elevation: 3,
     overflow: "hidden",
-  },
-  sessionBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderBottomWidth: 1,
   },
   runningBanner: {
     flexDirection: "row",
@@ -329,19 +260,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  sessionText: {
+  bannerText: {
     fontSize: 8,
     fontFamily: "Inter_500Medium",
-    flex: 1,
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-  },
-  statusBadgeText: {
-    fontSize: 8,
-    fontFamily: "Inter_600SemiBold",
   },
   miniProgress: {
     height: 2,
@@ -355,29 +276,29 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 14,
     marginBottom: 8,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     color: "#fff",
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: "Inter_700Bold",
   },
   name: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: "Inter_600SemiBold",
     textAlign: "center",
     paddingHorizontal: 6,
   },
   email: {
-    fontSize: 9,
+    fontSize: 8,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     paddingHorizontal: 4,
@@ -386,14 +307,14 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 10,
+    gap: 6,
     marginTop: 10,
     paddingHorizontal: 8,
   },
   actionBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    flex: 1,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
