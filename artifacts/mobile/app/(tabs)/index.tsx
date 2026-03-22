@@ -215,8 +215,9 @@ export default function HomeScreen() {
             style={styles.headerLogo}
           />
           <View>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
-              MY Rewards
+            <Text style={styles.headerTitle}>
+              <Text style={{ color: "#3B82F6", fontFamily: "Inter_800ExtraBold" }}>Macro</Text>
+              <Text style={{ color: colors.textSecondary, fontFamily: "Inter_300Light" }}> Rewards</Text>
             </Text>
             <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
               {accounts.length} account{accounts.length !== 1 ? "s" : ""}

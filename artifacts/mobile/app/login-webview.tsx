@@ -254,7 +254,7 @@ export default function LoginWebViewScreen() {
       updateAccount(existingAccount.id, { cookies: allCookies, email: detectedEmail.trim() || existingAccount.email });
     } else {
       addAccount({
-        name: accountName.trim() || "MY Rewards Account",
+        name: accountName.trim() || "Macro Rewards Account",
         email: detectedEmail.trim() || "user@outlook.com",
         searchCount: 30,
         dailySetEnabled: true,

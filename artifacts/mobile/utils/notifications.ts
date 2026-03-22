@@ -83,7 +83,7 @@ export async function scheduleOvernightNotifications(
     try {
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: "MY Rewards — Overnight Run",
+          title: "Macro Rewards — Overnight Run",
           body: "Tap to start your overnight Bing searches and earn points.",
           data: { action: "start_run" },
           sound: true,
