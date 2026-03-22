@@ -191,6 +191,9 @@ export function AccountGridTile({
             </Text>
             <Text
               style={[styles.email, { color: colors.textSecondary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
             >
               {account.email}
             </Text>
