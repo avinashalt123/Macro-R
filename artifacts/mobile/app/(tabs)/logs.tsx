@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import { FileText, Trash2 } from "lucide-react-native";
 import React from "react";
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useCustomAlert } from "@/components/CustomAlert";
 import { EmptyState } from "@/components/EmptyState";
 import { LogItem } from "@/components/LogItem";
 import Colors from "@/constants/colors";
@@ -22,10 +22,11 @@ export default function LogsScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { logs, clearLogs } = useAccounts();
+  const { showAlert, AlertComponent } = useCustomAlert();
 
   const handleClear = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert("Clear All Logs?", "This cannot be undone.", [
+    showAlert("Clear All Logs?", "This cannot be undone.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Clear",
@@ -79,6 +80,7 @@ export default function LogsScreen() {
         ListFooterComponent={<View style={{ height: 40 }} />}
         ListHeaderComponent={<View style={{ height: 8 }} />}
       />
+      {AlertComponent}
     </View>
   );
 }

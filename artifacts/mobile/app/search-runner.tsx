@@ -3,7 +3,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { CheckCircle, Square, Wifi, WifiOff } from "lucide-react-native";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
   BackHandler,
   Platform,
   Pressable,
@@ -14,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { Account, useAccounts } from "@/context/AccountsContext";
 import { useQueries } from "@/context/QueriesContext";
@@ -283,6 +283,7 @@ export default function SearchRunnerScreen() {
   const { accounts, updateAccount, addLog, stopRun } = useAccounts();
   const { pickQueries } = useQueries();
   const { settings } = useSettings();
+  const { showAlert, AlertComponent } = useCustomAlert();
 
   // mode: "searchonly" = searches only | "dailyset" = daily set only | "both" = searches + daily set
   const mode = (rawMode === "dailyset" ? "dailyset" : rawMode === "searchonly" ? "searchonly" : "both") as "both" | "dailyset" | "searchonly";
@@ -652,7 +653,7 @@ export default function SearchRunnerScreen() {
   }, [isFinished]);
 
   const handleStop = () => {
-    Alert.alert("Stop Automation?", "This will interrupt the current run.", [
+    showAlert("Stop Automation?", "This will interrupt the current run.", [
       { text: "Keep Running", style: "cancel" },
       {
         text: "Stop",
@@ -787,6 +788,7 @@ export default function SearchRunnerScreen() {
         onLoadEnd={handleWebViewLoadEnd}
         onMessage={handleWebViewMessage}
       />
+      {AlertComponent}
     </View>
   );
 }

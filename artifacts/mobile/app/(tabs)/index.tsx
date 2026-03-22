@@ -5,7 +5,6 @@ import { useFocusEffect } from "expo-router";
 import { CheckSquare, Grid3X3, List, Play, PlayCircle, Plus, Square, Users } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
-  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -22,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AccountCard } from "@/components/AccountCard";
 import { AccountGridTile } from "@/components/AccountGridTile";
+import { useCustomAlert } from "@/components/CustomAlert";
 import { EmptyState } from "@/components/EmptyState";
 import { StatsBar } from "@/components/StatsBar";
 import Colors from "@/constants/colors";
@@ -37,6 +37,7 @@ export default function HomeScreen() {
   const { settings, updateSettings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const { showAlert, AlertComponent } = useCustomAlert();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -66,14 +67,14 @@ export default function HomeScreen() {
   const handleRunAll = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (isRunning) {
-      Alert.alert("Search Running", "Searches are in progress.", [
+      showAlert("Search Running", "Searches are in progress.", [
         { text: "Keep Running", style: "cancel" },
         { text: "Stop All", style: "destructive", onPress: stopRun },
       ]);
       return;
     }
     if (accounts.length === 0) {
-      Alert.alert("No Accounts", "Add an account first to run automation.");
+      showAlert("No Accounts", "Add an account first to run automation.");
       return;
     }
     startRun();
@@ -85,10 +86,7 @@ export default function HomeScreen() {
 
   const handleRunAccount = (id: string) => {
     if (isRunning) {
-      Alert.alert(
-        "Search Running",
-        "Stop the current run before starting another.",
-      );
+      showAlert("Search Running", "Stop the current run before starting another.");
       return;
     }
     startRun();
@@ -101,14 +99,11 @@ export default function HomeScreen() {
   const handleDailySetAll = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (isRunning) {
-      Alert.alert(
-        "Already Running",
-        "Stop the current run before starting another.",
-      );
+      showAlert("Already Running", "Stop the current run before starting another.");
       return;
     }
     if (accounts.length === 0) {
-      Alert.alert("No Accounts", "Add an account first.");
+      showAlert("No Accounts", "Add an account first.");
       return;
     }
     startRun();
@@ -123,10 +118,7 @@ export default function HomeScreen() {
 
   const handleDailySetAccount = (id: string) => {
     if (isRunning) {
-      Alert.alert(
-        "Already Running",
-        "Stop the current run before starting another.",
-      );
+      showAlert("Already Running", "Stop the current run before starting another.");
       return;
     }
     startRun();
@@ -139,14 +131,14 @@ export default function HomeScreen() {
   const handleRunBothAll = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     if (isRunning) {
-      Alert.alert("Already Running", "Stop the current run before starting another.", [
+      showAlert("Already Running", "Stop the current run before starting another.", [
         { text: "Keep Running", style: "cancel" },
         { text: "Stop All", style: "destructive", onPress: stopRun },
       ]);
       return;
     }
     if (accounts.length === 0) {
-      Alert.alert("No Accounts", "Add an account first to run automation.");
+      showAlert("No Accounts", "Add an account first to run automation.");
       return;
     }
     startRun();
@@ -507,6 +499,7 @@ export default function HomeScreen() {
           </LinearGradient>
         </Pressable>
       </View>
+      {AlertComponent}
     </View>
   );
 }

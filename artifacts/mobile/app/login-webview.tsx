@@ -5,7 +5,6 @@ import { Check, Info, Lock, RefreshCw, Smartphone, Unlock, UserPlus, X } from "l
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Platform,
   Pressable,
@@ -18,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WebView, { WebViewNavigation, WebViewMessageEvent } from "react-native-webview";
 
+import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useAccounts } from "@/context/AccountsContext";
 
@@ -108,6 +108,7 @@ export default function LoginWebViewScreen() {
   const { accountId } = useLocalSearchParams<{ accountId?: string }>();
   const existingAccount = accountId ? accounts.find((a) => a.id === accountId) : undefined;
   const webViewRef = useRef<WebView>(null);
+  const { showAlert, AlertComponent } = useCustomAlert();
 
   const [status, setStatus] = useState<LoginStatus>("loading");
   const [pageUrl, setPageUrl] = useState(LOGIN_URL);
@@ -305,7 +306,7 @@ export default function LoginWebViewScreen() {
         <Pressable
           onPress={() => {
             if (status === "loggedIn") {
-              Alert.alert("Leave without saving?", "Your login session will be lost.", [
+              showAlert("Leave without saving?", "Your login session will be lost.", [
                 { text: "Stay", style: "cancel" },
                 { text: "Leave", style: "destructive", onPress: () => router.back() },
               ]);
@@ -425,6 +426,7 @@ export default function LoginWebViewScreen() {
           </Pressable>
         </View>
       )}
+      {AlertComponent}
     </View>
   );
 }

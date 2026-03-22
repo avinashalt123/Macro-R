@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import { Check, CheckCircle, Edit2, Inbox, List, RotateCcw, Trash2 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useQueries } from "@/context/QueriesContext";
 
@@ -28,6 +28,7 @@ export default function QueriesScreen() {
   const [subTab, setSubTab] = useState<SubTab>("pool");
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
+  const { showAlert, AlertComponent } = useCustomAlert();
 
   const openEdit = () => {
     setEditText(unusedQueries.join(", "));
@@ -58,14 +59,14 @@ export default function QueriesScreen() {
   };
 
   const handleRestoreAll = () => {
-    Alert.alert("Restore All", "Move all used queries back to the pool?", [
+    showAlert("Restore All", "Move all used queries back to the pool?", [
       { text: "Cancel", style: "cancel" },
       { text: "Restore All", onPress: () => { restoreAllUsed(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } },
     ]);
   };
 
   const handleClearAll = () => {
-    Alert.alert("Clear Used Queries", "Permanently delete all used queries?", [
+    showAlert("Clear Used Queries", "Permanently delete all used queries?", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete All", style: "destructive", onPress: () => { clearAllUsed(); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); } },
     ]);
@@ -207,6 +208,7 @@ export default function QueriesScreen() {
           )}
         />
       )}
+      {AlertComponent}
     </View>
   );
 }

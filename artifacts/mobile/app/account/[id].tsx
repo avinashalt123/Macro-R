@@ -4,7 +4,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, CheckSquare, Clock, Edit2, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   KeyboardAvoidingView,
   Platform,
@@ -19,6 +18,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useAccounts } from "@/context/AccountsContext";
 
@@ -31,6 +31,7 @@ export default function AccountDetailScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
 
+  const { showAlert, AlertComponent } = useCustomAlert();
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(account?.name ?? "");
   const [editEmail, setEditEmail] = useState(account?.email ?? "");
@@ -72,7 +73,7 @@ export default function AccountDetailScreen() {
 
   const handleSave = () => {
     if (!editName.trim()) {
-      Alert.alert("Name required", "Please enter a name for this account.");
+      showAlert("Name required", "Please enter a name for this account.");
       return;
     }
     updateAccount(id, {
@@ -86,7 +87,7 @@ export default function AccountDetailScreen() {
 
   const handleDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert("Delete Account?", `Remove "${account.name}"? This will also clear all session cookies.`, [
+    showAlert("Delete Account?", `Remove "${account.name}"? This will also clear all session cookies.`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -292,6 +293,7 @@ export default function AccountDetailScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      {AlertComponent}
     </Animated.View>
   );
 }

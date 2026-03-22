@@ -2,7 +2,6 @@ import * as Haptics from "expo-haptics";
 import { Calendar, CheckSquare, Clock, Minus, Moon, Pencil, Plus, RotateCcw, Search, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { DEFAULT_OVERNIGHT_SLOTS, OvernightSlot, useSettings } from "@/context/SettingsContext";
 import {
@@ -57,6 +57,7 @@ export default function SettingsScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
+  const { showAlert, AlertComponent } = useCustomAlert();
   const [scheduling, setScheduling] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
 
@@ -203,7 +204,7 @@ export default function SettingsScreen() {
   // ── Schedule actions ─────────────────────────────────────────────────────
   const handleApplySchedule = async () => {
     if (Platform.OS === "web") {
-      Alert.alert("Not Available", "Notifications require a real device.");
+      showAlert("Not Available", "Notifications require a real device.");
       return;
     }
     setScheduling(true);
@@ -212,7 +213,7 @@ export default function SettingsScreen() {
     const granted = await requestNotificationPermission();
     if (!granted) {
       setScheduling(false);
-      Alert.alert(
+      showAlert(
         "Permission Required",
         "Please allow notifications in your device settings so the overnight schedule can alert you.",
         [{ text: "OK" }]
@@ -228,7 +229,7 @@ export default function SettingsScreen() {
       .map((s, i) => `  Run ${i + 1}: ${formatSlot(s)}`)
       .join("\n");
 
-    Alert.alert(
+    showAlert(
       "Overnight Schedule Active",
       `${scheduled} daily notification${scheduled !== 1 ? "s" : ""} scheduled.\n\n${slotList}\n\nTap the notification when it fires — the app will start automatically.`,
       [{ text: "Got it" }]
@@ -239,7 +240,7 @@ export default function SettingsScreen() {
     await cancelAllScheduledNotifications();
     setScheduledCount(0);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert("Schedule Cleared", "All overnight notifications have been removed.", [
+    showAlert("Schedule Cleared", "All overnight notifications have been removed.", [
       { text: "OK" },
     ]);
   };
@@ -705,6 +706,7 @@ export default function SettingsScreen() {
 
         <View style={{ height: insets.bottom + 40 }} />
       </ScrollView>
+      {AlertComponent}
     </KeyboardAvoidingView>
   );
 }
