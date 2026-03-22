@@ -45,22 +45,16 @@ function StatusBadge({ status, searchesCompleted, searchCount }: { status: Accou
   }, [status]);
 
   const configs = {
-    idle: { Icon: Clock, color: colors.statusIdle, bg: colors.surfaceSecondary, label: "Idle" },
-    running: { Icon: RefreshCw, color: colors.statusRunning, bg: "#EDE9FE", label: `${searchesCompleted}/${searchCount}` },
-    done: { Icon: CheckCircle, color: colors.statusDone, bg: "#DCFCE7", label: "Done" },
-    failed: { Icon: XCircle, color: colors.statusFailed, bg: "#FEE2E2", label: "Failed" },
+    idle: { Icon: Clock, color: "#94A3B8", bg: "rgba(148, 163, 184, 0.15)", label: "Idle" },
+    running: { Icon: RefreshCw, color: "#8B5CF6", bg: "rgba(139, 92, 246, 0.15)", label: `${searchesCompleted}/${searchCount}` },
+    done: { Icon: CheckCircle, color: "#22C55E", bg: "rgba(34, 197, 94, 0.2)", label: "Done" },
+    failed: { Icon: XCircle, color: "#EF4444", bg: "rgba(239, 68, 68, 0.15)", label: "Failed" },
   };
 
   const cfg = configs[status];
-  const darkRunning = scheme === "dark" && status === "running";
-  const darkDone = scheme === "dark" && status === "done";
-  const darkFailed = scheme === "dark" && status === "failed";
 
   return (
-    <View style={[
-      styles.badge,
-      { backgroundColor: darkRunning ? "#4C1D95" : darkDone ? "#14532D" : darkFailed ? "#7F1D1D" : cfg.bg }
-    ]}>
+    <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
       <Animated.View style={{ opacity: status === "running" ? pulseAnim : 1 }}>
         <cfg.Icon size={12} color={cfg.color} />
       </Animated.View>
@@ -121,138 +115,134 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
         onPressOut={handlePressOut}
         style={[styles.card, { backgroundColor: colors.surface, shadowColor: colors.cardShadow }]}
       >
-        <View style={styles.cardContent}>
+        <View style={styles.badgePosition}>
+          <StatusBadge
+            status={account.status}
+            searchesCompleted={account.searchesCompleted}
+            searchCount={account.searchCount}
+          />
+        </View>
+
+        <View style={styles.topRow}>
           <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
           </LinearGradient>
 
           <View style={styles.info}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-                {account.name}
-              </Text>
-              <StatusBadge
-                status={account.status}
-                searchesCompleted={account.searchesCompleted}
-                searchCount={account.searchCount}
-              />
-            </View>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              {account.name}
+            </Text>
             <Text style={[styles.email, { color: colors.textSecondary }]} numberOfLines={1}>
               {account.email}
             </Text>
-
-            {account.status === "running" && (
-              <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-                <View style={[styles.progressFill, { width: `${progressPercent}%` as any, backgroundColor: colors.running }]} />
-              </View>
-            )}
-
-            <View style={styles.stats}>
-              <View style={styles.statItem}>
-                <Search size={11} color={colors.textMuted} />
-                <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.searchCount} searches</Text>
-              </View>
-              {account.todayPoints > 0 && (
-                <>
-                  <View style={styles.statDot} />
-                  <View style={styles.statItem}>
-                    <Star size={11} color={colors.warning} />
-                    <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.todayPoints.toLocaleString()} pts today</Text>
-                  </View>
-                </>
-              )}
-              {account.lastRun && (
-                <>
-                  <View style={styles.statDot} />
-                  <Text style={[styles.statText, { color: colors.textMuted }]}>{formatRelativeTime(account.lastRun)}</Text>
-                </>
-              )}
-            </View>
-
-            {account.status !== "running" && (
-              <Pressable
-                onPress={handleSessionRefresh}
-                style={({ pressed }) => [
-                  styles.sessionBanner,
-                  {
-                    backgroundColor: noCookies
-                      ? scheme === "dark" ? "#7F1D1D22" : "#FEF2F2"
-                      : sessionExpired
-                      ? scheme === "dark" ? "#78350F22" : "#FFFBEB"
-                      : scheme === "dark" ? "#14532D22" : "#F0FDF4",
-                    borderColor: noCookies ? "#FCA5A5" : sessionExpired ? "#FCD34D" : "#86EFAC",
-                    opacity: pressed ? 0.75 : 1,
-                  },
-                ]}
-              >
-                {noCookies ? (
-                  <AlertCircle size={11} color={colors.error} />
-                ) : sessionExpired ? (
-                  <Clock size={11} color={colors.warning} />
-                ) : (
-                  <Shield size={11} color={colors.success} />
-                )}
-                <Text
-                  style={[
-                    styles.sessionText,
-                    { color: noCookies ? colors.error : sessionExpired ? "#B45309" : colors.success, flex: 1 },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {noCookies
-                    ? "No session — tap to sign in"
-                    : sessionExpired
-                    ? "Session may be expired — tap to refresh"
-                    : "Session active"}
-                </Text>
-                {(noCookies || sessionExpired) && (
-                  <RefreshCw size={11} color={noCookies ? colors.error : "#B45309"} />
-                )}
-              </Pressable>
-            )}
           </View>
+        </View>
 
-          <View style={styles.actionCol}>
+        {account.status === "running" && (
+          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` as any, backgroundColor: colors.running }]} />
+          </View>
+        )}
+
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Search size={12} color={colors.textMuted} />
+            <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.searchCount} searches</Text>
+          </View>
+          {account.todayPoints > 0 && (
+            <View style={styles.statItem}>
+              <Star size={12} color={colors.warning} />
+              <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.todayPoints.toLocaleString()} pts today</Text>
+            </View>
+          )}
+        </View>
+
+        {account.lastRun && (
+          <Text style={[styles.timeAgo, { color: colors.textMuted }]}>{formatRelativeTime(account.lastRun)}</Text>
+        )}
+
+        {account.status !== "running" && (
+          <Pressable
+            onPress={handleSessionRefresh}
+            style={({ pressed }) => [
+              styles.sessionBanner,
+              {
+                backgroundColor: noCookies
+                  ? "transparent"
+                  : sessionExpired
+                  ? "transparent"
+                  : "transparent",
+                borderColor: noCookies ? "#FCA5A5" : sessionExpired ? "#FCD34D" : "#86EFAC",
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+          >
+            {noCookies ? (
+              <AlertCircle size={13} color={colors.error} />
+            ) : sessionExpired ? (
+              <Clock size={13} color={colors.warning} />
+            ) : (
+              <Shield size={13} color={colors.success} />
+            )}
+            <Text
+              style={[
+                styles.sessionText,
+                { color: noCookies ? colors.error : sessionExpired ? "#B45309" : colors.success, flex: 1 },
+              ]}
+              numberOfLines={1}
+            >
+              {noCookies
+                ? "No session — tap to sign in"
+                : sessionExpired
+                ? "Session may be expired — tap to refresh"
+                : "Session active"}
+            </Text>
+            {(noCookies || sessionExpired) && (
+              <RefreshCw size={12} color={noCookies ? colors.error : "#B45309"} />
+            )}
+          </Pressable>
+        )}
+
+        <View style={styles.actionRow}>
+          <Pressable
+            onPress={handleRun}
+            disabled={account.status === "running" || isRunningGlobal}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              {
+                backgroundColor:
+                  account.status === "running" ? colors.border : pressed ? colors.tintDark : colors.tint,
+                opacity: account.status === "running" || isRunningGlobal ? 0.5 : 1,
+              },
+            ]}
+          >
+            {account.status === "running" ? (
+              <Loader size={16} color="#fff" />
+            ) : (
+              <Play size={16} color="#fff" />
+            )}
+          </Pressable>
+
+          {showDailySet && (
             <Pressable
-              onPress={handleRun}
+              onPress={handleDailySet}
               disabled={account.status === "running" || isRunningGlobal}
               style={({ pressed }) => [
-                styles.runBtn,
+                styles.actionBtn,
                 {
                   backgroundColor:
-                    account.status === "running" ? colors.border : pressed ? colors.tintDark : colors.tint,
-                  opacity: account.status === "running" || isRunningGlobal ? 0.5 : 1,
+                    account.status === "running" || isRunningGlobal
+                      ? colors.border
+                      : pressed
+                      ? "#5B21B6"
+                      : "#7C3AED",
+                  opacity: account.status === "running" || isRunningGlobal ? 0.4 : 1,
                 },
               ]}
             >
-              {account.status === "running" ? (
-                <Loader size={14} color="#fff" />
-              ) : (
-                <Play size={14} color="#fff" />
-              )}
+              <CheckSquare size={16} color="#fff" />
             </Pressable>
-
-            {showDailySet && (
-              <Pressable
-                onPress={handleDailySet}
-                disabled={account.status === "running" || isRunningGlobal}
-                style={({ pressed }) => [
-                  styles.dsBtn,
-                  {
-                    backgroundColor:
-                      account.status === "running" || isRunningGlobal
-                        ? colors.border
-                        : pressed
-                        ? "#5B21B6"
-                        : "#7C3AED",
-                    opacity: account.status === "running" || isRunningGlobal ? 0.4 : 1,
-                  },
-                ]}
-              >
-                <CheckSquare size={13} color="#fff" />
-              </Pressable>
-            )}
-          </View>
+          )}
         </View>
       </Pressable>
     </Animated.View>
@@ -271,91 +261,91 @@ function formatRelativeTime(iso: string): string {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 20,
     marginHorizontal: 16,
     marginVertical: 6,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardContent: {
-    flexDirection: "row",
-    alignItems: "flex-start",
     padding: 16,
-    gap: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+    position: "relative",
+  },
+  badgePosition: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    zIndex: 2,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    marginBottom: 12,
+    paddingRight: 70,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    marginTop: 2,
   },
   avatarText: {
     color: "#fff",
-    fontSize: 18,
+    fontSize: 24,
     fontFamily: "Inter_700Bold",
   },
   info: {
     flex: 1,
-    gap: 4,
-  },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+    gap: 2,
   },
   name: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    flex: 1,
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
   },
   email: {
     fontSize: 13,
     fontFamily: "Inter_400Regular",
   },
-  stats: {
+  statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 2,
-    flexWrap: "wrap",
+    gap: 16,
+    marginBottom: 4,
   },
   statItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 5,
   },
   statText: {
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: "Inter_400Regular",
   },
-  statDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#D1D5DB",
+  timeAgo: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 4,
   },
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: "Inter_600SemiBold",
   },
   progressBar: {
     height: 3,
     borderRadius: 2,
     overflow: "hidden",
-    marginTop: 2,
+    marginBottom: 10,
   },
   progressFill: {
     height: "100%",
@@ -364,35 +354,27 @@ const styles = StyleSheet.create({
   sessionBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
-    marginTop: 6,
+    marginTop: 8,
+    marginBottom: 4,
   },
   sessionText: {
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: "Inter_500Medium",
   },
-  actionCol: {
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 6,
-    flexShrink: 0,
-    marginTop: 2,
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 10,
   },
-  dsBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  runBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
