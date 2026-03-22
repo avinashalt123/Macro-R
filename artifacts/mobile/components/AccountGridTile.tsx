@@ -163,7 +163,7 @@ export function AccountGridTile({
           { backgroundColor: colors.surface, shadowColor: colors.cardShadow },
         ]}
       >
-        <View style={styles.badgePosition}>
+        <View style={styles.statusPosition}>
           <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
             <Animated.View style={{ opacity: account.status === "running" ? pulseAnim : 1 }}>
               <StatusIcon size={10} color={statusColor} />
@@ -174,13 +174,23 @@ export function AccountGridTile({
           </View>
         </View>
 
-        <View style={styles.topRow}>
-          <LinearGradient
-            colors={["#3B82F6", "#1D4ED8"]}
-            style={styles.avatar}
-          >
-            <Text style={styles.avatarText}>{initial}</Text>
-          </LinearGradient>
+        <View style={styles.topSection}>
+          <View style={styles.avatarContainer}>
+            {account.todayPoints > 0 && (
+              <View style={styles.pointsBadge}>
+                <Star size={10} color="#F59E0B" fill="#F59E0B" />
+                <Text style={styles.pointsBadgeText}>
+                  {account.todayPoints.toLocaleString()}
+                </Text>
+              </View>
+            )}
+            <LinearGradient
+              colors={["#3B82F6", "#1D4ED8"]}
+              style={styles.avatar}
+            >
+              <Text style={styles.avatarText}>{initial}</Text>
+            </LinearGradient>
+          </View>
 
           <View style={styles.info}>
             <Text
@@ -221,14 +231,6 @@ export function AccountGridTile({
               {account.searchCount} searches
             </Text>
           </View>
-          {account.todayPoints > 0 && (
-            <View style={styles.statItem}>
-              <Star size={10} color={colors.warning} />
-              <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                {account.todayPoints.toLocaleString()} pts today
-              </Text>
-            </View>
-          )}
         </View>
 
         {account.lastRun && (
@@ -353,7 +355,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     position: "relative",
   },
-  badgePosition: {
+  statusPosition: {
     position: "absolute",
     top: 10,
     right: 10,
@@ -371,24 +373,47 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: "Inter_600SemiBold",
   },
-  topRow: {
+  topSection: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     marginBottom: 8,
     paddingRight: 55,
   },
+  avatarContainer: {
+    position: "relative",
+    flexShrink: 0,
+  },
+  pointsBadge: {
+    position: "absolute",
+    top: -8,
+    right: -8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: "#1E293B",
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    zIndex: 3,
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+  },
+  pointsBadgeText: {
+    fontSize: 9,
+    fontFamily: "Inter_700Bold",
+    color: "#F59E0B",
+  },
   avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
   },
   avatarText: {
     color: "#fff",
-    fontSize: 19,
+    fontSize: 21,
     fontFamily: "Inter_700Bold",
   },
   info: {
