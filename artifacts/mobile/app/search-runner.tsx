@@ -291,7 +291,8 @@ export default function SearchRunnerScreen() {
   // mode: "searchonly" = searches only | "dailyset" = daily set only | "both" = searches + daily set
   const mode = (rawMode === "dailyset" ? "dailyset" : rawMode === "searchonly" ? "searchonly" : "both") as "both" | "dailyset" | "searchonly";
 
-  const accountIds: string[] = rawIds ? JSON.parse(rawIds) : [];
+  let accountIds: string[] = [];
+  try { accountIds = rawIds ? JSON.parse(rawIds) : []; } catch { accountIds = []; }
   const targetAccounts = useRef<Account[]>(
     accounts.filter((a) => accountIds.includes(a.id))
   ).current;
@@ -463,7 +464,8 @@ export default function SearchRunnerScreen() {
       setDailySetResult({ completed, total: completed });
     }
 
-    return { completed, total: completed, alreadyDone: false };
+    const alreadyDone = completed === 0;
+    return { completed, total: completed, alreadyDone };
   }, [navigateTo, waitForLoad, waitForMessage]);
 
   // ─── Main automation loop ─────────────────────────────────────────────────
@@ -473,7 +475,9 @@ export default function SearchRunnerScreen() {
     let cancelled = false;
 
     const run = async () => {
-      const runningNotifId = await showRunningNotification();
+      let runningNotifId: string | null = null;
+      try {
+      runningNotifId = await showRunningNotification();
 
       for (let ai = 0; ai < targetAccounts.length; ai++) {
         if (cancelled || abortRef.current) break;
@@ -603,7 +607,7 @@ export default function SearchRunnerScreen() {
           status: finalStatus === "success" ? "done" : "failed",
           lastRun: new Date().toISOString(),
           searchesCompleted: searchesDone,
-          todayPoints: today > 0 ? today : (account.todayPoints ?? 0),
+          todayPoints: today,
           totalPoints: available > 0 ? available : prevTotalPoints,
         });
 
@@ -627,17 +631,29 @@ export default function SearchRunnerScreen() {
         }
       }
 
-      if (runningNotifId) {
-        await dismissRunningNotification(runningNotifId);
-      }
-
       if (!cancelled) {
         setIsFinished(true);
         setPhase("done");
         setStatusLine("All accounts completed!");
-        stopRun();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         await showCompletedNotification();
+      }
+
+      } catch (err: any) {
+        console.error("[SearchRunner] Unexpected error:", err);
+        setStatusLine(`Error: ${err?.message ?? "Unknown error"}`);
+        setIsFinished(true);
+        setPhase("done");
+        targetAccounts.forEach((a) => {
+          updateAccount(a.id, {
+            status: a.status === "running" ? "failed" : a.status,
+          } as any);
+        });
+      } finally {
+        stopRun();
+        if (runningNotifId) {
+          await dismissRunningNotification(runningNotifId);
+        }
       }
     };
 

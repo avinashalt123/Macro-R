@@ -41,13 +41,15 @@ artifacts-monorepo/
 An Expo React Native app for managing and automating Microsoft Rewards accounts.
 
 ### Features
-- **Accounts screen**: View all accounts as cards with status indicators (idle/running/done/failed), points, search count, and run buttons
+- **Accounts screen**: View all accounts as cards (list or grid view) with status indicators (idle/running/done/failed), total points, today points, search count, profile pic, and run buttons
 - **Stats bar**: Shows total points today, done/total count, running count, failed count
-- **Run automation**: Simulate Bing searches (30 shuffled queries) and Daily Set completion per account
-- **Account detail**: View/edit account info, per-account search count & daily set toggle, recent run history
-- **Add account**: Form with name, email, search count (5–50), daily set toggle
+- **Run automation**: Bing searches via fetch (30 shuffled queries) and Daily Set completion via WebView per account
+- **Account detail**: View/edit account info, stat cards (today/total points, searches, last run), recent run history
+- **Add account**: WebView login flow captures Microsoft cookies (including httpOnly via CookieManager), validates _U cookie, scrapes profile data (name, email, avatar) with Rewards API fallback
 - **Logs screen**: Run history (last 200) with search count, daily set status, points earned, success/failure
-- **Settings screen**: Default search count, daily set toggle, retry schedule display, apply schedule button
+- **Settings screen**: Default search count, delay, daily set toggle, overnight schedule with time slots (AM/PM)
+- **Overnight mode**: Scheduled notifications at exact times, auto-triggers search run on notification received
+- **Notifications**: Android notification channel with sound/vibration, SCHEDULE_EXACT_ALARM permission for reliable scheduling
 
 ### File Structure (artifacts/mobile/)
 ```

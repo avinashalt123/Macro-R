@@ -386,6 +386,16 @@ export default function LoginWebViewScreen() {
       }
     }
 
+    if (!("_U" in allCookies) || !allCookies["_U"]) {
+      setIsSaving(false);
+      showAlert(
+        "Session Incomplete",
+        "The critical auth cookie (_U) was not captured. Please make sure you fully signed in and landed on the Bing Rewards page before saving.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     if (existingAccount) {
       updateAccount(existingAccount.id, {
         cookies: allCookies,
