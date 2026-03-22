@@ -25,7 +25,7 @@ export function isNotificationsAvailable(): boolean {
   }
 }
 
-export function setupNotificationHandler(): void {
+export async function setupNotificationHandler(): Promise<void> {
   const Notifications = getNotifications();
   if (!Notifications) return;
   try {
@@ -38,6 +38,16 @@ export function setupNotificationHandler(): void {
         shouldShowList: true,
       }),
     });
+
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "Macro Rewards",
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: "default",
+        vibrationPattern: [0, 250, 250, 250],
+        enableVibrate: true,
+      });
+    }
   } catch {}
 }
 
@@ -81,6 +91,7 @@ export async function scheduleOvernightNotifications(
           body: "Starting your overnight Bing searches...",
           data: { action: "start_run" },
           sound: "default",
+          ...(Platform.OS === "android" && { channelId: "default" }),
         },
         trigger: {
           type: "daily",
@@ -138,6 +149,7 @@ export async function showRunningNotification(): Promise<string | null> {
         data: { action: "open_running" },
         sound: false,
         sticky: true,
+        ...(Platform.OS === "android" && { channelId: "default" }),
       },
       trigger: null,
     });
@@ -165,6 +177,7 @@ export async function showCompletedNotification(): Promise<void> {
         body: "Overnight search completed successfully.",
         data: { action: "run_complete" },
         sound: "default",
+        ...(Platform.OS === "android" && { channelId: "default" }),
       },
       trigger: null,
     });
