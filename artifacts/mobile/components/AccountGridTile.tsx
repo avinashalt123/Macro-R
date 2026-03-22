@@ -8,7 +8,9 @@ import {
   Loader,
   Play,
   RefreshCw,
+  Search,
   Shield,
+  Star,
   XCircle,
 } from "lucide-react-native";
 import React, { useEffect, useRef } from "react";
@@ -43,12 +45,15 @@ function isSessionExpired(account: Account): boolean {
   return hoursSinceRun > 24;
 }
 
-const statusLabels: Record<AccountStatus, string> = {
-  idle: "Idle",
-  running: "Running",
-  done: "Done",
-  failed: "Failed",
-};
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
 
 export function AccountGridTile({
   account,
@@ -120,6 +125,15 @@ export function AccountGridTile({
       ? "#22C55E"
       : "#EF4444";
 
+  const statusLabel =
+    account.status === "running"
+      ? `${account.searchesCompleted}/${account.searchCount}`
+      : account.status === "idle"
+      ? "Idle"
+      : account.status === "done"
+      ? "Done"
+      : "Failed";
+
   const StatusIcon =
     account.status === "idle"
       ? Clock
@@ -128,6 +142,15 @@ export function AccountGridTile({
       : account.status === "done"
       ? CheckCircle
       : XCircle;
+
+  const statusBg =
+    account.status === "idle"
+      ? "rgba(148, 163, 184, 0.15)"
+      : account.status === "running"
+      ? "rgba(139, 92, 246, 0.15)"
+      : account.status === "done"
+      ? "rgba(34, 197, 94, 0.2)"
+      : "rgba(239, 68, 68, 0.15)";
 
   return (
     <Animated.View style={[{ transform: [{ scale: scaleAnim }], width }]}>
@@ -140,49 +163,124 @@ export function AccountGridTile({
           { backgroundColor: colors.surface, shadowColor: colors.cardShadow },
         ]}
       >
-        {account.status === "running" && (
-          <View style={[styles.runningBanner, { backgroundColor: "#EDE9FE" }]}>
-            <Animated.View style={{ opacity: pulseAnim }}>
-              <RefreshCw size={9} color="#7C3AED" />
+        <View style={styles.badgePosition}>
+          <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+            <Animated.View style={{ opacity: account.status === "running" ? pulseAnim : 1 }}>
+              <StatusIcon size={10} color={statusColor} />
             </Animated.View>
-            <Text style={[styles.bannerText, { color: "#7C3AED", flex: 1 }]} numberOfLines={1}>
-              {account.searchesCompleted}/{account.searchCount}
+            <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+              {statusLabel}
             </Text>
-            <View style={[styles.miniProgress, { backgroundColor: "#C4B5FD" }]}>
-              <View
-                style={[
-                  styles.miniProgressFill,
-                  {
-                    width: `${progressPercent}%` as any,
-                    backgroundColor: "#7C3AED",
-                  },
-                ]}
-              />
-            </View>
           </View>
-        )}
+        </View>
 
-        <View style={styles.avatarWrap}>
+        <View style={styles.topRow}>
           <LinearGradient
             colors={["#3B82F6", "#1D4ED8"]}
             style={styles.avatar}
           >
             <Text style={styles.avatarText}>{initial}</Text>
           </LinearGradient>
+
+          <View style={styles.info}>
+            <Text
+              style={[styles.name, { color: colors.text }]}
+              numberOfLines={1}
+            >
+              {account.name}
+            </Text>
+            <Text
+              style={[styles.email, { color: colors.textSecondary }]}
+              numberOfLines={1}
+            >
+              {account.email}
+            </Text>
+          </View>
         </View>
 
-        <Text
-          style={[styles.name, { color: colors.text }]}
-          numberOfLines={1}
-        >
-          {account.name}
-        </Text>
-        <Text
-          style={[styles.email, { color: colors.textSecondary }]}
-          numberOfLines={1}
-        >
-          {account.email}
-        </Text>
+        {account.status === "running" && (
+          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${progressPercent}%` as any,
+                  backgroundColor: "#7C3AED",
+                },
+              ]}
+            />
+          </View>
+        )}
+
+        <View style={styles.statsRow}>
+          <View style={styles.statItem}>
+            <Search size={10} color={colors.textMuted} />
+            <Text style={[styles.statText, { color: colors.textSecondary }]}>
+              {account.searchCount} searches
+            </Text>
+          </View>
+          {account.todayPoints > 0 && (
+            <View style={styles.statItem}>
+              <Star size={10} color={colors.warning} />
+              <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                {account.todayPoints.toLocaleString()} pts today
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {account.lastRun && (
+          <Text style={[styles.timeAgo, { color: colors.textMuted }]}>
+            {formatRelativeTime(account.lastRun)}
+          </Text>
+        )}
+
+        {account.status !== "running" && (
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onRefreshSession();
+            }}
+            style={({ pressed }) => [
+              styles.sessionBanner,
+              {
+                borderColor: noCookies
+                  ? "#FCA5A5"
+                  : sessionExpired
+                  ? "#FCD34D"
+                  : "#86EFAC",
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+          >
+            {noCookies ? (
+              <AlertCircle size={11} color={colors.error} />
+            ) : sessionExpired ? (
+              <Clock size={11} color={colors.warning} />
+            ) : (
+              <Shield size={11} color={colors.success} />
+            )}
+            <Text
+              style={[
+                styles.sessionText,
+                {
+                  color: noCookies
+                    ? colors.error
+                    : sessionExpired
+                    ? "#B45309"
+                    : colors.success,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {noCookies
+                ? "No session"
+                : sessionExpired
+                ? "Session expired"
+                : "Session active"}
+            </Text>
+          </Pressable>
+        )}
 
         <View style={styles.actions}>
           <Pressable
@@ -244,77 +342,120 @@ export function AccountGridTile({
 
 const styles = StyleSheet.create({
   tile: {
-    borderRadius: 16,
-    paddingBottom: 10,
+    borderRadius: 18,
+    padding: 12,
     marginVertical: 4,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.8,
     shadowRadius: 6,
     elevation: 3,
-    overflow: "hidden",
+    position: "relative",
   },
-  runningBanner: {
+  badgePosition: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 2,
+  },
+  statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
-  bannerText: {
-    fontSize: 8,
-    fontFamily: "Inter_500Medium",
+  statusBadgeText: {
+    fontSize: 9,
+    fontFamily: "Inter_600SemiBold",
   },
-  miniProgress: {
-    height: 2,
-    borderRadius: 1,
-    width: 30,
-    overflow: "hidden",
-  },
-  miniProgressFill: {
-    height: "100%",
-    borderRadius: 1,
-  },
-  avatarWrap: {
+  topRow: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 14,
+    gap: 10,
     marginBottom: 8,
+    paddingRight: 55,
   },
   avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   avatarText: {
     color: "#fff",
-    fontSize: 20,
+    fontSize: 19,
     fontFamily: "Inter_700Bold",
   },
+  info: {
+    flex: 1,
+    gap: 1,
+  },
   name: {
-    fontSize: 12,
-    fontFamily: "Inter_600SemiBold",
-    textAlign: "center",
-    paddingHorizontal: 6,
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
   },
   email: {
-    fontSize: 8,
+    fontSize: 10,
     fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    paddingHorizontal: 4,
-    marginTop: 1,
+  },
+  progressBar: {
+    height: 3,
+    borderRadius: 2,
+    overflow: "hidden",
+    marginBottom: 6,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+  },
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 2,
+  },
+  statItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  statText: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+  },
+  timeAgo: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    marginBottom: 2,
+  },
+  sessionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  sessionText: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    flex: 1,
   },
   actions: {
     flexDirection: "row",
-    justifyContent: "center",
     gap: 6,
-    marginTop: 10,
-    paddingHorizontal: 8,
+    marginTop: 8,
   },
   actionBtn: {
     flex: 1,
-    height: 32,
-    borderRadius: 16,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
