@@ -178,11 +178,11 @@ export function AccountGridTile({
 
         <View style={styles.topSection}>
           <View style={styles.avatarContainer}>
-            {account.todayPoints > 0 && (
+            {account.totalPoints > 0 && (
               <View style={styles.pointsBadge}>
                 <Star size={10} color="#F59E0B" fill="#F59E0B" />
                 <Text style={styles.pointsBadgeText}>
-                  {account.todayPoints.toLocaleString()}
+                  {account.totalPoints.toLocaleString()}
                 </Text>
               </View>
             )}
@@ -241,6 +241,17 @@ export function AccountGridTile({
               {account.searchCount} searches
             </Text>
           </View>
+          {account.totalPoints > 0 && (
+            <>
+              <View style={styles.statDot} />
+              <View style={styles.statItem}>
+                <Star size={10} color="#F59E0B" fill="#F59E0B" />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                  {account.totalPoints.toLocaleString()}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {account.lastRun && (
@@ -458,6 +469,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
+  },
+  statDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "#64748B",
   },
   statText: {
     fontSize: 10,

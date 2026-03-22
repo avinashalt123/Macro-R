@@ -130,7 +130,7 @@ async function performBingSearch(
 // Manual Cookie header has the full set (including httpOnly) from login capture.
 async function fetchRewardsPoints(
   cookies: Record<string, string>
-): Promise<number> {
+): Promise<{ available: number; today: number }> {
   const cookieStr = buildCookieHeader(cookies);
   try {
     const resp = await fetch(
@@ -146,15 +146,18 @@ async function fetchRewardsPoints(
         },
       }
     );
-    if (!resp.ok) return 0;
+    if (!resp.ok) return { available: 0, today: 0 };
     const json = await resp.json();
-    return (
-      json?.dashboard?.userStatus?.availablePoints ??
-      json?.userStatus?.availablePoints ??
-      0
-    );
+    const status = json?.dashboard?.userStatus ?? json?.userStatus;
+    const available = status?.availablePoints ?? 0;
+    const today = status?.counters?.pcSearch?.[0]?.pointProgress ?? 0;
+    const mobileProgress = status?.counters?.mobileSearch?.[0]?.pointProgress ?? 0;
+    const edgeProgress = status?.counters?.edgeSearch?.[0]?.pointProgress ?? 0;
+    const dailyProgress = status?.counters?.dailyPoint?.pointProgress ?? 0;
+    const totalToday = today + mobileProgress + edgeProgress + dailyProgress;
+    return { available, today: totalToday > 0 ? totalToday : 0 };
   } catch {
-    return 0;
+    return { available: 0, today: 0 };
   }
 }
 
@@ -590,9 +593,9 @@ export default function SearchRunnerScreen() {
 
         // ── Points ─────────────────────────────────────────────────────────
         setStatusLine(`[${account.name}]  Fetching points…`);
-        const points = await fetchRewardsPoints(acctCookies);
-        const prevPoints = account.todayPoints ?? 0;
-        const pointsEarned = points > prevPoints ? points - prevPoints : 0;
+        const { available, today } = await fetchRewardsPoints(acctCookies);
+        const prevTotalPoints = account.totalPoints ?? 0;
+        const pointsEarned = available > prevTotalPoints ? available - prevTotalPoints : 0;
 
         const finalStatus = networkLost && searchesDone === 0 ? "failed" : "success";
 
@@ -600,8 +603,8 @@ export default function SearchRunnerScreen() {
           status: finalStatus === "success" ? "done" : "failed",
           lastRun: new Date().toISOString(),
           searchesCompleted: searchesDone,
-          todayPoints: points > 0 ? points : prevPoints,
-          totalPoints: (account.totalPoints ?? 0) + pointsEarned,
+          todayPoints: today > 0 ? today : (account.todayPoints ?? 0),
+          totalPoints: available > 0 ? available : prevTotalPoints,
         });
 
         addLog({

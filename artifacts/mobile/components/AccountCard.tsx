@@ -158,12 +158,20 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
                 <Search size={11} color={colors.textMuted} />
                 <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.searchCount} searches</Text>
               </View>
+              {account.totalPoints > 0 && (
+                <>
+                  <View style={styles.statDot} />
+                  <View style={styles.statItem}>
+                    <Star size={11} color="#F59E0B" fill="#F59E0B" />
+                    <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.totalPoints.toLocaleString()} pts</Text>
+                  </View>
+                </>
+              )}
               {account.todayPoints > 0 && (
                 <>
                   <View style={styles.statDot} />
                   <View style={styles.statItem}>
-                    <Star size={11} color={colors.warning} />
-                    <Text style={[styles.statText, { color: colors.textSecondary }]}>{account.todayPoints.toLocaleString()} pts today</Text>
+                    <Text style={[styles.statText, { color: "#4ADE80" }]}>+{account.todayPoints.toLocaleString()} today</Text>
                   </View>
                 </>
               )}
