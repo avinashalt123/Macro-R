@@ -212,8 +212,7 @@ export function AccountGridTile({
             <Text
               style={[styles.email, { color: colors.textSecondary }]}
               numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
+              ellipsizeMode="tail"
             >
               {account.email}
             </Text>
@@ -446,7 +445,7 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
   },
   email: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: "Inter_400Regular",
   },
   progressBar: {
