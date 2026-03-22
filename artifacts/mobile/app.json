@@ -2,7 +2,7 @@
   "expo": {
     "name": "Macro R",
     "slug": "mobile",
-    "version": "1.4.0",
+    "version": "1.4.01",
     "orientation": "portrait",
     "icon": "./assets/images/iconn.png",
     "scheme": "mobile",
@@ -18,13 +18,7 @@
       "bundleIdentifier": "com.msrewards.automation"
     },
     "android": {
-      "package": "com.msrewards.automation",
-      "permissions": [
-        "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.VIBRATE",
-        "android.permission.WAKE_LOCK"
-      ]
+      "package": "com.msrewards.automation"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
