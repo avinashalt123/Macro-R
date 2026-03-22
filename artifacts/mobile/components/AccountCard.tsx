@@ -209,56 +209,58 @@ export function AccountCard({
           />
         </View>
 
-        {/* Center block: avatar + name + email */}
+        {/* Main row: avatar + info */}
         <View style={styles.centerBlock}>
           <LinearGradient colors={["#3B82F6", "#1D4ED8"]} style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
           </LinearGradient>
 
-          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {account.name}
-          </Text>
-          <Text style={[styles.email, { color: colors.textSecondary }]} numberOfLines={1}>
-            {account.email}
-          </Text>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              {account.name}
+            </Text>
+            <Text style={[styles.email, { color: colors.textSecondary }]} numberOfLines={1}>
+              {account.email}
+            </Text>
 
-          {account.status === "running" && (
-            <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progressPercent}%` as any, backgroundColor: colors.running },
-                ]}
-              />
-            </View>
-          )}
-
-          <View style={styles.stats}>
-            <View style={styles.statItem}>
-              <Search size={11} color={colors.textMuted} />
-              <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                {account.searchCount} searches
-              </Text>
-            </View>
-            {account.todayPoints > 0 && (
-              <>
-                <View style={styles.statDot} />
-                <View style={styles.statItem}>
-                  <Star size={11} color={colors.warning} />
-                  <Text style={[styles.statText, { color: colors.textSecondary }]}>
-                    {account.todayPoints.toLocaleString()} pts
-                  </Text>
-                </View>
-              </>
+            {account.status === "running" && (
+              <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${progressPercent}%` as any, backgroundColor: colors.running },
+                  ]}
+                />
+              </View>
             )}
-            {account.lastRun && (
-              <>
-                <View style={styles.statDot} />
-                <Text style={[styles.statText, { color: colors.textMuted }]}>
-                  {formatRelativeTime(account.lastRun)}
+
+            <View style={styles.stats}>
+              <View style={styles.statItem}>
+                <Search size={10} color={colors.textMuted} />
+                <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                  {account.searchCount} searches
                 </Text>
-              </>
-            )}
+              </View>
+              {account.todayPoints > 0 && (
+                <>
+                  <View style={styles.statDot} />
+                  <View style={styles.statItem}>
+                    <Star size={10} color={colors.warning} />
+                    <Text style={[styles.statText, { color: colors.textSecondary }]}>
+                      {account.todayPoints.toLocaleString()} pts
+                    </Text>
+                  </View>
+                </>
+              )}
+              {account.lastRun && (
+                <>
+                  <View style={styles.statDot} />
+                  <Text style={[styles.statText, { color: colors.textMuted }]}>
+                    {formatRelativeTime(account.lastRun)}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
         </View>
 
@@ -367,54 +369,54 @@ function formatRelativeTime(iso: string): string {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 20,
+    borderRadius: 16,
     marginHorizontal: 16,
-    marginVertical: 6,
-    aspectRatio: 1,
-    padding: 16,
+    marginVertical: 4,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 8,
     elevation: 3,
+    overflow: "hidden",
   },
   statusCorner: {
-    alignItems: "flex-end",
+    position: "absolute",
+    top: 8,
+    right: 10,
+    zIndex: 1,
   },
   centerBlock: {
-    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
+    padding: 10,
+    paddingRight: 80,
+    gap: 10,
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    flexShrink: 0,
   },
   avatarText: {
     color: "#fff",
-    fontSize: 26,
+    fontSize: 15,
     fontFamily: "Inter_700Bold",
   },
   name: {
-    fontSize: 18,
+    fontSize: 14,
     fontFamily: "Inter_600SemiBold",
-    textAlign: "center",
   },
   email: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Inter_400Regular",
-    textAlign: "center",
   },
   stats: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginTop: 4,
+    gap: 5,
+    marginTop: 1,
     flexWrap: "wrap",
   },
   statItem: {
@@ -445,48 +447,45 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   progressBar: {
-    height: 3,
-    borderRadius: 2,
+    height: 2,
+    borderRadius: 1,
     overflow: "hidden",
-    marginTop: 4,
-    width: "80%",
+    marginTop: 2,
   },
   progressFill: {
     height: "100%",
-    borderRadius: 2,
+    borderRadius: 1,
   },
   sessionBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginTop: 8,
+    paddingVertical: 5,
+    borderBottomWidth: 1,
   },
   sessionText: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: "Inter_500Medium",
   },
   actionRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
-    marginTop: 10,
+    gap: 10,
+    paddingVertical: 8,
   },
   runBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
   },
   dsBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
