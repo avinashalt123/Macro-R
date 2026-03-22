@@ -45,7 +45,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, []);
 
-  // Auto-start run when navigated here from a scheduled notification tap
+  // Auto-start run on cold-start: home screen gains focus after app was launched from a notification tap
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -61,7 +61,7 @@ export default function HomeScreen() {
         });
       });
       return () => { active = false; };
-    }, [isRunning, accounts, settings.overnightDailySet])
+    }, [isRunning, accounts, settings.overnightDailySet, startRun])
   );
 
   const handleRunAll = () => {

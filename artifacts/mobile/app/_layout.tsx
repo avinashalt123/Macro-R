@@ -10,15 +10,15 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AccountsProvider } from "@/context/AccountsContext";
+import { AccountsProvider, useAccounts } from "@/context/AccountsContext";
 import { QueriesProvider } from "@/context/QueriesContext";
-import { SettingsProvider } from "@/context/SettingsContext";
+import { SettingsProvider, useSettings } from "@/context/SettingsContext";
 import {
   addNotificationResponseListener,
   addNotificationReceivedListener,
@@ -31,22 +31,53 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function NotificationHandler() {
+  const { accounts, isRunning, startRun } = useAccounts();
+  const { settings } = useSettings();
+
+  // Keep refs so the notification callback always sees the latest values
+  const accountsRef = useRef(accounts);
+  const isRunningRef = useRef(isRunning);
+  const overnightDailySetRef = useRef(settings.overnightDailySet);
+
+  useEffect(() => { accountsRef.current = accounts; }, [accounts]);
+  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
+  useEffect(() => { overnightDailySetRef.current = settings.overnightDailySet; }, [settings.overnightDailySet]);
+
+  const startRunRef = useRef(startRun);
+  useEffect(() => { startRunRef.current = startRun; }, [startRun]);
+
   useEffect(() => {
     setupNotificationHandler();
+
+    const handleStartRun = async () => {
+      if (accountsRef.current.length > 0 && !isRunningRef.current) {
+        // App was backgrounded — accounts already loaded, trigger directly
+        startRunRef.current();
+        router.navigate({
+          pathname: "/search-runner",
+          params: {
+            accountIds: JSON.stringify(accountsRef.current.map((a) => a.id)),
+            mode: overnightDailySetRef.current ? "both" : "searchonly",
+          },
+        });
+      } else {
+        // App was killed (cold-start) — accounts not loaded yet, set flag for home screen
+        await setPendingRun();
+        router.navigate("/(tabs)/");
+      }
+    };
 
     const responseSub = addNotificationResponseListener(async (response: any) => {
       const action = response?.notification?.request?.content?.data?.action;
       if (action === "start_run" || action === "open_running") {
-        await setPendingRun();
-        router.navigate("/(tabs)/");
+        await handleStartRun();
       }
     });
 
     const receivedSub = addNotificationReceivedListener(async (notification: any) => {
       const action = notification?.request?.content?.data?.action;
       if (action === "start_run") {
-        await setPendingRun();
-        router.navigate("/(tabs)/");
+        await handleStartRun();
       }
     });
 
