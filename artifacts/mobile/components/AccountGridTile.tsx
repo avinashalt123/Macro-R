@@ -191,7 +191,6 @@ export function AccountGridTile({
             </Text>
             <Text
               style={[styles.email, { color: colors.textSecondary }]}
-              numberOfLines={1}
             >
               {account.email}
             </Text>
