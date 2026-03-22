@@ -12,3 +12,9 @@ id = "x9LAQdHMmlszVepo1odWn"
 uri = "file://SENIOR_REPORT.md"
 type = "text"
 title = "MS Rewards Automation — Complete Project Report"
+
+[[outputs]]
+id = "HqbrlhgpDqT4jocd33RMU"
+uri = "file://senior report.md"
+type = "text"
+title = "Macro Rewards — Senior Audit Report"
