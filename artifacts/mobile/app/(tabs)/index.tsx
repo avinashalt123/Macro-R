@@ -26,6 +26,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { StatsBar } from "@/components/StatsBar";
 import Colors from "@/constants/colors";
 import { Account, useAccounts } from "@/context/AccountsContext";
+import { useLicense } from "@/context/LicenseContext";
 import { useSettings } from "@/context/SettingsContext";
 import { consumePendingRun } from "@/utils/notifications";
 
@@ -34,10 +35,12 @@ export default function HomeScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { accounts, isRunning, startRun, stopRun } = useAccounts();
+  const { licenseData } = useLicense();
   const { settings, updateSettings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { showAlert, AlertComponent } = useCustomAlert();
+  const maxAccounts = licenseData?.maxAccounts ?? 999;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -234,6 +237,10 @@ export default function HomeScreen() {
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              if (accounts.length >= maxAccounts) {
+                showAlert("Account Limit Reached", `Your license allows up to ${maxAccounts} account${maxAccounts > 1 ? "s" : ""}. Contact admin to increase your limit.`);
+                return;
+              }
               router.push("/add-account");
             }}
             style={({ pressed }) => [

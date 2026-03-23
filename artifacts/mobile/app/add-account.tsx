@@ -18,14 +18,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 import { useAccounts } from "@/context/AccountsContext";
+import { useLicense } from "@/context/LicenseContext";
 import { useSettings } from "@/context/SettingsContext";
 
 export default function AddAccountScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { addAccount } = useAccounts();
+  const { accounts, addAccount } = useAccounts();
+  const { licenseData } = useLicense();
   const { settings } = useSettings();
+  const maxAccounts = licenseData?.maxAccounts ?? 999;
 
   const [showManual, setShowManual] = useState(false);
   const [name, setName] = useState("");
@@ -38,6 +41,11 @@ export default function AddAccountScreen() {
   };
 
   const validateAndSaveManual = () => {
+    if (accounts.length >= maxAccounts) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setErrors({ email: `Account limit reached (${maxAccounts} max)` });
+      return;
+    }
     const errs: { name?: string; email?: string } = {};
     if (!name.trim()) errs.name = "Name is required";
     if (!email.trim()) errs.email = "Email is required";

@@ -16,7 +16,9 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { LicenseGate } from "@/components/LicenseGate";
 import { AccountsProvider, useAccounts } from "@/context/AccountsContext";
+import { LicenseProvider } from "@/context/LicenseContext";
 import { QueriesProvider } from "@/context/QueriesContext";
 import { SettingsProvider, useSettings } from "@/context/SettingsContext";
 import {
@@ -140,13 +142,17 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView>
             <KeyboardProvider>
-              <AccountsProvider>
-                <QueriesProvider>
-                  <SettingsProvider>
-                    <RootLayoutNav />
-                  </SettingsProvider>
-                </QueriesProvider>
-              </AccountsProvider>
+              <LicenseProvider>
+                <LicenseGate>
+                  <AccountsProvider>
+                    <QueriesProvider>
+                      <SettingsProvider>
+                        <RootLayoutNav />
+                      </SettingsProvider>
+                    </QueriesProvider>
+                  </AccountsProvider>
+                </LicenseGate>
+              </LicenseProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

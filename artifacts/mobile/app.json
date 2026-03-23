@@ -2,7 +2,7 @@
   "expo": {
     "name": "Macro R",
     "slug": "mobile",
-    "version": "1.4.01",
+    "version": "1.4.02",
     "orientation": "portrait",
     "icon": "./assets/images/iconn.png",
     "scheme": "mobile",

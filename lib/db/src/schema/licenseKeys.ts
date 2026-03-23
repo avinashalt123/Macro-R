@@ -1,0 +1,22 @@
+import { pgTable, text, integer, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod/v4";
+
+export const licenseKeysTable = pgTable("license_keys", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  key: text("key").notNull().unique(),
+  label: text("label"),
+  maxAccounts: integer("max_accounts").notNull().default(3),
+  isActive: boolean("is_active").notNull().default(true),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLicenseKeySchema = createInsertSchema(licenseKeysTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertLicenseKey = z.infer<typeof insertLicenseKeySchema>;
+export type LicenseKey = typeof licenseKeysTable.$inferSelect;

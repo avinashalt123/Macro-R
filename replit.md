@@ -81,11 +81,28 @@ constants/
 - Dark mode supported
 - Inter font family (400, 500, 600, 700 weights)
 
+### License Key System
+- **LicenseContext** (`context/LicenseContext.tsx`): Validates keys against API, caches for 24h offline, falls back to cached data when offline
+- **LicenseGate** (`components/LicenseGate.tsx`): Lock screen shown when no valid license; input field for XXXX-XXXX-XXXX-XXXX key format
+- **Account limit**: Enforced on add-account button in home screen based on `maxAccounts` from license data
+- **Settings**: LICENSE section shows key info, expiry, account limit, and remove button
+- **Env var**: `EXPO_PUBLIC_API_URL` — base URL of the API server for key validation
+
 ## Backend (api-server)
 
 Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for validation and `@workspace/db` for persistence.
 
 - Entry: `src/index.ts`
 - App setup: `src/app.ts`
-- Routes: `src/routes/index.ts` → `src/routes/health.ts`
+- Routes: `src/routes/index.ts` → `src/routes/health.ts`, `src/routes/keys.ts`, `src/routes/admin.ts`
 - Depends on: `@workspace/db`, `@workspace/api-zod`
+
+### License Key API
+- `POST /api/validate-key` — Public endpoint, validates key and returns maxAccounts/expiresAt
+- `GET /api/admin/keys` — List all keys (requires X-Admin-Secret header)
+- `POST /api/admin/keys` — Create new key with label, maxAccounts, expiresAt
+- `PUT /api/admin/keys/:id` — Update key (label, maxAccounts, expiresAt, isActive)
+- `DELETE /api/admin/keys/:id` — Delete key permanently
+- `GET /api/admin?secret=<ADMIN_SECRET>` — HTML admin panel for managing keys
+- Key format: `XXXX-XXXX-XXXX-XXXX` (uppercase hex)
+- Database: `license_keys` table in PostgreSQL via Drizzle (`lib/db/src/schema/licenseKeys.ts`)

@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
+import { useLicense } from "@/context/LicenseContext";
 import { DEFAULT_OVERNIGHT_SLOTS, OvernightSlot, useSettings } from "@/context/SettingsContext";
 import {
   cancelAllScheduledNotifications,
@@ -57,6 +58,7 @@ export default function SettingsScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
+  const { licenseData, removeLicense } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
   const [scheduling, setScheduling] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
@@ -704,6 +706,56 @@ export default function SettingsScreen() {
           )}
         </Section>
 
+        <Section title="LICENSE" colors={colors}>
+          <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowLabel, { color: colors.text }]}>
+                License Key
+              </Text>
+              <Text style={[styles.rowSublabel, { color: colors.textSecondary }]}>
+                {licenseData ? `${licenseData.key.slice(0, 9)}...` : "Not activated"}
+              </Text>
+            </View>
+            {licenseData && (
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: colors.accent }}>
+                  {licenseData.maxAccounts} account{licenseData.maxAccounts > 1 ? "s" : ""}
+                </Text>
+                <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.textMuted, marginTop: 2 }}>
+                  Expires {new Date(licenseData.expiresAt).toLocaleDateString()}
+                </Text>
+              </View>
+            )}
+          </View>
+          {licenseData && (
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                showAlert(
+                  "Remove License",
+                  "Are you sure? You'll need to re-enter your key to use the app.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Remove", style: "destructive", onPress: removeLicense },
+                  ]
+                );
+              }}
+              style={({ pressed }) => [
+                styles.clearBtn,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.clearText, { color: "#ef4444" }]}>
+                Remove License
+              </Text>
+            </Pressable>
+          )}
+        </Section>
+
         <View style={{ height: insets.bottom + 40 }} />
       </ScrollView>
       {AlertComponent}
@@ -960,4 +1012,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   clearText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  rowLabel: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  rowSublabel: { fontSize: 12, fontFamily: "Inter_400Regular", marginTop: 2 },
 });

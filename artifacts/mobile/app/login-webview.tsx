@@ -5,6 +5,7 @@ import { Check, Info, Lock, RefreshCw, Smartphone, Unlock, UserPlus, X } from "l
 import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Platform,
   Pressable,
@@ -20,6 +21,7 @@ import WebView, { WebViewNavigation, WebViewMessageEvent } from "react-native-we
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useAccounts } from "@/context/AccountsContext";
+import { useLicense } from "@/context/LicenseContext";
 
 const MOBILE_USER_AGENT =
   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
@@ -171,6 +173,8 @@ export default function LoginWebViewScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { addAccount, updateAccount, accounts } = useAccounts();
+  const { licenseData } = useLicense();
+  const maxAccounts = licenseData?.maxAccounts ?? 999;
   const { accountId } = useLocalSearchParams<{ accountId?: string }>();
   const existingAccount = accountId ? accounts.find((a) => a.id === accountId) : undefined;
   const webViewRef = useRef<WebView>(null);
@@ -463,6 +467,10 @@ export default function LoginWebViewScreen() {
         email: finalEmail || existingAccount.email,
         avatarUrl: finalAvatar || existingAccount.avatarUrl,
       });
+    } else if (accounts.length >= maxAccounts) {
+      Alert.alert("Account Limit Reached", `Your license allows up to ${maxAccounts} account${maxAccounts > 1 ? "s" : ""}.`);
+      router.back();
+      return;
     } else {
       addAccount({
         name: finalName || "Macro Rewards Account",
