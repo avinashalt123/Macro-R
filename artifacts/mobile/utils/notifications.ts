@@ -85,13 +85,21 @@ export async function setupNotificationHandler(): Promise<void> {
     });
 
     if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
+      await Notifications.setNotificationChannelAsync("macro-rewards", {
         name: "Macro Rewards",
-        importance: Notifications.AndroidImportance.HIGH,
+        importance: Notifications.AndroidImportance.MAX,
         sound: "default",
         vibrationPattern: [0, 250, 250, 250],
         enableVibrate: true,
+        bypassDnd: true,
       });
+
+      try {
+        await Notifications.deleteNotificationChannelAsync("default");
+      } catch {}
+      try {
+        await Notifications.deleteNotificationChannelAsync("alarms");
+      } catch {}
     }
   } catch {}
 }
@@ -156,19 +164,7 @@ export async function scheduleOvernightNotifications(
   const Notifications = getNotifications();
   if (!Notifications) return { scheduled: 0 };
 
-  // Ensure notification channel has MAX importance (bypasses Doze restrictions better)
-  if (Platform.OS === "android") {
-    try {
-      await Notifications.setNotificationChannelAsync("alarms", {
-        name: "Scheduled Runs",
-        importance: Notifications.AndroidImportance.MAX,
-        sound: "default",
-        vibrationPattern: [0, 250, 250, 250],
-        enableVibrate: true,
-        bypassDnd: true,
-      });
-    } catch {}
-  }
+  
 
   // Prompt user about battery optimization (once)
   promptBatteryOptimization();
@@ -177,7 +173,7 @@ export async function scheduleOvernightNotifications(
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch {}
 
-  const channelId = Platform.OS === "android" ? "alarms" : undefined;
+  const channelId = Platform.OS === "android" ? "macro-rewards" : undefined;
   let count = 0;
 
   for (const slot of slots) {
@@ -278,7 +274,7 @@ export async function showRunningNotification(): Promise<string | null> {
         data: { action: "open_running" },
         sound: false,
         sticky: true,
-        ...(Platform.OS === "android" && { channelId: "default" }),
+        ...(Platform.OS === "android" && { channelId: "macro-rewards" }),
       },
       trigger: null,
     });
@@ -306,7 +302,7 @@ export async function showCompletedNotification(): Promise<void> {
         body: "Overnight search completed successfully.",
         data: { action: "run_complete" },
         sound: "default",
-        ...(Platform.OS === "android" && { channelId: "default" }),
+        ...(Platform.OS === "android" && { channelId: "macro-rewards" }),
       },
       trigger: null,
     });

@@ -183,7 +183,7 @@ async function showNotification(title: string, body: string): Promise<void> {
         title,
         body,
         sound: "default",
-        ...(Platform.OS === "android" && { channelId: "alarms" }),
+        ...(Platform.OS === "android" && { channelId: "macro-rewards" }),
       },
       trigger: null,
     });
