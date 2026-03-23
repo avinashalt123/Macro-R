@@ -329,7 +329,7 @@ SafeAreaProvider
 
 ### Current Values
 - **ADMIN_SECRET**: `5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551`
-- **Admin Panel URL**: `https://<REPLIT_DEV_DOMAIN>/api-server/api/admin?secret=5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551`
+- **Admin Panel URL**: `https://<REPLIT_DEV_DOMAIN>/api/admin?secret=<ADMIN_SECRET>`
 - **Test License Key**: `1EDA-E7C2-CF06-5B0E` (5 accounts, expires Jan 2027)
 
 ---
