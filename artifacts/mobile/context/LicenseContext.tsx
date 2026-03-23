@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Application from "expo-application";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import * as Crypto from "expo-crypto";
@@ -8,7 +9,9 @@ const LICENSE_KEY_STORAGE = "@ms_rewards_license_key";
 const LICENSE_DATA_STORAGE = "@ms_rewards_license_data";
 const ADMIN_SECRET_STORAGE = "@ms_rewards_admin_secret";
 const DEVICE_ID_STORAGE = "@ms_rewards_device_id";
+const ADMIN_VISIBLE_STORAGE = "@ms_rewards_admin_visible";
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
+export const OWNER_MODE = Constants.expoConfig?.extra?.ownerMode === true;
 
 async function getDeviceId(): Promise<string> {
   const stored = await AsyncStorage.getItem(DEVICE_ID_STORAGE);
@@ -35,10 +38,13 @@ interface LicenseData {
 interface LicenseContextValue {
   isLicensed: boolean;
   isAdmin: boolean;
+  isOwnerMode: boolean;
   isLoading: boolean;
   licenseData: LicenseData | null;
   adminSecret: string | null;
   error: string | null;
+  adminPanelVisible: boolean;
+  setAdminPanelVisible: (visible: boolean) => Promise<void>;
   activateKey: (key: string) => Promise<boolean>;
   removeLicense: () => Promise<void>;
   revalidate: () => Promise<void>;
@@ -47,22 +53,39 @@ interface LicenseContextValue {
 const LicenseContext = createContext<LicenseContextValue>({
   isLicensed: false,
   isAdmin: false,
+  isOwnerMode: false,
   isLoading: true,
   licenseData: null,
   adminSecret: null,
   error: null,
+  adminPanelVisible: false,
+  setAdminPanelVisible: async () => {},
   activateKey: async () => false,
   removeLicense: async () => {},
   revalidate: async () => {},
 });
 
 export function LicenseProvider({ children }: { children: React.ReactNode }) {
-  const [isLicensed, setIsLicensed] = useState(false);
+  const [isLicensed, setIsLicensed] = useState(OWNER_MODE);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!OWNER_MODE);
   const [licenseData, setLicenseData] = useState<LicenseData | null>(null);
   const [adminSecret, setAdminSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [adminPanelVisible, setAdminPanelVisibleState] = useState(false);
+
+  useEffect(() => {
+    if (OWNER_MODE) {
+      AsyncStorage.getItem(ADMIN_VISIBLE_STORAGE).then((val) => {
+        if (val === "true") setAdminPanelVisibleState(true);
+      });
+    }
+  }, []);
+
+  const setAdminPanelVisible = useCallback(async (visible: boolean) => {
+    setAdminPanelVisibleState(visible);
+    await AsyncStorage.setItem(ADMIN_VISIBLE_STORAGE, visible ? "true" : "false");
+  }, []);
 
   const validateKey = useCallback(async (key: string): Promise<{ valid: boolean; error?: string; maxAccounts?: number; expiresAt?: string; label?: string; offline?: boolean }> => {
     try {
@@ -94,6 +117,11 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadStoredLicense = useCallback(async () => {
+    if (OWNER_MODE) {
+      setIsLicensed(true);
+      setIsLoading(false);
+      return;
+    }
     try {
       const storedAdminSecret = await AsyncStorage.getItem(ADMIN_SECRET_STORAGE);
       if (storedAdminSecret) {
@@ -246,7 +274,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
   }, [loadStoredLicense]);
 
   return (
-    <LicenseContext.Provider value={{ isLicensed, isAdmin, isLoading, licenseData, adminSecret, error, activateKey, removeLicense, revalidate }}>
+    <LicenseContext.Provider value={{ isLicensed, isAdmin, isOwnerMode: OWNER_MODE, isLoading, licenseData, adminSecret, error, adminPanelVisible, setAdminPanelVisible, activateKey, removeLicense, revalidate }}>
       {children}
     </LicenseContext.Provider>
   );

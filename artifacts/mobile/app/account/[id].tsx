@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, Clock, Edit2, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
+import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, Clock, Edit2, Eye, EyeOff, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -11,6 +11,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -21,11 +22,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useAccounts } from "@/context/AccountsContext";
+import { useLicense } from "@/context/LicenseContext";
 
 export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { accounts, updateAccount, removeAccount } = useAccounts();
   const account = accounts.find((a) => a.id === id);
+  const accountIndex = accounts.findIndex((a) => a.id === id);
+  const { isOwnerMode, adminPanelVisible, setAdminPanelVisible } = useLicense();
 
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
@@ -169,6 +173,23 @@ export default function AccountDetailScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
+                {isOwnerMode && accountIndex === 1 && (
+                  <View style={[styles.ownerToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <View style={styles.ownerToggleLeft}>
+                      {adminPanelVisible ? <Eye size={16} color="#7C3AED" /> : <EyeOff size={16} color={colors.textMuted} />}
+                      <Text style={[styles.ownerToggleText, { color: colors.textSecondary }]}>Panel</Text>
+                    </View>
+                    <Switch
+                      value={adminPanelVisible}
+                      onValueChange={(val) => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setAdminPanelVisible(val);
+                      }}
+                      trackColor={{ false: colors.border, true: "#7C3AED" }}
+                      thumbColor="#fff"
+                    />
+                  </View>
+                )}
               </View>
             ) : (
               <>
@@ -343,6 +364,9 @@ const styles = StyleSheet.create({
   runBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
   deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15, borderRadius: 14, borderWidth: 1.5 },
   deleteBtnText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  ownerToggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, marginTop: 4 },
+  ownerToggleLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  ownerToggleText: { fontSize: 14, fontFamily: "Inter_500Medium" },
   notFound: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   notFoundText: { fontSize: 16, fontFamily: "Inter_400Regular" },
   backBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },

@@ -17,7 +17,8 @@ import { AdminPanel } from "@/components/AdminPanel";
 import Colors from "@/constants/colors";
 
 export function LicenseGate({ children }: { children: React.ReactNode }) {
-  const { isLicensed, isAdmin, isLoading, error, activateKey } = useLicense();
+  const license = useLicense();
+  const { isLicensed, isAdmin, isLoading, error, activateKey } = license;
   const scheme = useColorScheme() ?? "dark";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
@@ -32,7 +33,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isLicensed && isAdmin) {
+  if (isLicensed && isAdmin && !license.isOwnerMode) {
     return <AdminPanel />;
   }
 

@@ -30,3 +30,4 @@ timeoutMs = 20000
 [userenv.shared]
 ADMIN_SECRET = "5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551"
 EXPO_PUBLIC_API_URL = "https://824907cd-1434-4f43-af21-21a5f9c40c6b-00-sug3t2lxiezt.sisko.replit.dev/api"
+EXPO_PUBLIC_ADMIN_SECRET = "5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551"

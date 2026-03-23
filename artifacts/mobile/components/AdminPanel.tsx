@@ -1,5 +1,6 @@
 import * as Haptics from "expo-haptics";
-import { Copy, Key, LogOut, Minus, Plus, Power, PowerOff, RefreshCw, Shield, Smartphone, Trash2 } from "lucide-react-native";
+import { router } from "expo-router";
+import { ArrowLeft, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, RefreshCw, Shield, Smartphone, Trash2 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,6 +21,7 @@ import Colors from "@/constants/colors";
 import { useLicense } from "@/context/LicenseContext";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
+const OWNER_ADMIN_SECRET = process.env.EXPO_PUBLIC_ADMIN_SECRET || "";
 
 interface LicenseKey {
   id: string;
@@ -37,7 +39,7 @@ export function AdminPanel() {
   const scheme = useColorScheme() ?? "dark";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { adminSecret, removeLicense } = useLicense();
+  const { adminSecret, removeLicense, isOwnerMode } = useLicense();
 
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,12 +48,14 @@ export function AdminPanel() {
   const [newMaxAccounts, setNewMaxAccounts] = useState("3");
   const [newExpDays, setNewExpDays] = useState("30");
 
+  const effectiveSecret = isOwnerMode ? OWNER_ADMIN_SECRET : (adminSecret || "");
+
   const apiCall = useCallback(async (method: string, path: string, body?: any) => {
     const opts: RequestInit = {
       method,
       headers: {
         "Content-Type": "application/json",
-        "X-Admin-Secret": adminSecret || "",
+        "X-Admin-Secret": effectiveSecret,
       },
     };
     if (body) opts.body = JSON.stringify(body);
@@ -61,7 +65,7 @@ export function AdminPanel() {
       throw new Error(text);
     }
     return resp.json();
-  }, [adminSecret]);
+  }, [effectiveSecret]);
 
   const loadKeys = useCallback(async () => {
     try {
@@ -247,6 +251,14 @@ export function AdminPanel() {
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
+            {isOwnerMode && (
+              <Pressable
+                onPress={() => router.back()}
+                style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.6 : 1 }]}
+              >
+                <ArrowLeft size={22} color={colors.text} />
+              </Pressable>
+            )}
             <Shield size={24} color="#3b82f6" />
             <Text style={[styles.title, { color: colors.text }]}>Admin Panel</Text>
           </View>
@@ -257,29 +269,31 @@ export function AdminPanel() {
             >
               <RefreshCw size={18} color={colors.text} />
             </Pressable>
-            <Pressable
-              onPress={async () => {
-                if (Platform.OS === "web") {
-                  if (confirm("Leave admin panel?")) {
-                    await removeLicense();
-                  }
-                } else {
-                  Alert.alert("Sign Out", "Leave admin panel?", [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Sign Out",
-                      style: "destructive",
-                      onPress: async () => {
-                        await removeLicense();
+            {!isOwnerMode && (
+              <Pressable
+                onPress={async () => {
+                  if (Platform.OS === "web") {
+                    if (confirm("Leave admin panel?")) {
+                      await removeLicense();
+                    }
+                  } else {
+                    Alert.alert("Sign Out", "Leave admin panel?", [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Sign Out",
+                        style: "destructive",
+                        onPress: async () => {
+                          await removeLicense();
+                        },
                       },
-                    },
-                  ]);
-                }
-              }}
-              style={[styles.headerBtn, { backgroundColor: "#dc262622" }]}
-            >
-              <LogOut size={18} color="#f87171" />
-            </Pressable>
+                    ]);
+                  }
+                }}
+                style={[styles.headerBtn, { backgroundColor: "#dc262622" }]}
+              >
+                <LogOut size={18} color="#f87171" />
+              </Pressable>
+            )}
           </View>
         </View>
       </View>

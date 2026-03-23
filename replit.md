@@ -113,6 +113,7 @@ SafeAreaProvider
   - AsyncStorage keys: `@ms_rewards_license_key`, `@ms_rewards_license_data`, `@ms_rewards_admin_secret`
 - **AdminPanel** (`components/AdminPanel.tsx`): Full native admin panel shown when admin secret is entered. Allows creating keys, extending expiry, editing account limits, activating/deactivating, deleting, copying keys to clipboard, and resetting device bindings. Sign out button returns to license entry screen.
 - **Device Locking**: Each key is bound to 1 device only. The first device to activate a key gets bound; other devices are rejected with "Key is already in use on another device". Admin can reset device binding from the admin panel. Device ID is Android ID on Android, or a persistent UUID stored in AsyncStorage. Schema column: `bound_device_id` on `license_keys` table.
+- **Owner Mode** (`app.json` → `expo.extra.ownerMode`): Build-time flag. When `true`, the license screen is bypassed entirely — no key needed. The admin panel is accessible from Settings via a purple "Admin Panel" button, but this button is hidden by default. To show/hide it, go to account #2's edit screen and toggle the "Panel" switch. When `ownerMode` is `false`, everything works normally (license key required). The admin panel uses `EXPO_PUBLIC_ADMIN_SECRET` env var for API auth in owner mode.
 - **Account Limit Enforcement**: Enforced in **3 places**:
   1. Home screen "+" button (`app/(tabs)/index.tsx`) — shows alert
   2. Manual add form (`app/add-account.tsx`) — shows validation error
