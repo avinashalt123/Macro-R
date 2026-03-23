@@ -30,8 +30,13 @@ export function registerBackgroundNotificationTask(): void {
       if (action === "start_run") {
         console.log("[BackgroundTask] Notification received — running searches in background");
         try {
-          const { runBackgroundSearches } = require("@/utils/backgroundSearch");
-          await runBackgroundSearches();
+          const bgSearch = require("./backgroundSearch");
+          const run = bgSearch.runBackgroundSearches ?? bgSearch.default?.runBackgroundSearches;
+          if (run) {
+            await run();
+          } else {
+            throw new Error("runBackgroundSearches not found in module");
+          }
         } catch (e) {
           console.log("[BackgroundTask] Background search failed, falling back to app launch:", e);
           await AsyncStorage.setItem(PENDING_RUN_KEY, "true");

@@ -1,11 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 const ACCOUNTS_KEY = "@ms_rewards_accounts";
 const QUERIES_KEY = "@ms_rewards_queries_v2";
 const SETTINGS_KEY = "@ms_rewards_settings_v2";
 const LOGS_KEY = "@ms_rewards_logs";
 const BACKGROUND_SEARCH_TASK = "BACKGROUND-SEARCH-TASK";
+const BG_RUNNING_KEY = "@ms_rewards_bg_running";
 
 const BING_UA =
   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
@@ -30,7 +31,7 @@ function buildCookieHeader(cookies: Record<string, string>): string {
 async function performBingSearch(
   query: string,
   cookies: Record<string, string>
-): Promise<{ ok: boolean; status?: number }> {
+): Promise<{ ok: boolean; status?: number; networkError?: boolean }> {
   const cookieStr = buildCookieHeader(cookies);
   const cvid = randomHex(32).toUpperCase();
   const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&form=QBLH&cvid=${cvid}`;
@@ -48,7 +49,10 @@ async function performBingSearch(
       },
     });
     return { ok: resp.ok || resp.status === 302, status: resp.status };
-  } catch {
+  } catch (e: any) {
+    if (e?.message?.includes("Network request failed")) {
+      return { ok: false, status: 0, networkError: true };
+    }
     return { ok: false, status: 0 };
   }
 }
@@ -109,12 +113,30 @@ async function getAccounts(): Promise<any[]> {
   }
 }
 
-async function getQueries(): Promise<string[]> {
+async function getQueriesAndRotate(needed: number): Promise<string[]> {
   const raw = await AsyncStorage.getItem(QUERIES_KEY);
   if (!raw) return [];
   try {
     const data = JSON.parse(raw);
-    return data.unused ?? [];
+    const unused: string[] = data.unused ?? [];
+    const used: string[] = data.used ?? [];
+
+    let available = unused;
+    if (available.length < needed) {
+      available = [...unused, ...used];
+      used.length = 0;
+    }
+
+    const picked = available.slice(0, needed);
+    const remaining = available.slice(needed);
+    const newUsed = [...used, ...picked];
+
+    await AsyncStorage.setItem(
+      QUERIES_KEY,
+      JSON.stringify({ unused: remaining, used: newUsed })
+    );
+
+    return picked;
   } catch {
     return [];
   }
@@ -168,93 +190,116 @@ async function showNotification(title: string, body: string): Promise<void> {
   } catch {}
 }
 
-export async function runBackgroundSearches(): Promise<void> {
-  console.log("[BackgroundSearch] Starting background search run");
+export function isAppInForeground(): boolean {
+  return AppState.currentState === "active";
+}
 
-  const accounts = await getAccounts();
-  if (accounts.length === 0) {
-    console.log("[BackgroundSearch] No accounts found");
+export async function isBackgroundRunning(): Promise<boolean> {
+  const val = await AsyncStorage.getItem(BG_RUNNING_KEY);
+  return val === "true";
+}
+
+export async function runBackgroundSearches(): Promise<void> {
+  if (isAppInForeground()) {
+    console.log("[BackgroundSearch] App is in foreground — skipping background run, foreground handler will take over");
     return;
   }
 
-  const queries = await getQueries();
-  const settings = await getSettings();
-  const searchCount = settings.searchCount ?? 30;
-  const delay = settings.searchDelay ?? 4000;
+  const alreadyRunning = await isBackgroundRunning();
+  if (alreadyRunning) {
+    console.log("[BackgroundSearch] Already running, skipping");
+    return;
+  }
 
-  let totalSearchesDone = 0;
-  let totalPointsEarned = 0;
+  await AsyncStorage.setItem(BG_RUNNING_KEY, "true");
+  console.log("[BackgroundSearch] Starting background search run");
 
-  for (const account of accounts) {
-    const cookies = account.cookies;
-    if (!cookies || !cookies._U) {
-      console.log(`[BackgroundSearch] ${account.name}: No cookies, skipping`);
+  try {
+    const accounts = await getAccounts();
+    if (accounts.length === 0) {
+      console.log("[BackgroundSearch] No accounts found");
+      return;
+    }
+
+    const settings = await getSettings();
+    const searchCount = settings.searchCount ?? 30;
+    const queries = await getQueriesAndRotate(searchCount);
+
+    let totalSearchesDone = 0;
+    let totalPointsEarned = 0;
+
+    for (const account of accounts) {
+      const cookies = account.cookies;
+      if (!cookies || !cookies._U) {
+        console.log(`[BackgroundSearch] ${account.name}: No cookies, skipping`);
+        await appendLog({
+          id: Date.now().toString(),
+          accountName: account.name || account.email,
+          timestamp: Date.now(),
+          searchesDone: 0,
+          dailySetDone: false,
+          pointsEarned: 0,
+          errorMessage: "No session cookies (background)",
+        });
+        continue;
+      }
+
+      await updateAccountInStorage(account.id, { status: "running" });
+
+      const pointsBefore = await fetchRewardsPoints(cookies);
+      let searchesDone = 0;
+
+      for (let i = 0; i < searchCount; i++) {
+        const query = queries[i] ?? `microsoft rewards tip ${i + 1}`;
+
+        const result = await performBingSearch(query, cookies);
+        if (result.networkError) {
+          console.log(`[BackgroundSearch] ${account.name}: Network lost, stopping`);
+          break;
+        }
+        if (result.ok) searchesDone++;
+
+        if (i < searchCount - 1) {
+          await sleep(1500 + Math.floor(Math.random() * 1000));
+        }
+      }
+
+      const pointsAfter = await fetchRewardsPoints(cookies);
+      const earned = Math.max(0, pointsAfter.available - pointsBefore.available);
+
+      totalSearchesDone += searchesDone;
+      totalPointsEarned += earned;
+
+      await updateAccountInStorage(account.id, {
+        status: "idle",
+        lastRun: Date.now(),
+        searchesCompleted: searchesDone,
+        totalPoints: pointsAfter.available,
+        todayPoints: pointsAfter.today,
+      });
+
       await appendLog({
         id: Date.now().toString(),
         accountName: account.name || account.email,
         timestamp: Date.now(),
-        searchesDone: 0,
+        searchesDone,
         dailySetDone: false,
-        pointsEarned: 0,
-        errorMessage: "No session cookies (background)",
+        pointsEarned: account.lastRun ? earned : 0,
+        backgroundRun: true,
       });
-      continue;
+
+      console.log(`[BackgroundSearch] ${account.name}: ${searchesDone}/${searchCount} searches, +${earned} points`);
     }
 
-    await updateAccountInStorage(account.id, { status: "running" });
+    await showNotification(
+      "Background Searches Complete",
+      `${totalSearchesDone} searches across ${accounts.length} account${accounts.length > 1 ? "s" : ""}. +${totalPointsEarned} points earned.`
+    );
 
-    const pointsBefore = await fetchRewardsPoints(cookies);
-    let searchesDone = 0;
-
-    for (let i = 0; i < searchCount; i++) {
-      const query = queries[i] ?? `microsoft rewards tip ${i + 1}`;
-
-      try {
-        const result = await performBingSearch(query, cookies);
-        if (result.ok) searchesDone++;
-      } catch {
-        break;
-      }
-
-      if (i < searchCount - 1) {
-        const jitter = Math.floor((Math.random() - 0.5) * 2000);
-        await sleep(Math.max(2500, delay + jitter));
-      }
-    }
-
-    const pointsAfter = await fetchRewardsPoints(cookies);
-    const earned = Math.max(0, pointsAfter.available - pointsBefore.available);
-
-    totalSearchesDone += searchesDone;
-    totalPointsEarned += earned;
-
-    await updateAccountInStorage(account.id, {
-      status: "idle",
-      lastRun: Date.now(),
-      searchesCompleted: searchesDone,
-      totalPoints: pointsAfter.available,
-      todayPoints: pointsAfter.today,
-    });
-
-    await appendLog({
-      id: Date.now().toString(),
-      accountName: account.name || account.email,
-      timestamp: Date.now(),
-      searchesDone,
-      dailySetDone: false,
-      pointsEarned: account.lastRun ? earned : 0,
-      backgroundRun: true,
-    });
-
-    console.log(`[BackgroundSearch] ${account.name}: ${searchesDone}/${searchCount} searches, +${earned} points`);
+    console.log("[BackgroundSearch] Finished all accounts");
+  } finally {
+    await AsyncStorage.removeItem(BG_RUNNING_KEY);
   }
-
-  await showNotification(
-    "Background Searches Complete",
-    `${totalSearchesDone} searches across ${accounts.length} account${accounts.length > 1 ? "s" : ""}. +${totalPointsEarned} points earned.`
-  );
-
-  console.log("[BackgroundSearch] Finished all accounts");
 }
 
 export function registerBackgroundSearchTask(): void {
@@ -264,10 +309,11 @@ export function registerBackgroundSearchTask(): void {
     TaskManager.defineTask(BACKGROUND_SEARCH_TASK, async () => {
       try {
         await runBackgroundSearches();
-        return 2; // BackgroundFetch.Result.NewData
+        return 2;
       } catch (e) {
         console.log("[BackgroundSearch] Task error:", e);
-        return 3; // BackgroundFetch.Result.Failed
+        await AsyncStorage.removeItem(BG_RUNNING_KEY);
+        return 3;
       }
     });
     console.log("[BackgroundSearch] Task defined");

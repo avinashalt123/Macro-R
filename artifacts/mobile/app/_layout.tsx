@@ -26,7 +26,7 @@ import {
   setPendingRun,
   registerBackgroundNotificationTask,
 } from "@/utils/notifications";
-import { registerBackgroundSearchTask } from "@/utils/backgroundSearch";
+import { registerBackgroundSearchTask, isBackgroundRunning } from "@/utils/backgroundSearch";
 
 SplashScreen.preventAutoHideAsync();
 registerBackgroundNotificationTask();
@@ -54,8 +54,13 @@ function NotificationHandler() {
     setupNotificationHandler();
 
     const handleStartRun = async () => {
+      const bgRunning = await isBackgroundRunning();
+      if (bgRunning) {
+        console.log("[NotificationHandler] Background search already running, skipping foreground trigger");
+        return;
+      }
+
       if (accountsRef.current.length > 0 && !isRunningRef.current) {
-        // App was backgrounded — accounts already loaded, trigger directly
         startRunRef.current();
         router.navigate({
           pathname: "/search-runner",
@@ -65,7 +70,6 @@ function NotificationHandler() {
           },
         });
       } else {
-        // App was killed (cold-start) — accounts not loaded yet, set flag for home screen
         await setPendingRun();
         router.navigate("/(tabs)/");
       }
