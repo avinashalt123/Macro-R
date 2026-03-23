@@ -54,7 +54,7 @@ export function AdminPanel() {
       },
     };
     if (body) opts.body = JSON.stringify(body);
-    const resp = await fetch(`${API_BASE}/api${path}`, opts);
+    const resp = await fetch(`${API_BASE}${path}`, opts);
     if (!resp.ok) {
       const text = await resp.text().catch(() => "Request failed");
       throw new Error(text);

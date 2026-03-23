@@ -48,7 +48,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
 
   const validateKey = useCallback(async (key: string): Promise<{ valid: boolean; error?: string; maxAccounts?: number; expiresAt?: string; label?: string; offline?: boolean }> => {
     try {
-      const resp = await fetch(`${API_BASE}/api/validate-key`, {
+      const resp = await fetch(`${API_BASE}/validate-key`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key }),
@@ -61,7 +61,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
 
   const validateAdmin = useCallback(async (secret: string): Promise<{ valid: boolean; offline?: boolean }> => {
     try {
-      const resp = await fetch(`${API_BASE}/api/validate-admin`, {
+      const resp = await fetch(`${API_BASE}/validate-admin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ secret }),
