@@ -1,8 +1,8 @@
-# Workspace
+# Macro Rewards — MS Rewards Automation
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Contains MS Rewards Automation v2, a mobile app built with Expo React Native.
+pnpm workspace monorepo using TypeScript. Contains **Macro Rewards**, an Android app built with Expo React Native that automates Microsoft Rewards point earning through automated Bing searches and Daily Set completion. Includes a backend API server with a license key system and admin panel.
 
 ## Stack
 
@@ -15,94 +15,357 @@ pnpm workspace monorepo using TypeScript. Contains MS Rewards Automation v2, a m
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
-- **Mobile**: Expo SDK 54 + Expo Router (file-based routing)
+- **Mobile**: Expo SDK 54 (`~54.0.27`) + Expo Router (file-based routing)
 
-## Structure
+## Project Structure
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   ├── api-server/         # Express API server
-│   └── mobile/             # Expo React Native app (MS Rewards Automation)
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, scripts)
-├── tsconfig.base.json      # Shared TS options
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+├── artifacts/
+│   ├── api-server/           # Express 5 API server (license keys, admin panel)
+│   │   └── src/
+│   │       ├── index.ts      # Entry point (reads PORT env var)
+│   │       ├── app.ts        # Express app setup (cors, json, routes at /api)
+│   │       └── routes/
+│   │           ├── index.ts  # Route aggregator
+│   │           ├── health.ts # Health check endpoint
+│   │           ├── keys.ts   # License key CRUD + validate-key endpoint
+│   │           └── admin.ts  # HTML admin panel for license management
+│   └── mobile/               # Expo React Native app
+│       ├── app/
+│       │   ├── _layout.tsx           # Root layout with all providers
+│       │   ├── (tabs)/
+│       │   │   ├── _layout.tsx       # Tab bar layout
+│       │   │   ├── index.tsx         # Home — accounts list/grid
+│       │   │   ├── logs.tsx          # Run logs history
+│       │   │   ├── queries.tsx       # Search queries management
+│       │   │   └── settings.tsx      # App settings + license info
+│       │   ├── account/[id].tsx      # Account detail modal
+│       │   ├── add-account.tsx       # Manual account add form
+│       │   ├── login-webview.tsx     # WebView Microsoft login flow
+│       │   └── search-runner.tsx     # Foreground search execution screen
+│       ├── components/
+│       │   ├── AccountCard.tsx       # Account list card with status
+│       │   ├── AccountGridTile.tsx   # Account grid tile view
+│       │   ├── CustomAlert.tsx       # Custom alert dialog
+│       │   ├── EmptyState.tsx        # Empty state placeholder
+│       │   ├── ErrorBoundary.tsx     # React error boundary
+│       │   ├── ErrorFallback.tsx     # Error fallback UI
+│       │   ├── LicenseGate.tsx       # License activation lock screen
+│       │   ├── LogItem.tsx           # Run log list item
+│       │   └── StatsBar.tsx          # Stats summary bar
+│       ├── context/
+│       │   ├── AccountsContext.tsx   # Accounts state, run logic, logs
+│       │   ├── LicenseContext.tsx    # License validation + caching
+│       │   ├── QueriesContext.tsx    # Search queries state
+│       │   └── SettingsContext.tsx   # App settings persistence
+│       ├── constants/
+│       │   └── colors.ts            # Light/dark theme colors
+│       └── utils/
+│           ├── backgroundSearch.ts  # Background search engine (fetch-based)
+│           └── notifications.ts     # Notification scheduling + channels
+├── lib/
+│   ├── api-spec/                    # OpenAPI spec + Orval codegen config
+│   ├── api-client-react/            # Generated React Query hooks
+│   ├── api-zod/                     # Generated Zod schemas from OpenAPI
+│   └── db/                          # Drizzle ORM schema + DB connection
+│       └── src/schema/
+│           └── licenseKeys.ts       # license_keys table schema
+├── scripts/                         # Utility scripts
+├── pnpm-workspace.yaml
+├── tsconfig.base.json
+├── tsconfig.json
+└── package.json
 ```
 
-## Mobile App — MS Rewards Automation
+---
 
-An Expo React Native app for managing and automating Microsoft Rewards accounts.
+## Mobile App — Macro Rewards
+
+### App Provider Tree (app/_layout.tsx)
+
+```
+SafeAreaProvider
+  → ErrorBoundary
+    → QueryClientProvider
+      → GestureHandlerRootView
+        → KeyboardProvider
+          → LicenseProvider        ← license validation context
+            → LicenseGate          ← blocks app if no valid license
+              → AccountsProvider   ← accounts state + run logic
+                → QueriesProvider  ← search queries
+                  → SettingsProvider
+                    → RootLayoutNav (Stack navigator)
+```
 
 ### Features
-- **Accounts screen**: View all accounts as cards (list or grid view) with status indicators (idle/running/done/failed), total points, today points, search count, profile pic, and run buttons
-- **Stats bar**: Shows total points today, done/total count, running count, failed count
-- **Run automation**: Bing searches via fetch (30 shuffled queries) and Daily Set completion via WebView per account
-- **Account detail**: View/edit account info, stat cards (today/total points, searches, last run), recent run history
-- **Add account**: WebView login flow captures Microsoft cookies (including httpOnly via CookieManager), validates _U cookie, scrapes profile data (name, email, avatar) with Rewards API fallback
-- **Logs screen**: Run history (last 200) with search count, daily set status, points earned, success/failure
-- **Settings screen**: Default search count, delay, daily set toggle, overnight schedule with time slots (AM/PM)
-- **Overnight mode**: Scheduled notifications at exact times, auto-triggers search run on notification received
-- **Notifications**: Android notification channel with sound/vibration, SCHEDULE_EXACT_ALARM permission for reliable scheduling
 
-### File Structure (artifacts/mobile/)
-```
-app/
-  _layout.tsx              — Root layout with providers (Accounts, Settings, QueryClient)
-  (tabs)/
-    _layout.tsx            — Tab bar (NativeTabs for iOS 26+, classic Tabs fallback)
-    index.tsx              — Home/Accounts screen
-    logs.tsx               — Run logs screen
-    settings.tsx           — Settings screen
-  account/[id].tsx         — Account detail modal
-  add-account.tsx          — Add account form sheet
-components/
-  AccountCard.tsx          — Account list card with status badges and progress
-  StatsBar.tsx             — Stats summary bar at top of accounts screen
-  LogItem.tsx              — Run log list item
-  EmptyState.tsx           — Reusable empty state component
-  ErrorBoundary.tsx        — React error boundary
-  ErrorFallback.tsx        — Error fallback UI
-context/
-  AccountsContext.tsx      — Accounts state, run logic, logs management
-  SettingsContext.tsx      — App settings with AsyncStorage persistence
-constants/
-  colors.ts                — Light/dark theme colors
-```
+#### 1. License Key System
+- **LicenseGate** (`components/LicenseGate.tsx`): Full-screen lock screen shown when no valid license is active. Displays a key icon, text input for `XXXX-XXXX-XXXX-XXXX` format keys, and an Activate button.
+- **LicenseContext** (`context/LicenseContext.tsx`):
+  - Validates keys against the API at `EXPO_PUBLIC_API_URL/api/validate-key`
+  - Caches validated license data in AsyncStorage for **24 hours**
+  - Falls back to cached data when offline (if license hasn't expired)
+  - Stores: `key`, `maxAccounts`, `expiresAt`, `label`, `validatedAt`
+  - AsyncStorage keys: `@ms_rewards_license_key`, `@ms_rewards_license_data`
+- **Account Limit Enforcement**: Enforced in **3 places**:
+  1. Home screen "+" button (`app/(tabs)/index.tsx`) — shows alert
+  2. Manual add form (`app/add-account.tsx`) — shows validation error
+  3. WebView login flow (`app/login-webview.tsx`) — shows Alert and navigates back
+- **Settings License Section** (`app/(tabs)/settings.tsx`): Shows truncated key, account limit, expiry date, and "Remove License" button with confirmation dialog
+
+#### 2. Account Management
+- **Account data model** (`context/AccountsContext.tsx`):
+  ```typescript
+  interface Account {
+    id: string;           // Generated: timestamp + random string
+    name: string;
+    email: string;
+    avatarUrl?: string;
+    status: "idle" | "running" | "done" | "failed";
+    totalPoints: number;
+    todayPoints: number;
+    lastRun: string | null;
+    searchCount: number;
+    dailySetEnabled: boolean;
+    cookies: Record<string, string>;  // Microsoft/Bing cookies
+    searchesCompleted: number;
+  }
+  ```
+- **Add account (WebView login)** (`app/login-webview.tsx`): Opens Microsoft login in a WebView, captures cookies (including httpOnly via CookieManager), validates `_U` cookie, scrapes profile data (name, email, avatar) via Rewards API
+- **Add account (manual)** (`app/add-account.tsx`): Manual name/email entry (no cookies — limited functionality)
+- **Account detail** (`app/account/[id].tsx`): View/edit account info, stat cards, recent run history
+- **View modes**: List view (AccountCard) or grid view (AccountGridTile), toggled from home screen header
+
+#### 3. Search Automation
+- **Foreground searches** (`app/search-runner.tsx`):
+  - Executes Bing searches via `fetch()` (no WebView needed for searches)
+  - Uses mobile User-Agent: `Pixel 7 / Chrome 112`
+  - Sends `credentials: "omit"` with manual `Cookie` header
+  - Each search generates a unique `cvid` (random hex)
+  - Delay between searches: configurable in settings (default 5s in UI)
+  - Fetches Rewards points before and after to calculate earnings
+  - Supports Daily Set completion via WebView per account
+- **Background searches** (`utils/backgroundSearch.ts`):
+  - Runs via `expo-task-manager` background task (`BACKGROUND-SEARCH-TASK`)
+  - Actual delay: **1.5–2.5 seconds** between searches
+  - Double-trigger prevention: checks `AppState` (skips if foreground) + `BG_RUNNING_KEY` AsyncStorage flag
+  - Query rotation: pulls from unused pool, rotates to used, recycles when depleted
+  - Network error detection: stops account on `Network request failed`
+  - Updates account status and logs directly in AsyncStorage
+  - Shows completion notification with total searches and points earned
+  - Directly reads/writes AsyncStorage (doesn't use React contexts)
+
+#### 4. Notifications & Overnight Mode
+- **Notification channel** (`utils/notifications.ts`): Single `macro-rewards` channel (MAX importance, bypassDnd, vibration pattern)
+- **Overnight scheduling**: Configurable time slots (default: 22:00, 23:00, 01:00, 02:00)
+  - Uses `daily` trigger type, with `timeInterval` fallback if daily fails
+  - Each notification carries `data: { action: "start_run" }`
+- **Background notification task** (`BACKGROUND-NOTIFICATION-TASK`):
+  - On notification received → runs `backgroundSearch.runBackgroundSearches()`
+  - If background search fails → sets `PENDING_RUN_KEY` flag and tries to open app via deep link
+- **Auto-start on cold launch**: Home screen checks for `PENDING_RUN_KEY` on focus, auto-starts run if pending
+- **Battery optimization prompt**: One-time prompt to disable battery optimization for reliable notifications
+
+#### 5. Settings
+- **Settings data model** (`context/SettingsContext.tsx`):
+  ```typescript
+  interface Settings {
+    defaultSearchCount: number;  // Default: 30
+    searchDelay: number;         // Default: 5 (seconds, UI display)
+    dailySetEnabled: boolean;    // Default: true
+    overnightSlots: OvernightSlot[];  // Default: 22:00, 23:00, 01:00, 02:00
+    overnightDailySet: boolean;  // Default: false
+  }
+  ```
+- **AsyncStorage key**: `@ms_rewards_settings_v2`
+- **Sections**: SEARCH (count, delay, daily set), SCHEDULE (overnight slots, AM/PM), LICENSE (key info, remove)
+
+#### 6. Run Logs
+- **Log data model**:
+  ```typescript
+  interface RunLog {
+    id: string;
+    accountId: string;
+    accountName: string;
+    timestamp: string;
+    searchesDone: number;
+    dailySetDone: boolean;
+    pointsEarned: number;
+    status: "success" | "failed";
+    errorMessage?: string;
+  }
+  ```
+- **Max logs**: 200 (oldest are dropped)
+- **AsyncStorage key**: `@ms_rewards_logs`
 
 ### Theme
-- Primary: Blue (#2563EB / #3B82F6)
-- Dark mode supported
-- Inter font family (400, 500, 600, 700 weights)
+- **Primary**: Blue (#2563EB / #3B82F6)
+- **Dark mode**: Fully supported
+- **Font**: Inter (300 Light, 400 Regular, 500 Medium, 600 SemiBold, 700 Bold, 800 ExtraBold)
 
-### License Key System
-- **LicenseContext** (`context/LicenseContext.tsx`): Validates keys against API, caches for 24h offline, falls back to cached data when offline
-- **LicenseGate** (`components/LicenseGate.tsx`): Lock screen shown when no valid license; input field for XXXX-XXXX-XXXX-XXXX key format
-- **Account limit**: Enforced on add-account button in home screen based on `maxAccounts` from license data
-- **Settings**: LICENSE section shows key info, expiry, account limit, and remove button
-- **Env var**: `EXPO_PUBLIC_API_URL` — base URL of the API server for key validation
+### Android Permissions
+- `SCHEDULE_EXACT_ALARM` — exact notification scheduling
+- `USE_EXACT_ALARM` — exact alarm fallback
+- `WAKE_LOCK` — keep device awake during background tasks
+- `RECEIVE_BOOT_COMPLETED` — reschedule notifications after reboot
+- `POST_NOTIFICATIONS` — Android 13+ notification permission
 
-## Backend (api-server)
+### Build & Deploy (Mobile)
+- **EAS account**: `shroud.dev`
+- **Project ID**: `bde8726b-e427-47c3-bfef-bac4d4e46de4`
+- **Bundle ID**: `com.msrewards.automation`
+- **Build command**: `cd artifacts/mobile && eas build --platform android --profile preview --non-interactive`
+- **Build profiles**: `development` (debug APK), `preview` (internal APK), `production`
+- **Important**: Any native code changes (permissions, expo-task-manager, etc.) require a new EAS build
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for validation and `@workspace/db` for persistence.
+---
 
-- Entry: `src/index.ts`
-- App setup: `src/app.ts`
-- Routes: `src/routes/index.ts` → `src/routes/health.ts`, `src/routes/keys.ts`, `src/routes/admin.ts`
-- Depends on: `@workspace/db`, `@workspace/api-zod`
+## Backend — API Server
+
+### Setup
+- **Entry**: `artifacts/api-server/src/index.ts` → reads `PORT` env var
+- **App**: `artifacts/api-server/src/app.ts` → Express 5 with cors, JSON parsing
+- **All routes**: Mounted at `/api` prefix
+- **Dependencies**: `@workspace/db` (Drizzle ORM), `@workspace/api-zod` (validation)
 
 ### License Key API
-- `POST /api/validate-key` — Public endpoint, validates key and returns maxAccounts/expiresAt
-- `GET /api/admin/keys` — List all keys (requires X-Admin-Secret header)
-- `POST /api/admin/keys` — Create new key with label, maxAccounts, expiresAt
-- `PUT /api/admin/keys/:id` — Update key (label, maxAccounts, expiresAt, isActive)
-- `DELETE /api/admin/keys/:id` — Delete key permanently
-- `GET /api/admin?secret=<ADMIN_SECRET>` — HTML admin panel for managing keys
-- Key format: `XXXX-XXXX-XXXX-XXXX` (uppercase hex)
-- Database: `license_keys` table in PostgreSQL via Drizzle (`lib/db/src/schema/licenseKeys.ts`)
+
+#### Public Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/validate-key` | Validate a license key |
+
+**Request body**:
+```json
+{ "key": "XXXX-XXXX-XXXX-XXXX" }
+```
+
+**Response (valid)**:
+```json
+{
+  "valid": true,
+  "maxAccounts": 5,
+  "expiresAt": "2027-01-01T00:00:00.000Z",
+  "label": "Test Key"
+}
+```
+
+**Response (invalid)**:
+```json
+{ "valid": false, "error": "Invalid key" }
+```
+
+**Error cases**: `"Invalid key"`, `"Key has been deactivated"`, `"Key has expired"`, `"Key is required"`
+
+#### Admin Endpoints (require `X-Admin-Secret` header)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/admin/keys` | List all license keys |
+| `POST` | `/api/admin/keys` | Create a new key |
+| `PUT` | `/api/admin/keys/:id` | Update a key |
+| `DELETE` | `/api/admin/keys/:id` | Delete a key permanently |
+| `GET` | `/api/admin?secret=<ADMIN_SECRET>` | HTML admin panel |
+
+**Create key body**:
+```json
+{
+  "label": "User Name",
+  "maxAccounts": 5,
+  "expiresAt": "2027-01-01T00:00:00Z"
+}
+```
+
+**Update key body** (all fields optional):
+```json
+{
+  "label": "New Label",
+  "maxAccounts": 10,
+  "expiresAt": "2028-01-01T00:00:00Z",
+  "isActive": false
+}
+```
+
+### Admin Panel
+- **URL**: `/api/admin?secret=<ADMIN_SECRET>`
+- **Features**:
+  - Create new keys with label, max accounts, expiry days
+  - View all keys with status badges (active/expired/inactive)
+  - Extend key expiry by 30 days
+  - Edit account limit per key
+  - Activate/deactivate keys
+  - Delete keys permanently
+- **UI**: Dark theme (Slate color palette), responsive grid layout
+
+### Database Schema
+
+#### `license_keys` table (`lib/db/src/schema/licenseKeys.ts`)
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `id` | UUID | `defaultRandom()` | Primary key |
+| `key` | TEXT | — | Unique key string (`XXXX-XXXX-XXXX-XXXX`, uppercase hex) |
+| `label` | TEXT | `null` | Optional label for the key |
+| `max_accounts` | INTEGER | `3` | Maximum accounts allowed |
+| `is_active` | BOOLEAN | `true` | Whether key is currently active |
+| `expires_at` | TIMESTAMP | — | Expiration date |
+| `created_at` | TIMESTAMP | `now()` | Creation timestamp |
+| `updated_at` | TIMESTAMP | `now()` | Last update timestamp |
+
+**Key format**: 4 segments of 4 hex characters, uppercase, separated by dashes. Generated with `crypto.randomBytes(2)` per segment.
+
+---
+
+## Environment Variables
+
+| Variable | Where | Description |
+|----------|-------|-------------|
+| `PORT` | API server | Port for the Express server (set by Replit) |
+| `DATABASE_URL` | API server | PostgreSQL connection string (set by Replit) |
+| `ADMIN_SECRET` | API server | Secret for admin panel access and API auth. **Required** — no default fallback |
+| `EXPO_PUBLIC_API_URL` | Mobile app | Base URL of the API server for license validation |
+
+### Current Values
+- **ADMIN_SECRET**: `5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551`
+- **Admin Panel URL**: `https://<REPLIT_DEV_DOMAIN>/api-server/api/admin?secret=5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551`
+- **Test License Key**: `1EDA-E7C2-CF06-5B0E` (5 accounts, expires Jan 2027)
+
+---
+
+## AsyncStorage Keys (Mobile)
+
+| Key | Description |
+|-----|-------------|
+| `@ms_rewards_accounts` | Array of Account objects |
+| `@ms_rewards_logs` | Array of RunLog objects (max 200) |
+| `@ms_rewards_settings_v2` | Settings object |
+| `@ms_rewards_queries_v2` | Search queries `{ unused: [], used: [] }` |
+| `@ms_rewards_license_key` | Stored license key string |
+| `@ms_rewards_license_data` | Cached license validation data (JSON) |
+| `@ms_rewards_pending_run` | Flag for pending overnight run |
+| `@ms_rewards_bg_running` | Flag to prevent double background runs |
+| `@ms_rewards_battery_opt_prompted` | Battery optimization prompt shown flag |
+
+---
+
+## Technical Notes
+
+### Bing Search Pattern
+- All Bing searches use `credentials: "omit"` + manual `Cookie` header (avoids React Native cookie jar issues)
+- User-Agent mimics Pixel 7 / Chrome 112 (mobile)
+- Each search gets a unique `cvid` parameter (32-char random hex)
+- Cookies from `_ls_` prefix are filtered out of the cookie header
+- Rewards points fetched from `https://rewards.bing.com/api/getuserinfo`
+
+### Background Task Architecture
+- `BACKGROUND-NOTIFICATION-TASK`: Triggered by scheduled notifications, runs `runBackgroundSearches()`
+- `BACKGROUND-SEARCH-TASK`: Defined for expo-task-manager, wraps `runBackgroundSearches()`
+- Both tasks directly read/write AsyncStorage (no React context access in background)
+- Foreground detection: `AppState.currentState === "active"` — skips background run if app is visible
+
+### Device Compatibility Notes
+- **Infinix/HiOS**: Requires Autostart enabled for background tasks
+- **Samsung**: May need "Sleeping apps" exception
+- **All Android**: Battery optimization should be set to "Unrestricted" for reliable notifications
