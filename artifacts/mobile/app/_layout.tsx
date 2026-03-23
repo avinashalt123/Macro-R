@@ -26,9 +26,11 @@ import {
   setPendingRun,
   registerBackgroundNotificationTask,
 } from "@/utils/notifications";
+import { registerBackgroundSearchTask } from "@/utils/backgroundSearch";
 
 SplashScreen.preventAutoHideAsync();
 registerBackgroundNotificationTask();
+registerBackgroundSearchTask();
 
 const queryClient = new QueryClient();
 

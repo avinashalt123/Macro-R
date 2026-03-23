@@ -28,13 +28,20 @@ export function registerBackgroundNotificationTask(): void {
       }
       const action = data?.notification?.request?.content?.data?.action;
       if (action === "start_run") {
-        await AsyncStorage.setItem(PENDING_RUN_KEY, "true");
+        console.log("[BackgroundTask] Notification received — running searches in background");
         try {
-          await Linking.openURL("mobile://start-run");
-        } catch {
+          const { runBackgroundSearches } = require("@/utils/backgroundSearch");
+          await runBackgroundSearches();
+        } catch (e) {
+          console.log("[BackgroundTask] Background search failed, falling back to app launch:", e);
+          await AsyncStorage.setItem(PENDING_RUN_KEY, "true");
           try {
-            await Linking.openURL("mobile://");
-          } catch {}
+            await Linking.openURL("mobile://start-run");
+          } catch {
+            try {
+              await Linking.openURL("mobile://");
+            } catch {}
+          }
         }
       }
     });
