@@ -92,6 +92,14 @@ router.delete("/admin/keys/:id", requireAdmin, async (req, res) => {
   }
 });
 
+router.post("/validate-admin", async (req, res) => {
+  const { secret } = req.body;
+  if (!secret || !ADMIN_SECRET || secret !== ADMIN_SECRET) {
+    return res.json({ valid: false });
+  }
+  res.json({ valid: true, isAdmin: true });
+});
+
 router.post("/validate-key", async (req, res) => {
   try {
     const { key } = req.body;

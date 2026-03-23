@@ -101,13 +101,17 @@ SafeAreaProvider
 ### Features
 
 #### 1. License Key System
-- **LicenseGate** (`components/LicenseGate.tsx`): Full-screen lock screen shown when no valid license is active. Displays a key icon, text input for `XXXX-XXXX-XXXX-XXXX` format keys, and an Activate button.
+- **LicenseGate** (`components/LicenseGate.tsx`): Full-screen lock screen shown when no valid license is active. Displays a key icon, text input for keys, and an Activate button. Detects admin secret vs regular license key automatically.
 - **LicenseContext** (`context/LicenseContext.tsx`):
   - Validates keys against the API at `EXPO_PUBLIC_API_URL/api/validate-key`
+  - Also checks admin secret via `EXPO_PUBLIC_API_URL/api/validate-admin`
+  - If admin secret is entered → `isAdmin=true`, shows AdminPanel instead of regular app
+  - If regular license key is entered → `isAdmin=false`, shows regular app
   - Caches validated license data in AsyncStorage for **24 hours**
   - Falls back to cached data when offline (if license hasn't expired)
   - Stores: `key`, `maxAccounts`, `expiresAt`, `label`, `validatedAt`
-  - AsyncStorage keys: `@ms_rewards_license_key`, `@ms_rewards_license_data`
+  - AsyncStorage keys: `@ms_rewards_license_key`, `@ms_rewards_license_data`, `@ms_rewards_admin_secret`
+- **AdminPanel** (`components/AdminPanel.tsx`): Full native admin panel shown when admin secret is entered. Allows creating keys, extending expiry, editing account limits, activating/deactivating, deleting, and copying keys to clipboard. Sign out button returns to license entry screen.
 - **Account Limit Enforcement**: Enforced in **3 places**:
   1. Home screen "+" button (`app/(tabs)/index.tsx`) — shows alert
   2. Manual add form (`app/add-account.tsx`) — shows validation error

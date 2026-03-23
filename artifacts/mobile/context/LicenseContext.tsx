@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 
 const LICENSE_KEY_STORAGE = "@ms_rewards_license_key";
 const LICENSE_DATA_STORAGE = "@ms_rewards_license_data";
+const ADMIN_SECRET_STORAGE = "@ms_rewards_admin_secret";
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
 
 interface LicenseData {
@@ -15,8 +16,10 @@ interface LicenseData {
 
 interface LicenseContextValue {
   isLicensed: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   licenseData: LicenseData | null;
+  adminSecret: string | null;
   error: string | null;
   activateKey: (key: string) => Promise<boolean>;
   removeLicense: () => Promise<void>;
@@ -25,8 +28,10 @@ interface LicenseContextValue {
 
 const LicenseContext = createContext<LicenseContextValue>({
   isLicensed: false,
+  isAdmin: false,
   isLoading: true,
   licenseData: null,
+  adminSecret: null,
   error: null,
   activateKey: async () => false,
   removeLicense: async () => {},
@@ -35,8 +40,10 @@ const LicenseContext = createContext<LicenseContextValue>({
 
 export function LicenseProvider({ children }: { children: React.ReactNode }) {
   const [isLicensed, setIsLicensed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [licenseData, setLicenseData] = useState<LicenseData | null>(null);
+  const [adminSecret, setAdminSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const validateKey = useCallback(async (key: string): Promise<{ valid: boolean; error?: string; maxAccounts?: number; expiresAt?: string; label?: string; offline?: boolean }> => {
@@ -52,8 +59,43 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const validateAdmin = useCallback(async (secret: string): Promise<{ valid: boolean; offline?: boolean }> => {
+    try {
+      const resp = await fetch(`${API_BASE}/api/validate-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secret }),
+      });
+      if (!resp.ok) return { valid: false };
+      const data = await resp.json();
+      return { valid: data.valid === true };
+    } catch {
+      return { valid: false, offline: true };
+    }
+  }, []);
+
   const loadStoredLicense = useCallback(async () => {
     try {
+      const storedAdminSecret = await AsyncStorage.getItem(ADMIN_SECRET_STORAGE);
+      if (storedAdminSecret) {
+        const result = await validateAdmin(storedAdminSecret);
+        if (result.valid) {
+          setAdminSecret(storedAdminSecret);
+          setIsAdmin(true);
+          setIsLicensed(true);
+          setIsLoading(false);
+          return;
+        } else if (result.offline) {
+          setAdminSecret(storedAdminSecret);
+          setIsAdmin(true);
+          setIsLicensed(true);
+          setIsLoading(false);
+          return;
+        } else {
+          await AsyncStorage.removeItem(ADMIN_SECRET_STORAGE);
+        }
+      }
+
       const storedKey = await AsyncStorage.getItem(LICENSE_KEY_STORAGE);
       const storedData = await AsyncStorage.getItem(LICENSE_DATA_STORAGE);
 
@@ -120,7 +162,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setIsLoading(false);
-  }, [validateKey]);
+  }, [validateKey, validateAdmin]);
 
   useEffect(() => {
     loadStoredLicense();
@@ -128,8 +170,22 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
 
   const activateKey = useCallback(async (key: string): Promise<boolean> => {
     setError(null);
-    const trimmed = key.trim().toUpperCase();
-    const result = await validateKey(trimmed);
+    const trimmed = key.trim();
+
+    const adminResult = await validateAdmin(trimmed);
+    if (adminResult.valid) {
+      await AsyncStorage.setItem(ADMIN_SECRET_STORAGE, trimmed);
+      await AsyncStorage.removeItem(LICENSE_KEY_STORAGE);
+      await AsyncStorage.removeItem(LICENSE_DATA_STORAGE);
+      setAdminSecret(trimmed);
+      setIsAdmin(true);
+      setIsLicensed(true);
+      setLicenseData(null);
+      return true;
+    }
+
+    const upperKey = trimmed.toUpperCase();
+    const result = await validateKey(upperKey);
 
     if (!result.valid) {
       setError(result.error || "Invalid key");
@@ -137,25 +193,31 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     }
 
     const data: LicenseData = {
-      key: trimmed,
+      key: upperKey,
       maxAccounts: result.maxAccounts!,
       expiresAt: result.expiresAt!,
       label: result.label ?? null,
       validatedAt: Date.now(),
     };
 
-    await AsyncStorage.setItem(LICENSE_KEY_STORAGE, trimmed);
+    await AsyncStorage.setItem(LICENSE_KEY_STORAGE, upperKey);
     await AsyncStorage.setItem(LICENSE_DATA_STORAGE, JSON.stringify(data));
+    await AsyncStorage.removeItem(ADMIN_SECRET_STORAGE);
     setLicenseData(data);
     setIsLicensed(true);
+    setIsAdmin(false);
+    setAdminSecret(null);
     return true;
-  }, [validateKey]);
+  }, [validateKey, validateAdmin]);
 
   const removeLicense = useCallback(async () => {
     await AsyncStorage.removeItem(LICENSE_KEY_STORAGE);
     await AsyncStorage.removeItem(LICENSE_DATA_STORAGE);
+    await AsyncStorage.removeItem(ADMIN_SECRET_STORAGE);
     setLicenseData(null);
     setIsLicensed(false);
+    setIsAdmin(false);
+    setAdminSecret(null);
     setError(null);
   }, []);
 
@@ -165,7 +227,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
   }, [loadStoredLicense]);
 
   return (
-    <LicenseContext.Provider value={{ isLicensed, isLoading, licenseData, error, activateKey, removeLicense, revalidate }}>
+    <LicenseContext.Provider value={{ isLicensed, isAdmin, isLoading, licenseData, adminSecret, error, activateKey, removeLicense, revalidate }}>
       {children}
     </LicenseContext.Provider>
   );

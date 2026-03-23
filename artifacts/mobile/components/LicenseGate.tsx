@@ -13,10 +13,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Lock, KeyRound } from "lucide-react-native";
 import { useLicense } from "@/context/LicenseContext";
+import { AdminPanel } from "@/components/AdminPanel";
 import Colors from "@/constants/colors";
 
 export function LicenseGate({ children }: { children: React.ReactNode }) {
-  const { isLicensed, isLoading, error, activateKey } = useLicense();
+  const { isLicensed, isAdmin, isLoading, error, activateKey } = useLicense();
   const scheme = useColorScheme() ?? "dark";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
@@ -29,6 +30,10 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
         <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
+  }
+
+  if (isLicensed && isAdmin) {
+    return <AdminPanel />;
   }
 
   if (isLicensed) {
