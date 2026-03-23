@@ -24,9 +24,11 @@ import {
   addNotificationReceivedListener,
   setupNotificationHandler,
   setPendingRun,
+  registerBackgroundNotificationTask,
 } from "@/utils/notifications";
 
 SplashScreen.preventAutoHideAsync();
+registerBackgroundNotificationTask();
 
 const queryClient = new QueryClient();
 

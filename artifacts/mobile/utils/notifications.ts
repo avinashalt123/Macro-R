@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert, Linking, Platform } from "react-native";
 
 export const PENDING_RUN_KEY = "@ms_rewards_pending_run";
+const BACKGROUND_NOTIFICATION_TASK = "BACKGROUND-NOTIFICATION-TASK";
 
 type NotificationsModule = typeof import("expo-notifications");
 
@@ -10,6 +11,38 @@ function getNotifications(): NotificationsModule | null {
     return require("expo-notifications") as NotificationsModule;
   } catch {
     return null;
+  }
+}
+
+export function registerBackgroundNotificationTask(): void {
+  if (Platform.OS === "web") return;
+  try {
+    const TaskManager = require("expo-task-manager");
+    const Notifications = getNotifications();
+    if (!TaskManager || !Notifications) return;
+
+    TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }: any) => {
+      if (error) {
+        console.log("[BackgroundTask] Error:", error);
+        return;
+      }
+      const action = data?.notification?.request?.content?.data?.action;
+      if (action === "start_run") {
+        await AsyncStorage.setItem(PENDING_RUN_KEY, "true");
+        try {
+          await Linking.openURL("mobile://start-run");
+        } catch {
+          try {
+            await Linking.openURL("mobile://");
+          } catch {}
+        }
+      }
+    });
+
+    Notifications.registerTaskAsync(BACKGROUND_NOTIFICATION_TASK).catch(() => {});
+    console.log("[Notifications] Background task registered");
+  } catch (e) {
+    console.log("[Notifications] Failed to register background task:", e);
   }
 }
 

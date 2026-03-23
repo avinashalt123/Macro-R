@@ -47,7 +47,8 @@
           "color": "#3B82F6",
           "sounds": []
         }
-      ]
+      ],
+      "expo-task-manager"
     ],
     "experiments": {
       "typedRoutes": true,
