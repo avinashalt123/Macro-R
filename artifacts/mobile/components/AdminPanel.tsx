@@ -237,11 +237,23 @@ export function AdminPanel() {
               <RefreshCw size={18} color={colors.text} />
             </Pressable>
             <Pressable
-              onPress={() => {
-                Alert.alert("Sign Out", "Leave admin panel?", [
-                  { text: "Cancel", style: "cancel" },
-                  { text: "Sign Out", style: "destructive", onPress: removeLicense },
-                ]);
+              onPress={async () => {
+                if (Platform.OS === "web") {
+                  if (confirm("Leave admin panel?")) {
+                    await removeLicense();
+                  }
+                } else {
+                  Alert.alert("Sign Out", "Leave admin panel?", [
+                    { text: "Cancel", style: "cancel" },
+                    {
+                      text: "Sign Out",
+                      style: "destructive",
+                      onPress: async () => {
+                        await removeLicense();
+                      },
+                    },
+                  ]);
+                }
               }}
               style={[styles.headerBtn, { backgroundColor: "#dc262622" }]}
             >
