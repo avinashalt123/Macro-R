@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
 
 export const PENDING_RUN_KEY = "@ms_rewards_pending_run";
 
@@ -65,6 +65,40 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
+export async function requestExactAlarmPermission(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  try {
+    const IntentLauncher = require("expo-intent-launcher");
+    if (IntentLauncher?.startActivityAsync) {
+      await IntentLauncher.startActivityAsync("android.settings.REQUEST_SCHEDULE_EXACT_ALARM");
+    }
+  } catch {}
+}
+
+export async function promptBatteryOptimization(): Promise<void> {
+  if (Platform.OS !== "android") return;
+  const key = "@ms_rewards_battery_opt_prompted";
+  const prompted = await AsyncStorage.getItem(key);
+  if (prompted) return;
+
+  await AsyncStorage.setItem(key, "true");
+  Alert.alert(
+    "Disable Battery Optimization",
+    "For scheduled notifications to fire on time, you need to disable battery optimization for this app.\n\nGo to: Settings → Apps → Macro R → Battery → Unrestricted",
+    [
+      { text: "Later", style: "cancel" },
+      {
+        text: "Open Settings",
+        onPress: () => {
+          try {
+            Linking.openSettings();
+          } catch {}
+        },
+      },
+    ]
+  );
+}
+
 export interface ScheduleSlot {
   hour: number;
   minute: number;
@@ -77,10 +111,28 @@ export async function scheduleOvernightNotifications(
   const Notifications = getNotifications();
   if (!Notifications) return { scheduled: 0 };
 
+  // Ensure notification channel has MAX importance (bypasses Doze restrictions better)
+  if (Platform.OS === "android") {
+    try {
+      await Notifications.setNotificationChannelAsync("alarms", {
+        name: "Scheduled Runs",
+        importance: Notifications.AndroidImportance.MAX,
+        sound: "default",
+        vibrationPattern: [0, 250, 250, 250],
+        enableVibrate: true,
+        bypassDnd: true,
+      });
+    } catch {}
+  }
+
+  // Prompt user about battery optimization (once)
+  promptBatteryOptimization();
+
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch {}
 
+  const channelId = Platform.OS === "android" ? "alarms" : undefined;
   let count = 0;
 
   for (const slot of slots) {
@@ -91,19 +143,21 @@ export async function scheduleOvernightNotifications(
           body: "Starting your overnight Bing searches...",
           data: { action: "start_run" },
           sound: "default",
-          ...(Platform.OS === "android" && { channelId: "default" }),
+          priority: "max",
+          ...(Platform.OS === "android" && { channelId }),
         },
         trigger: {
           type: "daily",
           hour: slot.hour,
           minute: slot.minute,
-          channelId: Platform.OS === "android" ? "default" : undefined,
+          channelId,
         } as any,
       });
       count++;
       console.log(`[Notifications] Scheduled daily notification for ${slot.hour}:${String(slot.minute).padStart(2, '0')}`);
     } catch (e) {
-      console.log(`[Notifications] Failed to schedule ${slot.hour}:${String(slot.minute).padStart(2, '0')}:`, e);
+      console.log(`[Notifications] daily trigger failed for ${slot.hour}:${String(slot.minute).padStart(2, '0')}:`, e);
+      // Fallback: calculate exact seconds until target time
       try {
         const now = new Date();
         const target = new Date();
@@ -116,7 +170,8 @@ export async function scheduleOvernightNotifications(
             body: "Starting your overnight Bing searches...",
             data: { action: "start_run" },
             sound: "default",
-            ...(Platform.OS === "android" && { channelId: "default" }),
+            priority: "max",
+            ...(Platform.OS === "android" && { channelId }),
           },
           trigger: {
             type: "timeInterval",
