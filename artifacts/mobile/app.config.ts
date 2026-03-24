@@ -57,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-updates",
   ],
   updates: {
-    url: "https://u.expo.dev/bde8726b-e427-47c3-bfef-bac4d4e46de4",
+    url: "https://u.expo.dev/UPDATE_AFTER_EAS_INIT",
   },
   runtimeVersion: {
     policy: "appVersion",
@@ -68,9 +68,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     ownerMode: IS_OWNER,
-    eas: {
-      projectId: "bde8726b-e427-47c3-bfef-bac4d4e46de4",
-    },
   },
-  owner: "shroud.dev",
+  owner: "meoow123",
 });
