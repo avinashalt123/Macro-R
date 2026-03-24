@@ -116,6 +116,82 @@ router.delete("/admin/keys/:id", requireAdmin, async (req, res) => {
   }
 });
 
+const DEFAULT_FEATURE_CONFIGS = [
+  { keyType: "basic", maxAccounts: 3, maxSearches: 30, minDelaySeconds: 5, backgroundEnabled: false, customQueriesEnabled: false },
+  { keyType: "premium", maxAccounts: 10, maxSearches: 50, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true },
+  { keyType: "unlimited", maxAccounts: 50, maxSearches: 50, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true },
+  { keyType: "admin", maxAccounts: 50, maxSearches: 50, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true },
+];
+
+async function seedFeatureConfigs() {
+  try {
+    const existing = await db.select().from(featureConfigTable);
+    if (existing.length === 0) {
+      for (const cfg of DEFAULT_FEATURE_CONFIGS) {
+        await db.insert(featureConfigTable).values(cfg).onConflictDoNothing();
+      }
+      console.log("Seeded default feature configs");
+    }
+  } catch (e: any) {
+    console.error("Failed to seed feature configs:", e.message);
+  }
+}
+seedFeatureConfigs();
+
+router.get("/admin/feature-config", requireAdmin, async (_req, res) => {
+  try {
+    const configs = await db.select().from(featureConfigTable);
+    res.json({ configs });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.put("/admin/feature-config/:keyType", requireAdmin, async (req, res) => {
+  try {
+    const { keyType } = req.params;
+    const validTypes = ["basic", "premium", "unlimited", "admin"];
+    if (!validTypes.includes(keyType)) {
+      return res.status(400).json({ error: "Invalid key type" });
+    }
+
+    const { maxAccounts, maxSearches, minDelaySeconds, backgroundEnabled, customQueriesEnabled } = req.body;
+    const updates: any = {};
+    if (maxAccounts !== undefined) {
+      const n = Number(maxAccounts);
+      if (isNaN(n)) return res.status(400).json({ error: "maxAccounts must be a number" });
+      updates.maxAccounts = Math.max(1, Math.min(999, n));
+    }
+    if (maxSearches !== undefined) {
+      const n = Number(maxSearches);
+      if (isNaN(n)) return res.status(400).json({ error: "maxSearches must be a number" });
+      updates.maxSearches = Math.max(1, Math.min(999, n));
+    }
+    if (minDelaySeconds !== undefined) {
+      const n = Number(minDelaySeconds);
+      if (isNaN(n)) return res.status(400).json({ error: "minDelaySeconds must be a number" });
+      updates.minDelaySeconds = Math.max(1, Math.min(60, n));
+    }
+    if (backgroundEnabled !== undefined) updates.backgroundEnabled = Boolean(backgroundEnabled);
+    if (customQueriesEnabled !== undefined) updates.customQueriesEnabled = Boolean(customQueriesEnabled);
+
+    const [updated] = await db.update(featureConfigTable)
+      .set(updates)
+      .where(eq(featureConfigTable.keyType, keyType))
+      .returning();
+
+    if (!updated) {
+      const [created] = await db.insert(featureConfigTable)
+        .values({ keyType, ...updates })
+        .returning();
+      return res.json({ config: created });
+    }
+    res.json({ config: updated });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.post("/validate-admin", async (req, res) => {
   const { secret } = req.body;
   if (!secret || !ADMIN_SECRET || secret !== ADMIN_SECRET) {

@@ -48,6 +48,15 @@ interface LicenseKey {
   updatedAt: string;
 }
 
+interface FeatureConfig {
+  keyType: string;
+  maxAccounts: number;
+  maxSearches: number;
+  minDelaySeconds: number;
+  backgroundEnabled: boolean;
+  customQueriesEnabled: boolean;
+}
+
 export function AdminPanel() {
   const scheme = useColorScheme() ?? "dark";
   const colors = Colors[scheme];
@@ -56,7 +65,9 @@ export function AdminPanel() {
 
   const [activeTab, setActiveTab] = useState<"keys" | "config">("keys");
   const [keys, setKeys] = useState<LicenseKey[]>([]);
+  const [featureConfigs, setFeatureConfigs] = useState<FeatureConfig[]>([]);
   const [loading, setLoading] = useState(true);
+  const [configLoading, setConfigLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newMaxAccounts, setNewMaxAccounts] = useState("3");
@@ -742,4 +753,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   typeChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
+  tabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  tabBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  configRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+  },
+  configLabel: { fontSize: 14, fontFamily: "Inter_500Medium", flex: 1 },
+  configStepper: { flexDirection: "row", alignItems: "center", gap: 8 },
+  configStepBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  configStepText: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
+  configValue: { fontSize: 16, fontFamily: "Inter_700Bold", minWidth: 36, textAlign: "center" },
+  configDivider: { height: 1, marginVertical: 2 },
 });

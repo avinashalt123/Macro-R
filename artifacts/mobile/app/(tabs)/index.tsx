@@ -280,7 +280,7 @@ export default function HomeScreen() {
             <View style={styles.stepperRow}>
               <Pressable
                 onPress={() => {
-                  const next = Math.max(5, settings.defaultSearchCount - 1);
+                  const next = Math.max(1, settings.defaultSearchCount - 1);
                   updateSettings({ defaultSearchCount: next });
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}

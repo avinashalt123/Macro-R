@@ -173,8 +173,8 @@ export default function LoginWebViewScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { addAccount, updateAccount, accounts } = useAccounts();
-  const { licenseData } = useLicense();
-  const maxAccounts = licenseData?.maxAccounts ?? 999;
+  const { licenseData, featureConfig } = useLicense();
+  const maxAccounts = featureConfig?.maxAccounts ?? licenseData?.maxAccounts ?? 999;
   const { accountId } = useLocalSearchParams<{ accountId?: string }>();
   const existingAccount = accountId ? accounts.find((a) => a.id === accountId) : undefined;
   const webViewRef = useRef<WebView>(null);

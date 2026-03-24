@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { Account, useAccounts } from "@/context/AccountsContext";
+import { useLicense } from "@/context/LicenseContext";
 import { useQueries } from "@/context/QueriesContext";
 import { useSettings } from "@/context/SettingsContext";
 import {
@@ -305,6 +306,7 @@ export default function SearchRunnerScreen() {
   const { accounts, updateAccount, addLog, stopRun } = useAccounts();
   const { pickQueries } = useQueries();
   const { settings } = useSettings();
+  const { featureConfig } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
 
   // mode: "searchonly" = searches only | "dailyset" = daily set only | "both" = searches + daily set
@@ -503,9 +505,11 @@ export default function SearchRunnerScreen() {
 
         const account = targetAccounts[ai];
         const hasCookies = Object.keys(account.cookies ?? {}).length > 0;
-        const searchCount = settings.defaultSearchCount;
+        const maxSearches = featureConfig?.maxSearches ?? 50;
+        const minDelay = featureConfig?.minDelaySeconds ?? 3;
+        const searchCount = Math.min(settings.defaultSearchCount, maxSearches);
         const queries = pickQueries(searchCount);
-        const delay = (settings.searchDelay ?? 5) * 1000;
+        const delay = Math.max(settings.searchDelay ?? 5, minDelay) * 1000;
 
         setCurrentAccountIdx(ai);
         setCurrentAccountName(account.name);

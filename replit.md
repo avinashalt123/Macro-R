@@ -284,7 +284,16 @@ SafeAreaProvider
   "valid": true,
   "maxAccounts": 5,
   "expiresAt": "2027-01-01T00:00:00.000Z",
-  "label": "Test Key"
+  "label": "Test Key",
+  "keyType": "basic",
+  "featureConfig": {
+    "keyType": "basic",
+    "maxAccounts": 3,
+    "maxSearches": 30,
+    "minDelaySeconds": 5,
+    "backgroundEnabled": false,
+    "customQueriesEnabled": false
+  }
 }
 ```
 
@@ -312,6 +321,8 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `PUT` | `/api/admin/keys/:id` | Update a key (label, maxAccounts, expiresAt, isActive) |
 | `PUT` | `/api/admin/keys/:id/reset-device` | Reset device binding (clears `bound_device_id`) |
 | `DELETE` | `/api/admin/keys/:id` | Delete a key permanently |
+| `GET` | `/api/admin/feature-config` | List all feature configs |
+| `PUT` | `/api/admin/feature-config/:keyType` | Update feature config for a key type |
 | `GET` | `/api/admin?secret=<ADMIN_SECRET>` | HTML admin panel (web-based) |
 
 **Create key body**:
@@ -368,6 +379,19 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `updated_at` | TIMESTAMP | `now()` | Last update timestamp |
 
 **Key format**: 4 segments of 4 hex characters, uppercase, separated by dashes. Generated with `crypto.randomBytes(2)` per segment.
+
+#### `feature_config` table (`lib/db/src/schema/featureConfig.ts`)
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `key_type` | TEXT | — | Primary key, one of: `basic`, `premium`, `unlimited`, `admin` |
+| `max_accounts` | INTEGER | `3` | Max accounts allowed for this key type |
+| `max_searches` | INTEGER | `30` | Max searches per run |
+| `min_delay_seconds` | INTEGER | `5` | Minimum delay between searches |
+| `background_enabled` | BOOLEAN | `false` | Whether background/overnight automation is allowed |
+| `custom_queries_enabled` | BOOLEAN | `false` | Whether custom query editing is allowed |
+
+Default seed values are created on server startup if the table is empty. Admin can update per key type via the admin panel or API.
 
 ---
 

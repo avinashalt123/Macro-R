@@ -83,11 +83,12 @@ export default function SettingsScreen() {
   const isShowingDefaults = previousUserSlots !== null;
   const [isEditingSchedule, setIsEditingSchedule] = useState(false);
 
+
   const commitSearchCount = () => {
     const parsed = parseInt(searchCountText, 10);
     const clamped = isNaN(parsed)
       ? settings.defaultSearchCount
-      : Math.max(5, Math.min(featureConfig.maxSearches, parsed));
+      : Math.max(1, Math.min(featureConfig.maxSearches, parsed));
     setSearchCountText(String(clamped));
     if (clamped !== settings.defaultSearchCount) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -208,7 +209,13 @@ export default function SettingsScreen() {
   };
 
   // ── Schedule actions ─────────────────────────────────────────────────────
+  const backgroundEnabled = featureConfig?.backgroundEnabled ?? false;
+
   const handleApplySchedule = async () => {
+    if (!backgroundEnabled) {
+      showAlert("Feature Locked", "Background automation is not available with your current license. Upgrade to a premium key to use overnight scheduling.");
+      return;
+    }
     if (Platform.OS === "web") {
       showAlert("Not Available", "Notifications require a real device.");
       return;
@@ -320,7 +327,7 @@ export default function SettingsScreen() {
                     Searches per account
                   </Text>
                   <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                    Daily Bing searches (5–{featureConfig.maxSearches})
+                    Daily Bing searches (1–{featureConfig.maxSearches})
                   </Text>
                 </View>
               </View>

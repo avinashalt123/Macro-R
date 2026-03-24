@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useQueries } from "@/context/QueriesContext";
+import { useLicense } from "@/context/LicenseContext";
 
 type SubTab = "pool" | "used";
 
@@ -24,6 +25,9 @@ export default function QueriesScreen() {
   const insets = useSafeAreaInsets();
   const { unusedQueries, usedQueries, setUnusedQueries, moveToUnused, deleteUsedQuery, clearAllUsed, restoreAllUsed } =
     useQueries();
+  const { featureConfig } = useLicense();
+
+  const customQueriesEnabled = featureConfig?.customQueriesEnabled ?? false;
 
   const [subTab, setSubTab] = useState<SubTab>("pool");
   const [editing, setEditing] = useState(false);
@@ -31,6 +35,10 @@ export default function QueriesScreen() {
   const { showAlert, AlertComponent } = useCustomAlert();
 
   const openEdit = () => {
+    if (!customQueriesEnabled) {
+      showAlert("Feature Locked", "Custom queries are not available with your current license. Upgrade to a premium key to edit queries.");
+      return;
+    }
     setEditText(unusedQueries.join(", "));
     setEditing(true);
   };

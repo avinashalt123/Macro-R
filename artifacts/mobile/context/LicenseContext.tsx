@@ -49,6 +49,7 @@ const DEFAULT_FEATURE_CONFIG: FeatureConfig = {
 
 const FEATURE_CONFIG_STORAGE = "@ms_rewards_feature_config";
 
+
 interface LicenseData {
   key: string;
   maxAccounts: number;
@@ -56,6 +57,7 @@ interface LicenseData {
   label: string | null;
   keyType: string;
   validatedAt: number;
+  featureConfig?: FeatureConfig | null;
 }
 
 interface LicenseContextValue {
@@ -166,6 +168,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(FEATURE_CONFIG_STORAGE, JSON.stringify(cfg));
   }, []);
 
+
   const loadStoredLicense = useCallback(async () => {
     if (OWNER_MODE) {
       setIsLicensed(true);
@@ -221,6 +224,11 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
           setIsLicensed(true);
           await loadCachedFeatureConfig();
           setIsLoading(false);
+          validateKey(storedKey).then(async (r) => {
+            if (r.valid && r.featureConfig) {
+              await saveFeatureConfig(r.featureConfig);
+            }
+          }).catch(() => {});
           return;
         }
       }
@@ -234,6 +242,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
           label: result.label ?? null,
           keyType: result.keyType ?? "basic",
           validatedAt: Date.now(),
+          featureConfig: result.featureConfig ?? null,
         };
         await AsyncStorage.setItem(LICENSE_DATA_STORAGE, JSON.stringify(data));
         setLicenseData(data);
@@ -306,6 +315,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       label: result.label ?? null,
       keyType: result.keyType ?? "basic",
       validatedAt: Date.now(),
+      featureConfig: result.featureConfig ?? null,
     };
 
     await AsyncStorage.setItem(LICENSE_KEY_STORAGE, upperKey);
@@ -338,6 +348,10 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     await loadStoredLicense();
   }, [loadStoredLicense]);
+
+  const featureConfig: FeatureConfig | null = isAdmin || OWNER_MODE
+    ? { keyType: "admin", maxAccounts: 50, maxSearches: 50, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true }
+    : licenseData?.featureConfig ?? (licenseData ? DEFAULT_FEATURE_CONFIG : null);
 
   return (
     <LicenseContext.Provider value={{ isLicensed, isAdmin, isOwnerMode: OWNER_MODE, isLoading, licenseData, featureConfig, adminSecret, error, adminPanelVisible, setAdminPanelVisible, activateKey, removeLicense, revalidate }}>

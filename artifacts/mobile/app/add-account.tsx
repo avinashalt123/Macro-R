@@ -26,9 +26,9 @@ export default function AddAccountScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { accounts, addAccount } = useAccounts();
-  const { licenseData } = useLicense();
+  const { licenseData, featureConfig } = useLicense();
   const { settings } = useSettings();
-  const maxAccounts = licenseData?.maxAccounts ?? 999;
+  const maxAccounts = featureConfig?.maxAccounts ?? licenseData?.maxAccounts ?? 999;
 
   const [showManual, setShowManual] = useState(false);
   const [name, setName] = useState("");
