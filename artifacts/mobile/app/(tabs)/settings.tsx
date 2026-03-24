@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Minus, Moon, Pencil, Plus, RotateCcw, Search, Shield, Zap } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Minus, Moon, Pencil, Plus, RotateCcw, Search, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -15,7 +15,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { router } from "expo-router";
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useLicense } from "@/context/LicenseContext";
@@ -60,7 +59,7 @@ export default function SettingsScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
-  const { licenseData, removeLicense, isOwnerMode, adminPanelVisible } = useLicense();
+  const { licenseData, removeLicense } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
   const [scheduling, setScheduling] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
@@ -709,27 +708,6 @@ export default function SettingsScreen() {
             </>
           )}
         </Section>
-
-        {isOwnerMode && adminPanelVisible && (
-          <Section title="ADMIN" colors={colors}>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.push("/admin-panel");
-              }}
-              style={({ pressed }) => [
-                styles.applyBtn,
-                {
-                  backgroundColor: "#7C3AED",
-                  opacity: pressed ? 0.75 : 1,
-                },
-              ]}
-            >
-              <Shield size={18} color="#fff" />
-              <Text style={styles.applyText}>Admin Panel</Text>
-            </Pressable>
-          </Section>
-        )}
 
         <Section title="LICENSE" colors={colors}>
           <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>

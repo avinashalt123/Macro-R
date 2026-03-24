@@ -2,7 +2,7 @@ import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useFocusEffect } from "expo-router";
-import { CheckSquare, Grid3X3, List, Play, PlayCircle, Plus, Square, Users } from "lucide-react-native";
+import { CheckSquare, Grid3X3, List, Play, PlayCircle, Plus, Shield, Square, Users } from "lucide-react-native";
 import React, { useCallback, useState } from "react";
 import {
   Animated,
@@ -35,7 +35,7 @@ export default function HomeScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { accounts, isRunning, startRun, stopRun } = useAccounts();
-  const { licenseData } = useLicense();
+  const { licenseData, isOwnerMode, adminPanelVisible } = useLicense();
   const { settings, updateSettings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -215,6 +215,23 @@ export default function HomeScreen() {
           </Text>
         </View>
         <View style={styles.headerActions}>
+          {isOwnerMode && adminPanelVisible && (
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                router.push("/admin-panel");
+              }}
+              style={({ pressed }) => [
+                styles.headerBtn,
+                {
+                  backgroundColor: "#7C3AED22",
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Shield size={18} color="#7C3AED" />
+            </Pressable>
+          )}
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
