@@ -11,7 +11,10 @@ const ADMIN_SECRET_STORAGE = "@ms_rewards_admin_secret";
 const DEVICE_ID_STORAGE = "@ms_rewards_device_id";
 const ADMIN_VISIBLE_STORAGE = "@ms_rewards_admin_visible";
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
-export const OWNER_MODE = Constants.expoConfig?.extra?.ownerMode === true;
+export const OWNER_MODE =
+  Constants.expoConfig?.extra?.ownerMode === true ||
+  process.env.EXPO_PUBLIC_OWNER_MODE === "true" ||
+  Platform.OS === "web";
 
 async function getDeviceId(): Promise<string> {
   const stored = await AsyncStorage.getItem(DEVICE_ID_STORAGE);
