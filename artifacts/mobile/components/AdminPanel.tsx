@@ -55,6 +55,7 @@ interface FeatureConfig {
   minDelaySeconds: number;
   backgroundEnabled: boolean;
   customQueriesEnabled: boolean;
+  dailySetEnabled: boolean;
 }
 
 export function AdminPanel() {
@@ -74,8 +75,6 @@ export function AdminPanel() {
   const [newExpAmount, setNewExpAmount] = useState("30");
   const [newExpUnit, setNewExpUnit] = useState<"days" | "months" | "years">("days");
   const [newKeyType, setNewKeyType] = useState<KeyType>("basic");
-  const [featureConfigs, setFeatureConfigs] = useState<any[]>([]);
-  const [configLoading, setConfigLoading] = useState(true);
 
   const effectiveSecret = isOwnerMode ? OWNER_ADMIN_SECRET : (adminSecret || "");
 

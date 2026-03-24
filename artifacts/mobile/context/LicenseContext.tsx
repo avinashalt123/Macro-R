@@ -349,10 +349,6 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     await loadStoredLicense();
   }, [loadStoredLicense]);
 
-  const featureConfig: FeatureConfig | null = isAdmin || OWNER_MODE
-    ? { keyType: "admin", maxAccounts: 50, maxSearches: 50, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true }
-    : licenseData?.featureConfig ?? (licenseData ? DEFAULT_FEATURE_CONFIG : null);
-
   return (
     <LicenseContext.Provider value={{ isLicensed, isAdmin, isOwnerMode: OWNER_MODE, isLoading, licenseData, featureConfig, adminSecret, error, adminPanelVisible, setAdminPanelVisible, activateKey, removeLicense, revalidate }}>
       {children}
