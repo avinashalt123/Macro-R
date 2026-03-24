@@ -33,15 +33,16 @@ artifacts-monorepo/
 │   │           └── admin.ts  # HTML admin panel for license management
 │   └── mobile/               # Expo React Native app
 │       ├── app/
-│       │   ├── _layout.tsx           # Root layout with all providers
+│       │   ├── _layout.tsx           # Root layout with all providers + notification handler
 │       │   ├── (tabs)/
-│       │   │   ├── _layout.tsx       # Tab bar layout
-│       │   │   ├── index.tsx         # Home — accounts list/grid
+│       │   │   ├── _layout.tsx       # Tab bar layout (native tabs on iOS, classic on Android)
+│       │   │   ├── index.tsx         # Home — accounts list/grid + FABs
 │       │   │   ├── logs.tsx          # Run logs history
 │       │   │   ├── queries.tsx       # Search queries management
-│       │   │   └── settings.tsx      # App settings + license info
-│       │   ├── account/[id].tsx      # Account detail modal
+│       │   │   └── settings.tsx      # App settings + schedule + license info + admin button
+│       │   ├── account/[id].tsx      # Account detail modal + hidden Panel toggle
 │       │   ├── add-account.tsx       # Manual account add form
+│       │   ├── admin-panel.tsx       # Admin panel route (guarded by OWNER_MODE)
 │       │   ├── login-webview.tsx     # WebView Microsoft login flow
 │       │   └── search-runner.tsx     # Foreground search execution screen
 │       ├── components/
@@ -248,11 +249,13 @@ SafeAreaProvider
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/validate-key` | Validate a license key |
+| `POST` | `/api/validate-key` | Validate a license key + bind device |
+| `POST` | `/api/validate-admin` | Validate admin secret |
+| `GET` | `/api/healthz` | Health check (`{ status: "ok" }`) |
 
-**Request body**:
+**validate-key request body**:
 ```json
-{ "key": "XXXX-XXXX-XXXX-XXXX" }
+{ "key": "XXXX-XXXX-XXXX-XXXX", "deviceId": "android-device-id" }
 ```
 
 **Response (valid)**:
@@ -270,7 +273,15 @@ SafeAreaProvider
 { "valid": false, "error": "Invalid key" }
 ```
 
-**Error cases**: `"Invalid key"`, `"Key has been deactivated"`, `"Key has expired"`, `"Key is required"`
+**Error cases**: `"Invalid key"`, `"Key has been deactivated"`, `"Key has expired"`, `"Key is required"`, `"Key is already in use on another device"`
+
+**Device binding**: On first `validate-key` call with a `deviceId`, the key is permanently bound to that device. Subsequent calls from a different device are rejected. Admin can reset via `reset-device` endpoint.
+
+**validate-admin request body**:
+```json
+{ "secret": "<admin-secret>" }
+```
+Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 
 #### Admin Endpoints (require `X-Admin-Secret` header)
 
@@ -278,9 +289,10 @@ SafeAreaProvider
 |--------|------|-------------|
 | `GET` | `/api/admin/keys` | List all license keys |
 | `POST` | `/api/admin/keys` | Create a new key |
-| `PUT` | `/api/admin/keys/:id` | Update a key |
+| `PUT` | `/api/admin/keys/:id` | Update a key (label, maxAccounts, expiresAt, isActive) |
+| `PUT` | `/api/admin/keys/:id/reset-device` | Reset device binding (clears `bound_device_id`) |
 | `DELETE` | `/api/admin/keys/:id` | Delete a key permanently |
-| `GET` | `/api/admin?secret=<ADMIN_SECRET>` | HTML admin panel |
+| `GET` | `/api/admin?secret=<ADMIN_SECRET>` | HTML admin panel (web-based) |
 
 **Create key body**:
 ```json
@@ -301,16 +313,22 @@ SafeAreaProvider
 }
 ```
 
-### Admin Panel
+### Admin Panel (Two Interfaces)
+
+#### 1. Web Admin Panel (API Server)
 - **URL**: `/api/admin?secret=<ADMIN_SECRET>`
-- **Features**:
-  - Create new keys with label, max accounts, expiry days
-  - View all keys with status badges (active/expired/inactive)
-  - Extend key expiry by 30 days
-  - Edit account limit per key
-  - Activate/deactivate keys
-  - Delete keys permanently
-- **UI**: Dark theme (Slate color palette), responsive grid layout
+- **Features**: Create keys, view all keys with status badges, extend expiry, edit account limit, activate/deactivate, delete
+- **UI**: Dark theme (Slate colors), server-rendered HTML with inline JS
+
+#### 2. In-App Admin Panel (Mobile)
+- **Component**: `components/AdminPanel.tsx`
+- **Route**: `app/admin-panel.tsx` (full-screen modal, guarded by `OWNER_MODE`)
+- **Access paths**:
+  - **Owner mode**: Navigate via shield button in Settings header (only visible when `adminPanelVisible` toggle is on)
+  - **Admin auth mode**: Shown automatically when admin secret is entered in the license gate (non-owner users)
+- **Features**: Same as web panel plus device binding status, reset device, copy key to clipboard, haptic feedback
+- **Auth**: Uses `EXPO_PUBLIC_ADMIN_SECRET` env var in owner mode; uses stored admin secret in admin auth mode
+- **Navigation**: Back arrow in owner mode (returns to Settings), Sign Out button in admin auth mode (clears admin secret)
 
 ### Database Schema
 
@@ -323,6 +341,7 @@ SafeAreaProvider
 | `label` | TEXT | `null` | Optional label for the key |
 | `max_accounts` | INTEGER | `3` | Maximum accounts allowed |
 | `is_active` | BOOLEAN | `true` | Whether key is currently active |
+| `bound_device_id` | TEXT | `null` | Android device ID bound to this key (1 device per key) |
 | `expires_at` | TIMESTAMP | — | Expiration date |
 | `created_at` | TIMESTAMP | `now()` | Creation timestamp |
 | `updated_at` | TIMESTAMP | `now()` | Last update timestamp |
@@ -338,10 +357,11 @@ SafeAreaProvider
 | `PORT` | API server | Port for the Express server (set by Replit) |
 | `DATABASE_URL` | API server | PostgreSQL connection string (set by Replit) |
 | `ADMIN_SECRET` | API server | Secret for admin panel access and API auth. **Required** — no default fallback |
-| `EXPO_PUBLIC_API_URL` | Mobile app | Base URL of the API server for license validation |
+| `EXPO_PUBLIC_API_URL` | Mobile app | Base URL of the API server (includes `/api` suffix) |
+| `EXPO_PUBLIC_ADMIN_SECRET` | Mobile app | Admin secret used in owner mode for API auth (same value as `ADMIN_SECRET`) |
 
 ### Current Values
-- **ADMIN_SECRET**: `5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551`
+- **ADMIN_SECRET**: Set via Replit Secrets (do not store in code or docs)
 - **Admin Panel URL**: `https://<REPLIT_DEV_DOMAIN>/api/admin?secret=<ADMIN_SECRET>`
 - **Test License Key**: `1EDA-E7C2-CF06-5B0E` (5 accounts, expires Jan 2027)
 
@@ -357,8 +377,13 @@ SafeAreaProvider
 | `@ms_rewards_queries_v2` | Search queries `{ unused: [], used: [] }` |
 | `@ms_rewards_license_key` | Stored license key string |
 | `@ms_rewards_license_data` | Cached license validation data (JSON) |
+| `@ms_rewards_admin_secret` | Stored admin secret (for admin auth mode) |
+| `@ms_rewards_device_id` | Persistent device ID (Android ID or fallback UUID) |
+| `@ms_rewards_admin_visible` | Whether the admin panel button is visible in owner mode (`"true"`/`"false"`) |
 | `@ms_rewards_pending_run` | Flag for pending overnight run |
-| `@ms_rewards_bg_running` | Flag to prevent double background runs |
+| `@ms_rewards_bg_running` | Timestamp lock to prevent concurrent background runs (TTL: 10 min) |
+| `@ms_rewards_bg_last_run` | Timestamp of last completed background run |
+| `@ms_rewards_bg_fetch_enabled` | Whether BackgroundFetch is enabled (`"true"`/`"false"`) |
 | `@ms_rewards_battery_opt_prompted` | Battery optimization prompt shown flag |
 
 ---
@@ -373,10 +398,22 @@ SafeAreaProvider
 - Rewards points fetched from `https://rewards.bing.com/api/getuserinfo`
 
 ### Background Task Architecture
-- `BACKGROUND-NOTIFICATION-TASK`: Triggered by scheduled notifications, runs `runBackgroundSearches()`
-- `BACKGROUND-SEARCH-TASK`: Defined for expo-task-manager, wraps `runBackgroundSearches()`
+- `BACKGROUND-NOTIFICATION-TASK`: Triggered by scheduled notifications, runs `runBackgroundSearches()`. If that fails, sets `PENDING_RUN_KEY` flag and tries to open app via deep link (`mobile://start-run`)
+- `BACKGROUND-SEARCH-TASK`: Registered with `expo-background-fetch` (minimum interval: 1 hour, `stopOnTerminate: false`, `startOnBoot: true`). Wraps `runBackgroundSearches()`
 - Both tasks directly read/write AsyncStorage (no React context access in background)
-- Foreground detection: `AppState.currentState === "active"` — skips background run if app is visible
+- **Concurrency lock**: In-memory flag (`inMemoryLock`) + AsyncStorage timestamp (`@ms_rewards_bg_running`) with 10-minute TTL. Double-check after write to detect lock contention
+- **Background fetch re-registration**: On app launch, `_layout.tsx` checks `@ms_rewards_bg_fetch_enabled`; if `true`, re-registers the background fetch task
+- **Task definition**: Both tasks are defined at module load time (before React renders) in `_layout.tsx` via `registerBackgroundNotificationTask()` and `registerBackgroundSearchTask()`
+- **Background search delay**: 1.5–2.5 seconds between searches (shorter than foreground)
+
+### Owner Mode Flow
+1. Set `ownerMode: true` in `app.json` > `expo.extra`
+2. On build, `LicenseContext` reads `Constants.expoConfig.extra.ownerMode` → `OWNER_MODE = true`
+3. License screen is bypassed entirely — app loads directly
+4. Admin panel button (purple shield) appears in Settings header only when `isOwnerMode && adminPanelVisible`
+5. The `adminPanelVisible` toggle is hidden in account #2's edit section (index 1): visible only when `isOwnerMode && accountIndex === 1 && isEditing`
+6. `admin-panel.tsx` route guard: redirects to `/` if `!OWNER_MODE`
+7. In admin auth mode (non-owner enters admin secret), `LicenseGate` renders `AdminPanel` directly instead of the app
 
 ### Device Compatibility Notes
 - **Infinix/HiOS**: Requires Autostart enabled for background tasks

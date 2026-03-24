@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { licenseKeysTable } from "@workspace/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import crypto from "crypto";
 
 const router: IRouter = Router();
@@ -12,8 +12,11 @@ if (!ADMIN_SECRET) {
 }
 
 function requireAdmin(req: any, res: any, next: any) {
+  if (!ADMIN_SECRET) {
+    return res.status(401).json({ error: "Unauthorized — ADMIN_SECRET not configured" });
+  }
   const auth = req.headers["x-admin-secret"] || req.query.secret;
-  if (auth !== ADMIN_SECRET) {
+  if (!auth || auth !== ADMIN_SECRET) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   next();
@@ -144,9 +147,13 @@ router.post("/validate-key", async (req, res) => {
       }
 
       if (!found.boundDeviceId) {
-        await db.update(licenseKeysTable)
+        const result = await db.update(licenseKeysTable)
           .set({ boundDeviceId: deviceId, updatedAt: new Date() })
-          .where(eq(licenseKeysTable.id, found.id));
+          .where(and(eq(licenseKeysTable.id, found.id), isNull(licenseKeysTable.boundDeviceId)));
+        const rowCount = (result as any).rowCount ?? (result as any).changes ?? 0;
+        if (rowCount === 0) {
+          return res.json({ valid: false, error: "Key is already in use on another device" });
+        }
       }
     }
 
