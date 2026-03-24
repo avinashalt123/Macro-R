@@ -57,7 +57,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "ownerMode": true,
+      "ownerMode": false,
       "eas": {
         "projectId": "bde8726b-e427-47c3-bfef-bac4d4e46de4"
       }
