@@ -28,7 +28,7 @@ import {
   setPendingRun,
   registerBackgroundNotificationTask,
 } from "@/utils/notifications";
-import { registerBackgroundSearchTask, isBackgroundRunning } from "@/utils/backgroundSearch";
+import { registerBackgroundSearchTask, isBackgroundRunning, scheduleBackgroundFetch, isBackgroundFetchEnabled } from "@/utils/backgroundSearch";
 
 SplashScreen.preventAutoHideAsync();
 try { registerBackgroundNotificationTask(); } catch (e) { console.log("[Layout] Failed to register bg notification task:", e); }
@@ -54,6 +54,11 @@ function NotificationHandler() {
 
   useEffect(() => {
     setupNotificationHandler();
+    isBackgroundFetchEnabled().then((enabled) => {
+      if (enabled) {
+        scheduleBackgroundFetch().catch((e) => console.log("[Layout] Background fetch schedule failed:", e));
+      }
+    });
 
     const handleStartRun = async () => {
       const bgRunning = await isBackgroundRunning();

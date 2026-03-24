@@ -114,6 +114,13 @@ SafeAreaProvider
 - **AdminPanel** (`components/AdminPanel.tsx`): Full native admin panel shown when admin secret is entered. Allows creating keys, extending expiry, editing account limits, activating/deactivating, deleting, copying keys to clipboard, and resetting device bindings. Sign out button returns to license entry screen.
 - **Device Locking**: Each key is bound to 1 device only. The first device to activate a key gets bound; other devices are rejected with "Key is already in use on another device". Admin can reset device binding from the admin panel. Device ID is Android ID on Android, or a persistent UUID stored in AsyncStorage. Schema column: `bound_device_id` on `license_keys` table.
 - **Owner Mode** (`app.json` → `expo.extra.ownerMode`): Build-time flag. When `true`, the license screen is bypassed entirely — no key needed. The admin panel is accessible from Settings via a purple "Admin Panel" button, but this button is hidden by default. To show/hide it, go to account #2's edit screen and toggle the "Panel" switch. When `ownerMode` is `false`, everything works normally (license key required). The admin panel uses `EXPO_PUBLIC_ADMIN_SECRET` env var for API auth in owner mode.
+- **Background Work** (`utils/backgroundSearch.ts`): Three-layer approach:
+  1. **Background Fetch** (`expo-background-fetch`): Registered on app launch, runs periodically (~1 hour) via Android's JobScheduler. Calls `runBackgroundSearches()`.
+  2. **Notification-triggered** (`utils/notifications.ts`): When overnight notification fires in background, `BACKGROUND-NOTIFICATION-TASK` runs `runBackgroundSearches()`. If that fails, it sets a pending-run flag and opens the app.
+  3. **Foreground handler** (`_layout.tsx`): When notification fires while app is open, navigates to `/search-runner` for WebView-based full automation (searches + daily set).
+  - Background searches are fetch-only (no WebView), so daily set is skipped in background mode.
+  - Lock via `@ms_rewards_bg_running` prevents concurrent runs. Last run timestamp stored in `@ms_rewards_bg_last_run`.
+  - Android permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `WAKE_LOCK`, `RECEIVE_BOOT_COMPLETED`.
 - **Account Limit Enforcement**: Enforced in **3 places**:
   1. Home screen "+" button (`app/(tabs)/index.tsx`) — shows alert
   2. Manual add form (`app/add-account.tsx`) — shows validation error

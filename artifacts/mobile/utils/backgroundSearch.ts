@@ -4,9 +4,11 @@ import { AppState, Platform } from "react-native";
 const ACCOUNTS_KEY = "@ms_rewards_accounts";
 const QUERIES_KEY = "@ms_rewards_queries_v2";
 const SETTINGS_KEY = "@ms_rewards_settings_v2";
-const LOGS_KEY = "@ms_rewards_logs";
 const BACKGROUND_SEARCH_TASK = "BACKGROUND-SEARCH-TASK";
 const BG_RUNNING_KEY = "@ms_rewards_bg_running";
+const BG_LAST_RUN_KEY = "@ms_rewards_bg_last_run";
+const BG_FETCH_ENABLED_KEY = "@ms_rewards_bg_fetch_enabled";
+const BG_LOCK_TTL_MS = 10 * 60 * 1000;
 
 const BING_UA =
   "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36";
@@ -167,11 +169,11 @@ async function updateAccountInStorage(accountId: string, updates: Record<string,
 
 async function appendLog(entry: any): Promise<void> {
   try {
-    const raw = await AsyncStorage.getItem(LOGS_KEY);
+    const raw = await AsyncStorage.getItem("@ms_rewards_logs");
     const logs = raw ? JSON.parse(raw) : [];
     logs.unshift(entry);
     if (logs.length > 200) logs.length = 200;
-    await AsyncStorage.setItem(LOGS_KEY, JSON.stringify(logs));
+    await AsyncStorage.setItem("@ms_rewards_logs", JSON.stringify(logs));
   } catch {}
 }
 
@@ -194,24 +196,44 @@ export function isAppInForeground(): boolean {
   return AppState.currentState === "active";
 }
 
+let inMemoryLock = false;
+
 export async function isBackgroundRunning(): Promise<boolean> {
+  if (inMemoryLock) return true;
   const val = await AsyncStorage.getItem(BG_RUNNING_KEY);
-  return val === "true";
+  if (!val) return false;
+  const lockTime = parseInt(val, 10);
+  if (isNaN(lockTime)) return false;
+  if (Date.now() - lockTime > BG_LOCK_TTL_MS) {
+    await AsyncStorage.removeItem(BG_RUNNING_KEY);
+    return false;
+  }
+  return true;
+}
+
+export async function getLastBackgroundRun(): Promise<number> {
+  const val = await AsyncStorage.getItem(BG_LAST_RUN_KEY);
+  return val ? parseInt(val, 10) : 0;
 }
 
 export async function runBackgroundSearches(): Promise<void> {
-  if (isAppInForeground()) {
-    console.log("[BackgroundSearch] App is in foreground — skipping background run, foreground handler will take over");
-    return;
-  }
-
   const alreadyRunning = await isBackgroundRunning();
   if (alreadyRunning) {
     console.log("[BackgroundSearch] Already running, skipping");
     return;
   }
 
-  await AsyncStorage.setItem(BG_RUNNING_KEY, "true");
+  inMemoryLock = true;
+  await AsyncStorage.setItem(BG_RUNNING_KEY, Date.now().toString());
+
+  const recheck = await AsyncStorage.getItem(BG_RUNNING_KEY);
+  const recheckTs = recheck ? parseInt(recheck, 10) : 0;
+  if (Math.abs(Date.now() - recheckTs) > 2000) {
+    inMemoryLock = false;
+    console.log("[BackgroundSearch] Lock contention detected, skipping");
+    return;
+  }
+
   console.log("[BackgroundSearch] Starting background search run");
 
   try {
@@ -222,7 +244,7 @@ export async function runBackgroundSearches(): Promise<void> {
     }
 
     const settings = await getSettings();
-    const searchCount = settings.searchCount ?? 30;
+    const searchCount = settings.searchCount ?? settings.defaultSearchCount ?? 30;
     const queries = await getQueriesAndRotate(searchCount);
 
     let totalSearchesDone = 0;
@@ -298,6 +320,8 @@ export async function runBackgroundSearches(): Promise<void> {
 
     console.log("[BackgroundSearch] Finished all accounts");
   } finally {
+    inMemoryLock = false;
+    await AsyncStorage.setItem(BG_LAST_RUN_KEY, Date.now().toString());
     await AsyncStorage.removeItem(BG_RUNNING_KEY);
   }
 }
@@ -308,17 +332,85 @@ export function registerBackgroundSearchTask(): void {
     const TaskManager = require("expo-task-manager");
     TaskManager.defineTask(BACKGROUND_SEARCH_TASK, async () => {
       try {
+        console.log("[BackgroundSearch] Background fetch triggered");
         await runBackgroundSearches();
-        return 2;
+        const BackgroundFetch = require("expo-background-fetch");
+        return BackgroundFetch.BackgroundFetchResult.NewData;
       } catch (e) {
         console.log("[BackgroundSearch] Task error:", e);
         await AsyncStorage.removeItem(BG_RUNNING_KEY);
-        return 3;
+        const BackgroundFetch = require("expo-background-fetch");
+        return BackgroundFetch.BackgroundFetchResult.Failed;
       }
     });
     console.log("[BackgroundSearch] Task defined");
   } catch (e) {
     console.log("[BackgroundSearch] Failed to define task:", e);
+  }
+}
+
+export async function isBackgroundFetchEnabled(): Promise<boolean> {
+  const val = await AsyncStorage.getItem(BG_FETCH_ENABLED_KEY);
+  return val === "true";
+}
+
+export async function scheduleBackgroundFetch(): Promise<boolean> {
+  if (Platform.OS === "web") return false;
+  try {
+    const BackgroundFetch = require("expo-background-fetch");
+    const TaskManager = require("expo-task-manager");
+
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_SEARCH_TASK);
+    if (isRegistered) {
+      await AsyncStorage.setItem(BG_FETCH_ENABLED_KEY, "true");
+      console.log("[BackgroundSearch] Background fetch already registered");
+      return true;
+    }
+
+    await BackgroundFetch.registerTaskAsync(BACKGROUND_SEARCH_TASK, {
+      minimumInterval: 60 * 60,
+      stopOnTerminate: false,
+      startOnBoot: true,
+    });
+
+    await AsyncStorage.setItem(BG_FETCH_ENABLED_KEY, "true");
+    console.log("[BackgroundSearch] Background fetch registered successfully");
+    return true;
+  } catch (e) {
+    console.log("[BackgroundSearch] Failed to register background fetch:", e);
+    return false;
+  }
+}
+
+export async function unscheduleBackgroundFetch(): Promise<void> {
+  if (Platform.OS === "web") return;
+  try {
+    await AsyncStorage.setItem(BG_FETCH_ENABLED_KEY, "false");
+    const BackgroundFetch = require("expo-background-fetch");
+    await BackgroundFetch.unregisterTaskAsync(BACKGROUND_SEARCH_TASK);
+    console.log("[BackgroundSearch] Background fetch unregistered");
+  } catch (e) {
+    console.log("[BackgroundSearch] Failed to unregister background fetch:", e);
+  }
+}
+
+export async function getBackgroundFetchStatus(): Promise<string> {
+  if (Platform.OS === "web") return "unavailable";
+  try {
+    const BackgroundFetch = require("expo-background-fetch");
+    const status = await BackgroundFetch.getStatusAsync();
+    switch (status) {
+      case BackgroundFetch.BackgroundFetchStatus.Restricted:
+        return "restricted";
+      case BackgroundFetch.BackgroundFetchStatus.Denied:
+        return "denied";
+      case BackgroundFetch.BackgroundFetchStatus.Available:
+        return "available";
+      default:
+        return "unknown";
+    }
+  } catch {
+    return "unavailable";
   }
 }
 

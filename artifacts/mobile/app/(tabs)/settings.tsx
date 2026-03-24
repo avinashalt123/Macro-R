@@ -26,6 +26,7 @@ import {
   requestNotificationPermission,
   scheduleOvernightNotifications,
 } from "@/utils/notifications";
+import { scheduleBackgroundFetch, unscheduleBackgroundFetch } from "@/utils/backgroundSearch";
 
 function to24h(hour12: number, isAm: boolean): number {
   if (isAm) return hour12 === 12 ? 0 : hour12;
@@ -225,6 +226,7 @@ export default function SettingsScreen() {
     }
 
     const { scheduled } = await scheduleOvernightNotifications(settings.overnightSlots);
+    await scheduleBackgroundFetch().catch(() => {});
     setScheduledCount(scheduled);
     setScheduling(false);
 
@@ -241,6 +243,7 @@ export default function SettingsScreen() {
 
   const handleClearSchedule = async () => {
     await cancelAllScheduledNotifications();
+    await unscheduleBackgroundFetch().catch(() => {});
     setScheduledCount(0);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     showAlert("Schedule Cleared", "All overnight notifications have been removed.", [
