@@ -57,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     "expo-updates",
   ],
   updates: {
-    url: "https://u.expo.dev/UPDATE_AFTER_EAS_INIT",
+    url: "https://u.expo.dev/e44f3f61-0e90-468d-9a3d-378d6aaf7c45",
   },
   runtimeVersion: {
     policy: "appVersion",
@@ -68,6 +68,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   extra: {
     ownerMode: IS_OWNER,
+    eas: {
+      projectId: "e44f3f61-0e90-468d-9a3d-378d6aaf7c45",
+    },
   },
   owner: "meoow123",
 });
