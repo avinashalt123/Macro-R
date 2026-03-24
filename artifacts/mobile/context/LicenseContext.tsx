@@ -27,6 +27,28 @@ async function getDeviceId(): Promise<string> {
   return id;
 }
 
+export interface FeatureConfig {
+  keyType: string;
+  maxAccounts: number;
+  maxSearches: number;
+  minDelaySeconds: number;
+  backgroundEnabled: boolean;
+  customQueriesEnabled: boolean;
+  dailySetEnabled: boolean;
+}
+
+const DEFAULT_FEATURE_CONFIG: FeatureConfig = {
+  keyType: "basic",
+  maxAccounts: 2,
+  maxSearches: 20,
+  minDelaySeconds: 5,
+  backgroundEnabled: false,
+  customQueriesEnabled: false,
+  dailySetEnabled: true,
+};
+
+const FEATURE_CONFIG_STORAGE = "@ms_rewards_feature_config";
+
 interface LicenseData {
   key: string;
   maxAccounts: number;
@@ -42,6 +64,7 @@ interface LicenseContextValue {
   isOwnerMode: boolean;
   isLoading: boolean;
   licenseData: LicenseData | null;
+  featureConfig: FeatureConfig;
   adminSecret: string | null;
   error: string | null;
   adminPanelVisible: boolean;
@@ -57,6 +80,7 @@ const LicenseContext = createContext<LicenseContextValue>({
   isOwnerMode: false,
   isLoading: true,
   licenseData: null,
+  featureConfig: DEFAULT_FEATURE_CONFIG,
   adminSecret: null,
   error: null,
   adminPanelVisible: false,
@@ -66,11 +90,22 @@ const LicenseContext = createContext<LicenseContextValue>({
   revalidate: async () => {},
 });
 
+const OWNER_FEATURE_CONFIG: FeatureConfig = {
+  keyType: "admin",
+  maxAccounts: 999,
+  maxSearches: 999,
+  minDelaySeconds: 1,
+  backgroundEnabled: true,
+  customQueriesEnabled: true,
+  dailySetEnabled: true,
+};
+
 export function LicenseProvider({ children }: { children: React.ReactNode }) {
   const [isLicensed, setIsLicensed] = useState(OWNER_MODE);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(!OWNER_MODE);
   const [licenseData, setLicenseData] = useState<LicenseData | null>(null);
+  const [featureConfig, setFeatureConfig] = useState<FeatureConfig>(OWNER_MODE ? OWNER_FEATURE_CONFIG : DEFAULT_FEATURE_CONFIG);
   const [adminSecret, setAdminSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adminPanelVisible, setAdminPanelVisibleState] = useState(false);
@@ -88,7 +123,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(ADMIN_VISIBLE_STORAGE, visible ? "true" : "false");
   }, []);
 
-  const validateKey = useCallback(async (key: string): Promise<{ valid: boolean; error?: string; maxAccounts?: number; expiresAt?: string; label?: string; keyType?: string; offline?: boolean }> => {
+  const validateKey = useCallback(async (key: string): Promise<{ valid: boolean; error?: string; maxAccounts?: number; expiresAt?: string; label?: string; keyType?: string; featureConfig?: FeatureConfig; offline?: boolean }> => {
     try {
       const deviceId = await getDeviceId();
       const resp = await fetch(`${API_BASE}/validate-key`, {
@@ -117,6 +152,20 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loadCachedFeatureConfig = useCallback(async () => {
+    try {
+      const cached = await AsyncStorage.getItem(FEATURE_CONFIG_STORAGE);
+      if (cached) {
+        setFeatureConfig(JSON.parse(cached));
+      }
+    } catch {}
+  }, []);
+
+  const saveFeatureConfig = useCallback(async (cfg: FeatureConfig) => {
+    setFeatureConfig(cfg);
+    await AsyncStorage.setItem(FEATURE_CONFIG_STORAGE, JSON.stringify(cfg));
+  }, []);
+
   const loadStoredLicense = useCallback(async () => {
     if (OWNER_MODE) {
       setIsLicensed(true);
@@ -131,12 +180,14 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
           setAdminSecret(storedAdminSecret);
           setIsAdmin(true);
           setIsLicensed(true);
+          setFeatureConfig(OWNER_FEATURE_CONFIG);
           setIsLoading(false);
           return;
         } else if (result.offline) {
           setAdminSecret(storedAdminSecret);
           setIsAdmin(true);
           setIsLicensed(true);
+          setFeatureConfig(OWNER_FEATURE_CONFIG);
           setIsLoading(false);
           return;
         } else {
@@ -168,6 +219,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         if (hoursSinceValidation < 24) {
           setLicenseData(data);
           setIsLicensed(true);
+          await loadCachedFeatureConfig();
           setIsLoading(false);
           return;
         }
@@ -187,11 +239,15 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         setLicenseData(data);
         setIsLicensed(true);
         setError(null);
+        if (result.featureConfig) {
+          await saveFeatureConfig(result.featureConfig);
+        }
       } else if (result.offline && storedData) {
         const data: LicenseData = JSON.parse(storedData);
         if (new Date(data.expiresAt).getTime() > Date.now()) {
           setLicenseData(data);
           setIsLicensed(true);
+          await loadCachedFeatureConfig();
         } else {
           setError("License key has expired");
           setIsLicensed(false);
@@ -207,11 +263,12 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         if (new Date(data.expiresAt).getTime() > Date.now()) {
           setLicenseData(data);
           setIsLicensed(true);
+          await loadCachedFeatureConfig();
         }
       }
     }
     setIsLoading(false);
-  }, [validateKey, validateAdmin]);
+  }, [validateKey, validateAdmin, loadCachedFeatureConfig, saveFeatureConfig]);
 
   useEffect(() => {
     loadStoredLicense();
@@ -230,6 +287,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       setIsAdmin(true);
       setIsLicensed(true);
       setLicenseData(null);
+      setFeatureConfig(OWNER_FEATURE_CONFIG);
       return true;
     }
 
@@ -253,18 +311,23 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(LICENSE_KEY_STORAGE, upperKey);
     await AsyncStorage.setItem(LICENSE_DATA_STORAGE, JSON.stringify(data));
     await AsyncStorage.removeItem(ADMIN_SECRET_STORAGE);
+    if (result.featureConfig) {
+      await saveFeatureConfig(result.featureConfig);
+    }
     setLicenseData(data);
     setIsLicensed(true);
     setIsAdmin(false);
     setAdminSecret(null);
     return true;
-  }, [validateKey, validateAdmin]);
+  }, [validateKey, validateAdmin, saveFeatureConfig]);
 
   const removeLicense = useCallback(async () => {
     await AsyncStorage.removeItem(LICENSE_KEY_STORAGE);
     await AsyncStorage.removeItem(LICENSE_DATA_STORAGE);
     await AsyncStorage.removeItem(ADMIN_SECRET_STORAGE);
+    await AsyncStorage.removeItem(FEATURE_CONFIG_STORAGE);
     setLicenseData(null);
+    setFeatureConfig(DEFAULT_FEATURE_CONFIG);
     setIsLicensed(false);
     setIsAdmin(false);
     setAdminSecret(null);
@@ -277,7 +340,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
   }, [loadStoredLicense]);
 
   return (
-    <LicenseContext.Provider value={{ isLicensed, isAdmin, isOwnerMode: OWNER_MODE, isLoading, licenseData, adminSecret, error, adminPanelVisible, setAdminPanelVisible, activateKey, removeLicense, revalidate }}>
+    <LicenseContext.Provider value={{ isLicensed, isAdmin, isOwnerMode: OWNER_MODE, isLoading, licenseData, featureConfig, adminSecret, error, adminPanelVisible, setAdminPanelVisible, activateKey, removeLicense, revalidate }}>
       {children}
     </LicenseContext.Provider>
   );

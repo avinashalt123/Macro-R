@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { ArrowLeft, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, RefreshCw, Shield, Smartphone, Trash2 } from "lucide-react-native";
+import { ArrowLeft, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, RefreshCw, Settings, Shield, Smartphone, Trash2 } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -8,7 +8,9 @@ import {
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -52,6 +54,7 @@ export function AdminPanel() {
   const insets = useSafeAreaInsets();
   const { adminSecret, removeLicense, isOwnerMode } = useLicense();
 
+  const [activeTab, setActiveTab] = useState<"keys" | "config">("keys");
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -60,6 +63,8 @@ export function AdminPanel() {
   const [newExpAmount, setNewExpAmount] = useState("30");
   const [newExpUnit, setNewExpUnit] = useState<"days" | "months" | "years">("days");
   const [newKeyType, setNewKeyType] = useState<KeyType>("basic");
+  const [featureConfigs, setFeatureConfigs] = useState<any[]>([]);
+  const [configLoading, setConfigLoading] = useState(true);
 
   const effectiveSecret = isOwnerMode ? OWNER_ADMIN_SECRET : (adminSecret || "");
 
@@ -90,9 +95,28 @@ export function AdminPanel() {
     setLoading(false);
   }, [apiCall]);
 
+  const loadFeatureConfigs = useCallback(async () => {
+    try {
+      const data = await apiCall("GET", "/admin/feature-config");
+      setFeatureConfigs(data.configs || []);
+    } catch {}
+    setConfigLoading(false);
+  }, [apiCall]);
+
+  const updateFeatureConfig = useCallback(async (keyType: string, updates: any) => {
+    try {
+      await apiCall("PUT", `/admin/feature-config/${keyType}`, updates);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      loadFeatureConfigs();
+    } catch {
+      Alert.alert("Error", "Failed to update config");
+    }
+  }, [apiCall, loadFeatureConfigs]);
+
   useEffect(() => {
     loadKeys();
-  }, [loadKeys]);
+    loadFeatureConfigs();
+  }, [loadKeys, loadFeatureConfigs]);
 
   const createKey = async () => {
     if (creating) return;
@@ -381,8 +405,27 @@ export function AdminPanel() {
             )}
           </View>
         </View>
+
+        <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+          <Pressable
+            onPress={() => setActiveTab("keys")}
+            style={[styles.tabBtn, { backgroundColor: activeTab === "keys" ? "#3b82f6" : colors.surfaceSecondary }]}
+          >
+            <Key size={14} color={activeTab === "keys" ? "#fff" : colors.textSecondary} />
+            <Text style={[styles.tabBtnText, { color: activeTab === "keys" ? "#fff" : colors.textSecondary }]}>Keys</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setActiveTab("config")}
+            style={[styles.tabBtn, { backgroundColor: activeTab === "config" ? "#3b82f6" : colors.surfaceSecondary }]}
+          >
+            <Settings size={14} color={activeTab === "config" ? "#fff" : colors.textSecondary} />
+            <Text style={[styles.tabBtnText, { color: activeTab === "config" ? "#fff" : colors.textSecondary }]}>Feature Config</Text>
+          </Pressable>
+        </View>
       </View>
 
+      {activeTab === "keys" ? (
+      <>
       <View style={[styles.createSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.createTitle, { color: colors.text }]}>Create New Key</Text>
         <View style={styles.createRow}>
@@ -498,6 +541,115 @@ export function AdminPanel() {
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
       )}
+      </>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 20 }}
+        >
+          {configLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#3b82f6" />
+            </View>
+          ) : (
+            featureConfigs.map((cfg) => {
+              const typeColor = KEY_TYPE_COLORS[cfg.keyType as KeyType] || KEY_TYPE_COLORS.basic;
+              return (
+                <View key={cfg.keyType} style={[styles.keyCard, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 12 }]}>
+                  <Text style={{ fontSize: 16, fontFamily: "Inter_700Bold", color: typeColor.color, marginBottom: 12 }}>
+                    {cfg.keyType.toUpperCase()}
+                  </Text>
+                  <View style={{ gap: 10 }}>
+                    <ConfigRow
+                      label="Max Accounts"
+                      value={cfg.maxAccounts}
+                      colors={colors}
+                      onUpdate={(v) => updateFeatureConfig(cfg.keyType, { maxAccounts: v })}
+                    />
+                    <ConfigRow
+                      label="Max Searches"
+                      value={cfg.maxSearches}
+                      colors={colors}
+                      onUpdate={(v) => updateFeatureConfig(cfg.keyType, { maxSearches: v })}
+                    />
+                    <ConfigRow
+                      label="Min Delay (sec)"
+                      value={cfg.minDelaySeconds}
+                      colors={colors}
+                      onUpdate={(v) => updateFeatureConfig(cfg.keyType, { minDelaySeconds: v })}
+                    />
+                    <ConfigToggle
+                      label="Background"
+                      value={cfg.backgroundEnabled}
+                      colors={colors}
+                      onToggle={(v) => updateFeatureConfig(cfg.keyType, { backgroundEnabled: v })}
+                    />
+                    <ConfigToggle
+                      label="Custom Queries"
+                      value={cfg.customQueriesEnabled}
+                      colors={colors}
+                      onToggle={(v) => updateFeatureConfig(cfg.keyType, { customQueriesEnabled: v })}
+                    />
+                    <ConfigToggle
+                      label="Daily Set"
+                      value={cfg.dailySetEnabled}
+                      colors={colors}
+                      onToggle={(v) => updateFeatureConfig(cfg.keyType, { dailySetEnabled: v })}
+                    />
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+function ConfigRow({ label, value, colors, onUpdate }: { label: string; value: number; colors: any; onUpdate: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => { setText(String(value)); }, [value]);
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+      <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: colors.textSecondary }}>{label}</Text>
+      <TextInput
+        style={{
+          width: 70,
+          height: 34,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.background,
+          color: colors.text,
+          textAlign: "center",
+          fontSize: 14,
+          fontFamily: "Inter_600SemiBold",
+        }}
+        value={text}
+        onChangeText={setText}
+        onBlur={() => {
+          const n = parseInt(text);
+          if (!isNaN(n) && n > 0 && n !== value) onUpdate(n);
+          else setText(String(value));
+        }}
+        keyboardType="number-pad"
+        selectTextOnFocus
+      />
+    </View>
+  );
+}
+
+function ConfigToggle({ label, value, colors, onToggle }: { label: string; value: boolean; colors: any; onToggle: (v: boolean) => void }) {
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+      <Text style={{ fontSize: 13, fontFamily: "Inter_500Medium", color: colors.textSecondary }}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.border, true: "#3b82f6" }}
+        thumbColor="#fff"
+      />
     </View>
   );
 }
@@ -516,6 +668,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: { fontSize: 24, fontFamily: "Inter_700Bold" },
+  tabBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  tabBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   createSection: {
     marginHorizontal: 16,
     marginBottom: 16,

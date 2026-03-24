@@ -7,7 +7,8 @@
     "dev": "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
     "build": "node scripts/build.js",
     "serve": "node server/serve.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "update": "eas update --branch preview --message"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -62,6 +63,7 @@
     "expo-crypto": "~15.0.8",
     "expo-notifications": "^0.32.16",
     "expo-task-manager": "~14.0.9",
+    "expo-updates": "^29.0.16",
     "lucide-react-native": "^0.577.0",
     "react-native-webview": "^13.16.1"
   }

@@ -1,5 +1,6 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Minus, Moon, Pencil, Plus, RotateCcw, Search, Shield, Zap } from "lucide-react-native";
+import * as Updates from "expo-updates";
+import { Calendar, CheckSquare, Clock, Download, Minus, Moon, Pencil, Plus, RotateCcw, Search, Shield, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -60,10 +61,11 @@ export default function SettingsScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
-  const { licenseData, removeLicense, isOwnerMode, adminPanelVisible } = useLicense();
+  const { licenseData, featureConfig, removeLicense, isOwnerMode, adminPanelVisible } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
   const [scheduling, setScheduling] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
 
   const [searchCountText, setSearchCountText] = useState(
     String(settings.defaultSearchCount)
@@ -85,7 +87,7 @@ export default function SettingsScreen() {
     const parsed = parseInt(searchCountText, 10);
     const clamped = isNaN(parsed)
       ? settings.defaultSearchCount
-      : Math.max(5, Math.min(50, parsed));
+      : Math.max(5, Math.min(featureConfig.maxSearches, parsed));
     setSearchCountText(String(clamped));
     if (clamped !== settings.defaultSearchCount) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -97,7 +99,7 @@ export default function SettingsScreen() {
     const parsed = parseInt(delayText, 10);
     const clamped = isNaN(parsed)
       ? settings.searchDelay ?? 5
-      : Math.max(3, Math.min(30, parsed));
+      : Math.max(featureConfig.minDelaySeconds, Math.min(30, parsed));
     setDelayText(String(clamped));
     if (clamped !== (settings.searchDelay ?? 5)) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -318,7 +320,7 @@ export default function SettingsScreen() {
                     Searches per account
                   </Text>
                   <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                    Daily Bing searches (5–50)
+                    Daily Bing searches (5–{featureConfig.maxSearches})
                   </Text>
                 </View>
               </View>
@@ -349,7 +351,7 @@ export default function SettingsScreen() {
                     Delay between searches
                   </Text>
                   <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                    Seconds between each search (3–30)
+                    Seconds between each search ({featureConfig.minDelaySeconds}–30)
                   </Text>
                 </View>
               </View>
@@ -388,7 +390,8 @@ export default function SettingsScreen() {
                 </View>
               </View>
               <Switch
-                value={settings.dailySetEnabled}
+                value={featureConfig.dailySetEnabled ? settings.dailySetEnabled : false}
+                disabled={!featureConfig.dailySetEnabled}
                 onValueChange={(val) => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   updateSettings({ dailySetEnabled: val });
@@ -777,6 +780,54 @@ export default function SettingsScreen() {
             </Pressable>
           )}
         </Section>
+
+        {Platform.OS !== "web" && (
+          <Section title="UPDATES" colors={colors}>
+            <Pressable
+              onPress={async () => {
+                if (checkingUpdate) return;
+                setCheckingUpdate(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                try {
+                  const update = await Updates.checkForUpdateAsync();
+                  if (update.isAvailable) {
+                    showAlert("Update Available", "A new version is ready. Download and restart?", [
+                      { text: "Later", style: "cancel" },
+                      {
+                        text: "Update Now",
+                        onPress: async () => {
+                          try {
+                            await Updates.fetchUpdateAsync();
+                            await Updates.reloadAsync();
+                          } catch {
+                            showAlert("Error", "Failed to download update. Try again later.");
+                          }
+                        },
+                      },
+                    ]);
+                  } else {
+                    showAlert("Up to Date", "You're running the latest version.");
+                  }
+                } catch {
+                  showAlert("Error", "Could not check for updates. Try again later.");
+                }
+                setCheckingUpdate(false);
+              }}
+              style={({ pressed }) => [
+                styles.applyBtn,
+                {
+                  backgroundColor: "#059669",
+                  opacity: pressed || checkingUpdate ? 0.75 : 1,
+                },
+              ]}
+            >
+              <Download size={18} color="#fff" />
+              <Text style={styles.applyText}>
+                {checkingUpdate ? "Checking…" : "Check for Updates"}
+              </Text>
+            </Pressable>
+          </Section>
+        )}
 
         <View style={{ height: insets.bottom + 40 }} />
       </ScrollView>

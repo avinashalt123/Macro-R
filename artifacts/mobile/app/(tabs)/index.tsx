@@ -35,12 +35,15 @@ export default function HomeScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { accounts, isRunning, startRun, stopRun } = useAccounts();
-  const { licenseData } = useLicense();
+  const { licenseData, featureConfig } = useLicense();
   const { settings, updateSettings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const { showAlert, AlertComponent } = useCustomAlert();
-  const maxAccounts = licenseData?.maxAccounts ?? 999;
+  const maxAccounts = featureConfig.maxAccounts;
+  const maxSearches = featureConfig.maxSearches;
+  const minDelay = featureConfig.minDelaySeconds;
+  const dailySetAllowed = featureConfig.dailySetEnabled && settings.dailySetEnabled;
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -167,10 +170,10 @@ export default function HomeScreen() {
           })
         }
         isRunningGlobal={isRunning}
-        showDailySet={settings.dailySetEnabled}
+        showDailySet={dailySetAllowed}
       />
     ),
-    [isRunning, settings.dailySetEnabled],
+    [isRunning, dailySetAllowed],
   );
 
   const { width: screenWidth } = Dimensions.get("window");
@@ -195,10 +198,10 @@ export default function HomeScreen() {
           })
         }
         isRunningGlobal={isRunning}
-        showDailySet={settings.dailySetEnabled}
+        showDailySet={dailySetAllowed}
       />
     ),
-    [isRunning, tileWidth, settings.dailySetEnabled],
+    [isRunning, tileWidth, dailySetAllowed],
   );
 
   const ListHeader = (
@@ -295,7 +298,7 @@ export default function HomeScreen() {
               </Text>
               <Pressable
                 onPress={() => {
-                  const next = Math.min(50, settings.defaultSearchCount + 1);
+                  const next = Math.min(maxSearches, settings.defaultSearchCount + 1);
                   updateSettings({ defaultSearchCount: next });
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
@@ -331,7 +334,7 @@ export default function HomeScreen() {
             <View style={styles.stepperRow}>
               <Pressable
                 onPress={() => {
-                  const next = Math.max(3, settings.searchDelay - 1);
+                  const next = Math.max(minDelay, settings.searchDelay - 1);
                   updateSettings({ searchDelay: next });
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 }}
@@ -435,7 +438,7 @@ export default function HomeScreen() {
           { bottom: insets.bottom + (Platform.OS === "ios" ? 90 : 72) },
         ]}
       >
-        {!isRunning && settings.dailySetEnabled && (
+        {!isRunning && dailySetAllowed && (
           <Pressable
             onPress={handleDailySetAll}
             style={({ pressed }) => [
@@ -457,7 +460,7 @@ export default function HomeScreen() {
           </Pressable>
         )}
 
-        {!isRunning && settings.dailySetEnabled && (
+        {!isRunning && dailySetAllowed && (
           <Pressable
             onPress={handleRunBothAll}
             style={({ pressed }) => [
@@ -485,13 +488,13 @@ export default function HomeScreen() {
             {
               opacity: pressed ? 0.9 : 1,
               transform: [{ scale: pressed ? 0.96 : 1 }],
-              flex: !settings.dailySetEnabled ? 1 : undefined,
+              flex: !dailySetAllowed ? 1 : undefined,
             },
           ]}
         >
           <LinearGradient
             colors={isRunning ? ["#EF4444", "#DC2626"] : ["#3B82F6", "#1D4ED8"]}
-            style={[styles.fabBtn, !settings.dailySetEnabled && { justifyContent: "center" }]}
+            style={[styles.fabBtn, !dailySetAllowed && { justifyContent: "center" }]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >

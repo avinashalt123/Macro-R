@@ -107,6 +107,9 @@ router.get("/admin", (req, res) => {
 
   <div id="keysList"></div>
 
+  <h2 style="margin-top:32px;margin-bottom:16px;color:#fff">Feature Config (per Key Type)</h2>
+  <div id="featureConfigList"></div>
+
   <script>
     const SECRET = "${ADMIN_SECRET}";
     const API = window.location.pathname.replace(/\\/admin$/, '');
@@ -209,6 +212,36 @@ router.get("/admin", (req, res) => {
     }
 
     loadKeys();
+    loadFeatureConfig();
+
+    async function loadFeatureConfig() {
+      const { configs } = await api('GET', '/admin/feature-config');
+      const el = document.getElementById('featureConfigList');
+      if (!configs || configs.length === 0) {
+        el.innerHTML = '<div class="no-keys">No feature configs found</div>';
+        return;
+      }
+      const typeColors = { basic: '#94a3b8', premium: '#a78bfa', unlimited: '#fbbf24', admin: '#f87171' };
+      el.innerHTML = configs.map(c => {
+        const color = typeColors[c.keyType] || '#94a3b8';
+        return '<div class="card">' +
+          '<div class="row"><span style="font-size:16px;font-weight:700;color:' + color + '">' + c.keyType.toUpperCase() + '</span></div>' +
+          '<div class="grid" style="margin-top:12px">' +
+            '<div class="form-group"><label>Max Accounts</label><input type="number" value="' + c.maxAccounts + '" min="1" onchange="updateConfig(\\'' + c.keyType + '\\', {maxAccounts: parseInt(this.value)})"></div>' +
+            '<div class="form-group"><label>Max Searches</label><input type="number" value="' + c.maxSearches + '" min="1" onchange="updateConfig(\\'' + c.keyType + '\\', {maxSearches: parseInt(this.value)})"></div>' +
+            '<div class="form-group"><label>Min Delay (sec)</label><input type="number" value="' + c.minDelaySeconds + '" min="1" onchange="updateConfig(\\'' + c.keyType + '\\', {minDelaySeconds: parseInt(this.value)})"></div>' +
+            '<div class="form-group"><label>Background</label><select onchange="updateConfig(\\'' + c.keyType + '\\', {backgroundEnabled: this.value===\\'true\\'})"><option value="true"' + (c.backgroundEnabled ? ' selected' : '') + '>Yes</option><option value="false"' + (!c.backgroundEnabled ? ' selected' : '') + '>No</option></select></div>' +
+            '<div class="form-group"><label>Custom Queries</label><select onchange="updateConfig(\\'' + c.keyType + '\\', {customQueriesEnabled: this.value===\\'true\\'})"><option value="true"' + (c.customQueriesEnabled ? ' selected' : '') + '>Yes</option><option value="false"' + (!c.customQueriesEnabled ? ' selected' : '') + '>No</option></select></div>' +
+            '<div class="form-group"><label>Daily Set</label><select onchange="updateConfig(\\'' + c.keyType + '\\', {dailySetEnabled: this.value===\\'true\\'})"><option value="true"' + (c.dailySetEnabled ? ' selected' : '') + '>Yes</option><option value="false"' + (!c.dailySetEnabled ? ' selected' : '') + '>No</option></select></div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    async function updateConfig(keyType, updates) {
+      await api('PUT', '/admin/feature-config/' + keyType, updates);
+      loadFeatureConfig();
+    }
   </script>
 </body>
 </html>`);

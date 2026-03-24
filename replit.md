@@ -128,6 +128,26 @@ SafeAreaProvider
   3. WebView login flow (`app/login-webview.tsx`) — shows Alert and navigates back
 - **Settings License Section** (`app/(tabs)/settings.tsx`): Shows truncated key, account limit, expiry date, and "Remove License" button with confirmation dialog
 
+#### 1b. Remote Config System
+- **Feature Config table** (`lib/db/src/schema/featureConfig.ts`): `feature_config` table with per-tier configs (maxAccounts, maxSearches, minDelaySeconds, backgroundEnabled, customQueriesEnabled, dailySetEnabled)
+- **API endpoints** (`artifacts/api-server/src/routes/keys.ts`):
+  - `GET /admin/feature-config` — returns all 4 tier configs
+  - `PUT /admin/feature-config/:keyType` — updates a tier's config
+  - `POST /validate-key` — now includes `featureConfig` in response
+  - Default configs seeded on server startup for basic/premium/unlimited/admin
+- **Admin panels**:
+  - **Web admin** (`routes/admin.ts`) — editable Feature Config cards section with numeric inputs and toggles
+  - **In-app AdminPanel** (`components/AdminPanel.tsx`) — Keys/Feature Config tab system with `ConfigRow` (numeric input) and `ConfigToggle` (switch) components
+- **App enforcement**: `featureConfig` from `LicenseContext` used in index.tsx (account/search limits), settings.tsx (search/delay clamping). `OWNER_FEATURE_CONFIG` gives unlimited defaults for owner mode
+- **Caching**: Feature config saved to `@ms_rewards_feature_config` AsyncStorage, loaded from cache when offline
+
+#### 1c. OTA Updates (EAS Update)
+- **expo-updates** installed and configured in `app.json` with `updates.url` pointing to project `bde8726b-e427-47c3-bfef-bac4d4e46de4`
+- **Runtime version policy**: `appVersion` — runtime version matches app version
+- **Check for Updates button**: Settings page (native only, hidden on web) with green "Check for Updates" button that calls `Updates.checkForUpdateAsync()`, offers download + restart
+- **Push command**: `pnpm --filter @workspace/mobile run update "message here"` runs `eas update --branch preview --message`
+- **EAS Build profile**: `preview` profile, account `shroud.dev`
+
 #### 2. Account Management
 - **Account data model** (`context/AccountsContext.tsx`):
   ```typescript
