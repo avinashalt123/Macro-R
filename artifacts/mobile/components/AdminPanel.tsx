@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { ArrowLeft, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, RefreshCw, Settings, Shield, Smartphone, Trash2 } from "lucide-react-native";
+import { ArrowLeft, Cookie, Copy, ChevronDown, ChevronUp, Key, LogOut, Minus, Plus, Power, PowerOff, RefreshCw, Settings, Shield, Smartphone, Trash2, User } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 
 import Colors from "@/constants/colors";
+import { useAccounts } from "@/context/AccountsContext";
 import { useLicense } from "@/context/LicenseContext";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
@@ -64,7 +65,7 @@ export function AdminPanel() {
   const insets = useSafeAreaInsets();
   const { adminSecret, removeLicense, isOwnerMode } = useLicense();
 
-  const [activeTab, setActiveTab] = useState<"keys" | "config">("keys");
+  const [activeTab, setActiveTab] = useState<"keys" | "config" | "cookies">("keys");
   const [keys, setKeys] = useState<LicenseKey[]>([]);
   const [featureConfigs, setFeatureConfigs] = useState<FeatureConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +76,9 @@ export function AdminPanel() {
   const [newExpAmount, setNewExpAmount] = useState("30");
   const [newExpUnit, setNewExpUnit] = useState<"days" | "months" | "years">("days");
   const [newKeyType, setNewKeyType] = useState<KeyType>("basic");
+
+  const { accounts } = useAccounts();
+  const [expandedCookieId, setExpandedCookieId] = useState<string | null>(null);
 
   const effectiveSecret = isOwnerMode ? OWNER_ADMIN_SECRET : (adminSecret || "");
 
@@ -425,16 +429,115 @@ export function AdminPanel() {
             <Text style={[styles.tabBtnText, { color: activeTab === "keys" ? "#fff" : colors.textSecondary }]}>Keys</Text>
           </Pressable>
           <Pressable
+            onPress={() => setActiveTab("cookies")}
+            style={[styles.tabBtn, { backgroundColor: activeTab === "cookies" ? "#3b82f6" : colors.surfaceSecondary, borderColor: activeTab === "cookies" ? "#3b82f6" : colors.border }]}
+          >
+            <Cookie size={14} color={activeTab === "cookies" ? "#fff" : colors.textSecondary} />
+            <Text style={[styles.tabBtnText, { color: activeTab === "cookies" ? "#fff" : colors.textSecondary }]}>Cookies</Text>
+          </Pressable>
+          <Pressable
             onPress={() => setActiveTab("config")}
-            style={[styles.tabBtn, { backgroundColor: activeTab === "config" ? "#3b82f6" : colors.surfaceSecondary }]}
+            style={[styles.tabBtn, { backgroundColor: activeTab === "config" ? "#3b82f6" : colors.surfaceSecondary, borderColor: activeTab === "config" ? "#3b82f6" : colors.border }]}
           >
             <Settings size={14} color={activeTab === "config" ? "#fff" : colors.textSecondary} />
-            <Text style={[styles.tabBtnText, { color: activeTab === "config" ? "#fff" : colors.textSecondary }]}>Feature Config</Text>
+            <Text style={[styles.tabBtnText, { color: activeTab === "config" ? "#fff" : colors.textSecondary }]}>Config</Text>
           </Pressable>
         </View>
       </View>
 
-      {activeTab === "keys" ? (
+      {activeTab === "cookies" ? (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 20 }}
+        >
+          {accounts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <User size={48} color={colors.textSecondary} />
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No accounts added yet</Text>
+            </View>
+          ) : (
+            accounts.map((account) => {
+              const isExpanded = expandedCookieId === account.id;
+              const cookieEntries = Object.entries(account.cookies || {});
+              const cookieString = cookieEntries.map(([k, v]) => `${k}=${v}`).join("; ");
+              return (
+                <View key={account.id} style={[styles.keyCard, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 12 }]}>
+                  <Pressable
+                    onPress={() => setExpandedCookieId(isExpanded ? null : account.id)}
+                    style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1 }}>
+                      <User size={18} color="#3b82f6" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontFamily: "Inter_600SemiBold", color: colors.text }} numberOfLines={1}>
+                          {account.name || account.email}
+                        </Text>
+                        <Text style={{ fontSize: 12, fontFamily: "Inter_400Regular", color: colors.textSecondary }} numberOfLines={1}>
+                          {account.email}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <View style={[styles.badge, { backgroundColor: cookieEntries.length > 0 ? "#16a34a22" : "#dc262622" }]}>
+                        <Text style={[styles.badgeText, { color: cookieEntries.length > 0 ? "#4ade80" : "#f87171" }]}>
+                          {cookieEntries.length} cookie{cookieEntries.length !== 1 ? "s" : ""}
+                        </Text>
+                      </View>
+                      {isExpanded ? <ChevronUp size={18} color={colors.textSecondary} /> : <ChevronDown size={18} color={colors.textSecondary} />}
+                    </View>
+                  </Pressable>
+
+                  {isExpanded && (
+                    <View style={{ marginTop: 12 }}>
+                      <Pressable
+                        onPress={() => {
+                          Clipboard.setStringAsync(cookieString);
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }}
+                        style={[styles.createBtn, { marginBottom: 12, height: 38 }]}
+                      >
+                        <Copy size={14} color="#fff" />
+                        <Text style={[styles.createBtnText, { fontSize: 13 }]}>Copy All Cookies</Text>
+                      </Pressable>
+
+                      {cookieEntries.length === 0 ? (
+                        <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.textSecondary, textAlign: "center" }}>
+                          No cookies stored
+                        </Text>
+                      ) : (
+                        cookieEntries.map(([name, value]) => (
+                          <Pressable
+                            key={name}
+                            onPress={() => {
+                              Clipboard.setStringAsync(`${name}=${value}`);
+                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            }}
+                            style={{
+                              backgroundColor: colors.background,
+                              borderRadius: 10,
+                              padding: 10,
+                              marginBottom: 6,
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                            }}
+                          >
+                            <Text style={{ fontSize: 12, fontFamily: "Inter_600SemiBold", color: "#3b82f6", marginBottom: 2 }}>
+                              {name}
+                            </Text>
+                            <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.textSecondary }} numberOfLines={3}>
+                              {value}
+                            </Text>
+                          </Pressable>
+                        ))
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      ) : activeTab === "keys" ? (
       <>
       <View style={[styles.createSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.createTitle, { color: colors.text }]}>Create New Key</Text>
