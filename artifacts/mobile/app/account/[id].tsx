@@ -26,7 +26,7 @@ import { useLicense } from "@/context/LicenseContext";
 
 export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { accounts, updateAccount, removeAccount } = useAccounts();
+  const { accounts, updateAccount, removeAccount, startRun, isRunning } = useAccounts();
   const account = accounts.find((a) => a.id === id);
   const accountIndex = accounts.findIndex((a) => a.id === id);
   const { isOwnerMode, adminPanelVisible, setAdminPanelVisible } = useLicense();
@@ -110,6 +110,8 @@ export default function AccountDetailScreen() {
   };
 
   const handleRunNow = () => {
+    if (isRunning) return;
+    startRun();
     router.push({ pathname: "/search-runner", params: { accountIds: JSON.stringify([id]) } });
   };
 

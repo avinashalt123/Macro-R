@@ -259,7 +259,7 @@ SafeAreaProvider
 
 ### Setup
 - **Entry**: `artifacts/api-server/src/index.ts` → reads `PORT` env var
-- **App**: `artifacts/api-server/src/app.ts` → Express 5 with cors, JSON parsing
+- **App**: `artifacts/api-server/src/app.ts` → Express 5 with CORS (restricted in production), JSON parsing
 - **All routes**: Mounted at `/api` prefix
 - **Dependencies**: `@workspace/db` (Drizzle ORM), `@workspace/api-zod` (validation)
 

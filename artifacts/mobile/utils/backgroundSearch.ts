@@ -256,11 +256,13 @@ export async function runBackgroundSearches(): Promise<void> {
         console.log(`[BackgroundSearch] ${account.name}: No cookies, skipping`);
         await appendLog({
           id: Date.now().toString(),
+          accountId: account.id,
           accountName: account.name || account.email,
-          timestamp: Date.now(),
+          timestamp: new Date().toISOString(),
           searchesDone: 0,
           dailySetDone: false,
           pointsEarned: 0,
+          status: "failed",
           errorMessage: "No session cookies (background)",
         });
         continue;
@@ -294,7 +296,7 @@ export async function runBackgroundSearches(): Promise<void> {
 
       await updateAccountInStorage(account.id, {
         status: "idle",
-        lastRun: Date.now(),
+        lastRun: new Date().toISOString(),
         searchesCompleted: searchesDone,
         totalPoints: pointsAfter.available,
         todayPoints: pointsAfter.today,
@@ -302,11 +304,13 @@ export async function runBackgroundSearches(): Promise<void> {
 
       await appendLog({
         id: Date.now().toString(),
+        accountId: account.id,
         accountName: account.name || account.email,
-        timestamp: Date.now(),
+        timestamp: new Date().toISOString(),
         searchesDone,
         dailySetDone: false,
         pointsEarned: account.lastRun ? earned : 0,
+        status: "success",
         backgroundRun: true,
       });
 

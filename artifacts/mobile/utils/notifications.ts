@@ -217,7 +217,7 @@ export async function scheduleOvernightNotifications(
           trigger: {
             type: "timeInterval",
             seconds,
-            repeats: false,
+            repeats: true,
           } as any,
         });
         count++;

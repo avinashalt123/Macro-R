@@ -57,7 +57,12 @@ export function QueriesProvider({ children }: { children: React.ReactNode }) {
 
   const pickQueries = useCallback(
     (count: number): string[] => {
-      const shuffled = [...unusedRef.current].sort(() => Math.random() - 0.5);
+      let available = [...unusedRef.current];
+      if (available.length < count) {
+        available = [...available, ...usedRef.current];
+        usedRef.current = [];
+      }
+      const shuffled = available.sort(() => Math.random() - 0.5);
       const picked = shuffled.slice(0, Math.min(count, shuffled.length));
       const remaining = shuffled.slice(picked.length);
       unusedRef.current = remaining;

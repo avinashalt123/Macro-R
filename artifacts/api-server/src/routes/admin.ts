@@ -111,7 +111,7 @@ router.get("/admin", (req, res) => {
   <div id="featureConfigList"></div>
 
   <script>
-    const SECRET = "${ADMIN_SECRET}";
+    const SECRET = new URLSearchParams(window.location.search).get('secret') || '';
     const API = window.location.pathname.replace(/\\/admin$/, '');
 
     async function api(method, path, body) {
@@ -209,43 +209,6 @@ router.get("/admin", (req, res) => {
       if (!confirm('Delete this key permanently?')) return;
       await api('DELETE', '/admin/keys/' + id);
       loadKeys();
-    }
-
-    async function loadFeatureConfigs() {
-      const { configs } = await api('GET', '/admin/feature-config');
-      const el = document.getElementById('featureConfigList');
-      if (!configs || configs.length === 0) {
-        el.innerHTML = '<div class="no-keys">No feature configs yet (restart server to seed defaults)</div>';
-        return;
-      }
-      const typeOrder = ['basic','premium','unlimited','admin'];
-      configs.sort((a,b) => typeOrder.indexOf(a.keyType) - typeOrder.indexOf(b.keyType));
-      el.innerHTML = configs.map(c => {
-        const tc = c.keyType;
-        return '<div class="card">' +
-          '<div class="row"><span class="badge type-' + tc + '" style="font-size:13px;padding:4px 12px">' + tc.toUpperCase() + '</span></div>' +
-          '<div class="grid" style="margin-top:12px">' +
-            '<div class="form-group"><label>Max Accounts</label><input type="number" value="' + c.maxAccounts + '" min="1" max="999" onchange="updateConfig(\\'' + tc + '\\',\\'maxAccounts\\',this.value)"></div>' +
-            '<div class="form-group"><label>Max Searches</label><input type="number" value="' + c.maxSearches + '" min="1" max="999" onchange="updateConfig(\\'' + tc + '\\',\\'maxSearches\\',this.value)"></div>' +
-            '<div class="form-group"><label>Min Delay (sec)</label><input type="number" value="' + c.minDelaySeconds + '" min="1" max="60" onchange="updateConfig(\\'' + tc + '\\',\\'minDelaySeconds\\',this.value)"></div>' +
-            '<div class="form-group"><label>Background</label><select onchange="updateConfig(\\'' + tc + '\\',\\'backgroundEnabled\\',this.value===\\'true\\')">' +
-              '<option value="true"' + (c.backgroundEnabled ? ' selected' : '') + '>Enabled</option>' +
-              '<option value="false"' + (!c.backgroundEnabled ? ' selected' : '') + '>Disabled</option>' +
-            '</select></div>' +
-            '<div class="form-group"><label>Custom Queries</label><select onchange="updateConfig(\\'' + tc + '\\',\\'customQueriesEnabled\\',this.value===\\'true\\')">' +
-              '<option value="true"' + (c.customQueriesEnabled ? ' selected' : '') + '>Enabled</option>' +
-              '<option value="false"' + (!c.customQueriesEnabled ? ' selected' : '') + '>Disabled</option>' +
-            '</select></div>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-    }
-
-    async function updateConfig(keyType, field, value) {
-      const body = {};
-      body[field] = value;
-      await api('PUT', '/admin/feature-config/' + keyType, body);
-      loadFeatureConfigs();
     }
 
     loadKeys();

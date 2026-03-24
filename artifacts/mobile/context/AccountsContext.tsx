@@ -4,8 +4,10 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 export type AccountStatus = "idle" | "running" | "done" | "failed";
 
@@ -62,29 +64,42 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<RunLog[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [accsRaw, logsRaw] = await Promise.all([
-          AsyncStorage.getItem(ACCOUNTS_KEY),
-          AsyncStorage.getItem(LOGS_KEY),
-        ]);
-        if (accsRaw) {
-          // Migrate old accounts that were saved before dailySetEnabled was added
-          const parsed: Account[] = JSON.parse(accsRaw);
-          setAccounts(
-            parsed.map((a) => ({
-              ...a,
-              dailySetEnabled: a.dailySetEnabled ?? true,
-            }))
-          );
-        }
-        if (logsRaw) setLogs(JSON.parse(logsRaw));
-      } catch (e) {
-        console.error("Failed to load data", e);
+  const loadFromStorage = useCallback(async () => {
+    try {
+      const [accsRaw, logsRaw] = await Promise.all([
+        AsyncStorage.getItem(ACCOUNTS_KEY),
+        AsyncStorage.getItem(LOGS_KEY),
+      ]);
+      if (accsRaw) {
+        const parsed: Account[] = JSON.parse(accsRaw);
+        setAccounts(
+          parsed.map((a) => ({
+            ...a,
+            dailySetEnabled: a.dailySetEnabled ?? true,
+          }))
+        );
       }
-    })();
+      if (logsRaw) setLogs(JSON.parse(logsRaw));
+    } catch (e) {
+      console.error("Failed to load data", e);
+    }
   }, []);
+
+  useEffect(() => {
+    loadFromStorage();
+  }, [loadFromStorage]);
+
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === "active") {
+        loadFromStorage();
+      }
+      appStateRef.current = nextState;
+    });
+    return () => subscription.remove();
+  }, [loadFromStorage]);
 
   const saveAccounts = useCallback(async (accs: Account[]) => {
     await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accs));

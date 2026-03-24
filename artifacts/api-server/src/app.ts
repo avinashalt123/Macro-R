@@ -4,7 +4,11 @@ import router from "./routes";
 
 const app: Express = express();
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === "production"
+    ? [process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : ""].filter(Boolean)
+    : true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
