@@ -79,8 +79,16 @@ router.get("/admin", (req, res) => {
         <input type="number" id="newMaxAccounts" value="3" min="1" max="50">
       </div>
       <div class="form-group">
-        <label>Expires In (days)</label>
-        <input type="number" id="newExpDays" value="30" min="1">
+        <label>Duration</label>
+        <input type="number" id="newExpAmount" value="30" min="1">
+      </div>
+      <div class="form-group">
+        <label>Unit</label>
+        <select id="newExpUnit">
+          <option value="days">Days</option>
+          <option value="months">Months</option>
+          <option value="years">Years</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Key Type</label>
@@ -148,11 +156,18 @@ router.get("/admin", (req, res) => {
     async function createKey() {
       const label = document.getElementById('newLabel').value;
       const maxAccounts = parseInt(document.getElementById('newMaxAccounts').value) || 3;
-      const days = parseInt(document.getElementById('newExpDays').value) || 30;
+      const amount = parseInt(document.getElementById('newExpAmount').value) || 30;
+      const unit = document.getElementById('newExpUnit').value;
       const keyType = document.getElementById('newKeyType').value;
-      const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+      const d = new Date();
+      if (unit === 'months') d.setMonth(d.getMonth() + amount);
+      else if (unit === 'years') d.setFullYear(d.getFullYear() + amount);
+      else d.setDate(d.getDate() + amount);
+      const expiresAt = d.toISOString();
       await api('POST', '/admin/keys', { label, maxAccounts, expiresAt, keyType });
       document.getElementById('newLabel').value = '';
+      document.getElementById('newExpAmount').value = '30';
+      document.getElementById('newExpUnit').value = 'days';
       document.getElementById('newKeyType').value = 'basic';
       loadKeys();
     }

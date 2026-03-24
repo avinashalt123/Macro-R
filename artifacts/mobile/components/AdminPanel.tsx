@@ -57,7 +57,8 @@ export function AdminPanel() {
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newMaxAccounts, setNewMaxAccounts] = useState("3");
-  const [newExpDays, setNewExpDays] = useState("30");
+  const [newExpAmount, setNewExpAmount] = useState("30");
+  const [newExpUnit, setNewExpUnit] = useState<"days" | "months" | "years">("days");
   const [newKeyType, setNewKeyType] = useState<KeyType>("basic");
 
   const effectiveSecret = isOwnerMode ? OWNER_ADMIN_SECRET : (adminSecret || "");
@@ -99,8 +100,16 @@ export function AdminPanel() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const maxAccounts = Math.max(1, parseInt(newMaxAccounts) || 3);
-      const days = Math.max(1, parseInt(newExpDays) || 30);
-      const expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+      const amount = Math.max(1, parseInt(newExpAmount) || 30);
+      const now = new Date();
+      if (newExpUnit === "months") {
+        now.setMonth(now.getMonth() + amount);
+      } else if (newExpUnit === "years") {
+        now.setFullYear(now.getFullYear() + amount);
+      } else {
+        now.setDate(now.getDate() + amount);
+      }
+      const expiresAt = now.toISOString();
       const result = await apiCall("POST", "/admin/keys", {
         label: newLabel.trim() || null,
         maxAccounts,
@@ -110,7 +119,8 @@ export function AdminPanel() {
       if (result.key) {
         setNewLabel("");
         setNewMaxAccounts("3");
-        setNewExpDays("30");
+        setNewExpAmount("30");
+        setNewExpUnit("days");
         setNewKeyType("basic");
         await loadKeys();
         Alert.alert("Key Created", result.key.key, [
@@ -237,7 +247,19 @@ export function AdminPanel() {
     if (!item.isActive) return { label: "Inactive", color: "#64748b", bg: "#64748b22" };
     if (new Date(item.expiresAt) < new Date()) return { label: "Expired", color: "#f87171", bg: "#dc262622" };
     const days = Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 86400000);
-    return { label: `${days}d left`, color: "#4ade80", bg: "#16a34a22" };
+    let label: string;
+    if (days >= 365) {
+      const years = Math.floor(days / 365);
+      const rem = Math.floor((days % 365) / 30);
+      label = rem > 0 ? `${years}y ${rem}m` : `${years}y`;
+    } else if (days >= 30) {
+      const months = Math.floor(days / 30);
+      const rem = days % 30;
+      label = rem > 0 ? `${months}m ${rem}d` : `${months}m`;
+    } else {
+      label = `${days}d`;
+    }
+    return { label: `${label} left`, color: "#4ade80", bg: "#16a34a22" };
   };
 
   const renderKey = ({ item }: { item: LicenseKey }) => {
@@ -247,16 +269,16 @@ export function AdminPanel() {
       <View style={[styles.keyCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: !item.isActive ? 0.5 : 1 }]}>
         <View style={styles.keyHeader}>
           <Pressable onPress={() => copyKey(item.key)} style={styles.keyTextRow}>
-            <Text style={[styles.keyText, { color: "#3b82f6" }]}>{item.key}</Text>
+            <Text style={[styles.keyText, { color: "#3b82f6" }]} numberOfLines={1}>{item.key}</Text>
             <Copy size={14} color={colors.textSecondary} />
           </Pressable>
-          <View style={{ flexDirection: "row", gap: 6 }}>
-            <Pressable onPress={() => changeKeyType(item)} style={[styles.badge, { backgroundColor: typeColor.bg }]}>
-              <Text style={[styles.badgeText, { color: typeColor.color }]}>{item.keyType.toUpperCase()}</Text>
-            </Pressable>
-            <View style={[styles.badge, { backgroundColor: status.bg }]}>
-              <Text style={[styles.badgeText, { color: status.color }]}>{status.label}</Text>
-            </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
+          <Pressable onPress={() => changeKeyType(item)} style={[styles.badge, { backgroundColor: typeColor.bg }]}>
+            <Text style={[styles.badgeText, { color: typeColor.color }]}>{item.keyType.toUpperCase()}</Text>
+          </Pressable>
+          <View style={[styles.badge, { backgroundColor: status.bg }]}>
+            <Text style={[styles.badgeText, { color: status.color }]}>{status.label}</Text>
           </View>
         </View>
 
@@ -380,14 +402,36 @@ export function AdminPanel() {
             />
           </View>
           <View style={styles.createFieldSmall}>
-            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Days</Text>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Duration</Text>
             <TextInput
               style={[styles.fieldInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
               keyboardType="number-pad"
-              value={newExpDays}
-              onChangeText={setNewExpDays}
+              value={newExpAmount}
+              onChangeText={setNewExpAmount}
             />
           </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+          {(["days", "months", "years"] as const).map((u) => {
+            const selected = newExpUnit === u;
+            return (
+              <Pressable
+                key={u}
+                onPress={() => setNewExpUnit(u)}
+                style={[
+                  styles.typeChip,
+                  {
+                    backgroundColor: selected ? "#3b82f622" : colors.background,
+                    borderColor: selected ? "#3b82f6" : colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.typeChipText, { color: selected ? "#3b82f6" : colors.textSecondary }]}>
+                  {u.charAt(0).toUpperCase() + u.slice(1)}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
         <View style={{ marginBottom: 12 }}>
           <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Key Type</Text>
