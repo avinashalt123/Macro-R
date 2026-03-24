@@ -274,9 +274,9 @@ export function AdminPanel() {
           </Pressable>
         </View>
         <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
-          <Pressable onPress={() => changeKeyType(item)} style={[styles.badge, { backgroundColor: typeColor.bg }]}>
+          <View style={[styles.badge, { backgroundColor: typeColor.bg }]}>
             <Text style={[styles.badgeText, { color: typeColor.color }]}>{item.keyType.toUpperCase()}</Text>
-          </Pressable>
+          </View>
           <View style={[styles.badge, { backgroundColor: status.bg }]}>
             <Text style={[styles.badgeText, { color: status.color }]}>{status.label}</Text>
           </View>
@@ -299,27 +299,31 @@ export function AdminPanel() {
         </View>
 
         <View style={styles.actionRow}>
-          <Pressable onPress={() => extendKey(item)} style={[styles.actionBtn, { backgroundColor: colors.surfaceSecondary }]}>
+          <Pressable onPress={() => extendKey(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: colors.surfaceSecondary }]}>
             <Plus size={14} color={colors.text} />
-            <Text style={[styles.actionText, { color: colors.text }]}>30 Days</Text>
+            <Text style={[styles.actionText, { color: colors.text }]}>+30d</Text>
           </Pressable>
 
-          <Pressable onPress={() => editLimit(item)} style={[styles.actionBtn, { backgroundColor: colors.surfaceSecondary }]}>
-            <Text style={[styles.actionText, { color: colors.text }]}>Edit Limit</Text>
+          <Pressable onPress={() => editLimit(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: colors.surfaceSecondary }]}>
+            <Minus size={14} color={colors.text} />
+            <Text style={[styles.actionText, { color: colors.text }]}>Limit</Text>
+          </Pressable>
+
+          <Pressable onPress={() => changeKeyType(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: typeColor.bg }]}>
+            <Text style={[styles.actionText, { color: typeColor.color }]}>Type</Text>
           </Pressable>
 
           {item.boundDeviceId && (
-            <Pressable onPress={() => resetDevice(item)} style={[styles.actionBtn, { backgroundColor: "#f59e0b22" }]}>
+            <Pressable onPress={() => resetDevice(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: "#f59e0b22" }]}>
               <Smartphone size={14} color="#f59e0b" />
-              <Text style={[styles.actionText, { color: "#f59e0b" }]}>Reset</Text>
             </Pressable>
           )}
 
-          <Pressable onPress={() => toggleKey(item)} style={[styles.actionBtn, { backgroundColor: item.isActive ? "#dc262622" : "#16a34a22" }]}>
+          <Pressable onPress={() => toggleKey(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: item.isActive ? "#dc262622" : "#16a34a22" }]}>
             {item.isActive ? <PowerOff size={14} color="#f87171" /> : <Power size={14} color="#4ade80" />}
           </Pressable>
 
-          <Pressable onPress={() => deleteKey(item)} style={[styles.actionBtn, { backgroundColor: "#dc262622" }]}>
+          <Pressable onPress={() => deleteKey(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: "#dc262622" }]}>
             <Trash2 size={14} color="#f87171" />
           </Pressable>
         </View>
@@ -554,15 +558,17 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   metaRow: { flexDirection: "row", gap: 12, marginBottom: 10, flexWrap: "wrap" },
   metaText: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  actionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  actionRow: { flexDirection: "row", gap: 6 },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 8,
     borderRadius: 10,
   },
+  actionBtnFlex: { flex: 1 },
   actionText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
