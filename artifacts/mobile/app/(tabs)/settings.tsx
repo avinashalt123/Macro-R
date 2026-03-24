@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Calendar, CheckSquare, Clock, Minus, Moon, Pencil, Plus, RotateCcw, Search, Zap } from "lucide-react-native";
+import { Calendar, CheckSquare, Clock, Minus, Moon, Pencil, Plus, RotateCcw, Search, Shield, Zap } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { router } from "expo-router";
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useLicense } from "@/context/LicenseContext";
@@ -59,7 +60,7 @@ export default function SettingsScreen() {
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useSettings();
-  const { licenseData, removeLicense } = useLicense();
+  const { licenseData, removeLicense, isOwnerMode, adminPanelVisible } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
   const [scheduling, setScheduling] = useState(false);
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
@@ -280,10 +281,28 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-          <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Configure automation behavior
-          </Text>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={[styles.title, { color: colors.text }]}>Settings</Text>
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                Configure automation behavior
+              </Text>
+            </View>
+            {isOwnerMode && adminPanelVisible && (
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  router.push("/admin-panel");
+                }}
+                style={({ pressed }) => [
+                  styles.adminBtn,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Shield size={16} color="#fff" />
+              </Pressable>
+            )}
+          </View>
         </View>
 
         {/* ── SEARCH ────────────────────────────────────────── */}
@@ -786,8 +805,10 @@ function Section({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { paddingHorizontal: 20, paddingBottom: 16 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { fontSize: 28, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 2 },
+  adminBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#7C3AED", alignItems: "center", justifyContent: "center" },
   section: { paddingHorizontal: 16, marginBottom: 24 },
   sectionTitle: {
     fontSize: 11,
