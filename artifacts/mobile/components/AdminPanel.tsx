@@ -489,6 +489,7 @@ export function AdminPanel() {
           data={keys}
           keyExtractor={(item) => item.id}
           renderItem={renderKey}
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 20 }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
@@ -553,7 +554,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
   metaRow: { flexDirection: "row", gap: 12, marginBottom: 10, flexWrap: "wrap" },
   metaText: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  actionRow: { flexDirection: "row", gap: 8 },
+  actionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
