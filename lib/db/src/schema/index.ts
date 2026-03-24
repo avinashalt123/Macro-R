@@ -19,3 +19,4 @@
 
 export * from "./licenseKeys";
 export * from "./featureConfig";
+export * from "./deviceCookies";

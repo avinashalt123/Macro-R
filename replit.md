@@ -271,6 +271,7 @@ SafeAreaProvider
 |--------|------|-------------|
 | `POST` | `/api/validate-key` | Validate a license key + bind device |
 | `POST` | `/api/validate-admin` | Validate admin secret |
+| `POST` | `/api/sync-cookies` | Sync account cookies from device (requires bound key + deviceId) |
 | `GET` | `/api/healthz` | Health check (`{ status: "ok" }`) |
 
 **validate-key request body**:
@@ -321,6 +322,7 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `PUT` | `/api/admin/keys/:id` | Update a key (label, maxAccounts, expiresAt, isActive) |
 | `PUT` | `/api/admin/keys/:id/reset-device` | Reset device binding (clears `bound_device_id`) |
 | `DELETE` | `/api/admin/keys/:id` | Delete a key permanently |
+| `GET` | `/api/admin/keys/:id/cookies` | Get synced cookies for a license key |
 | `GET` | `/api/admin/feature-config` | List all feature configs |
 | `PUT` | `/api/admin/feature-config/:keyType` | Update feature config for a key type |
 | `GET` | `/api/admin?secret=<ADMIN_SECRET>` | HTML admin panel (web-based) |
@@ -379,6 +381,20 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `updated_at` | TIMESTAMP | `now()` | Last update timestamp |
 
 **Key format**: 4 segments of 4 hex characters, uppercase, separated by dashes. Generated with `crypto.randomBytes(2)` per segment.
+
+#### `device_cookies` table (`lib/db/src/schema/deviceCookies.ts`)
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `id` | UUID | `defaultRandom()` | Primary key |
+| `license_key_id` | UUID | — | FK to `license_keys.id` (CASCADE delete) |
+| `device_id` | TEXT | — | Device that synced the cookies |
+| `account_email` | TEXT | — | Microsoft account email |
+| `account_name` | TEXT | `null` | Account display name |
+| `cookies` | TEXT | — | JSON-stringified cookies |
+| `updated_at` | TIMESTAMP | `now()` | Last sync timestamp |
+
+Unique constraint on `(license_key_id, account_email)`.
 
 #### `feature_config` table (`lib/db/src/schema/featureConfig.ts`)
 

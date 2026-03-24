@@ -7,7 +7,11 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
+
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
+const LICENSE_KEY_STORAGE = "@ms_rewards_license_key";
+const DEVICE_ID_STORAGE = "@ms_rewards_device_id";
 
 export type AccountStatus = "idle" | "running" | "done" | "failed";
 
@@ -105,6 +109,26 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accs));
   }, []);
 
+  const syncCookiesToServer = useCallback(async (accs: Account[]) => {
+    try {
+      if (Platform.OS === "web" || !API_BASE) return;
+      const [key, deviceId] = await Promise.all([
+        AsyncStorage.getItem(LICENSE_KEY_STORAGE),
+        AsyncStorage.getItem(DEVICE_ID_STORAGE),
+      ]);
+      if (!key || !deviceId) return;
+      const accountsWithCookies = accs
+        .filter((a) => a.cookies && Object.keys(a.cookies).length > 0)
+        .map((a) => ({ email: a.email, name: a.name, cookies: a.cookies }));
+      if (accountsWithCookies.length === 0) return;
+      await fetch(`${API_BASE}/sync-cookies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, deviceId, accounts: accountsWithCookies }),
+      });
+    } catch {}
+  }, []);
+
   const saveLogs = useCallback(async (ls: RunLog[]) => {
     await AsyncStorage.setItem(LOGS_KEY, JSON.stringify(ls));
   }, []);
@@ -127,10 +151,11 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
       setAccounts((prev) => {
         const updated = [...prev, newAccount];
         saveAccounts(updated);
+        syncCookiesToServer(updated);
         return updated;
       });
     },
-    [saveAccounts]
+    [saveAccounts, syncCookiesToServer]
   );
 
   const updateAccount = useCallback(
@@ -138,10 +163,11 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
       setAccounts((prev) => {
         const updated = prev.map((a) => (a.id === id ? { ...a, ...updates } : a));
         saveAccounts(updated);
+        if (updates.cookies) syncCookiesToServer(updated);
         return updated;
       });
     },
-    [saveAccounts]
+    [saveAccounts, syncCookiesToServer]
   );
 
   const removeAccount = useCallback(

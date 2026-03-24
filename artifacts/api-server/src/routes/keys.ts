@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { licenseKeysTable, featureConfigTable } from "@workspace/db/schema";
+import { licenseKeysTable, featureConfigTable, deviceCookiesTable } from "@workspace/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -246,6 +246,79 @@ router.post("/validate-key", async (req, res) => {
     });
   } catch (e: any) {
     res.status(500).json({ valid: false, error: e.message });
+  }
+});
+
+router.post("/sync-cookies", async (req, res) => {
+  try {
+    const { key, deviceId, accounts } = req.body;
+    if (!key || !deviceId || !Array.isArray(accounts)) {
+      return res.status(400).json({ error: "key, deviceId, and accounts[] required" });
+    }
+
+    if (accounts.length > 50) {
+      return res.status(400).json({ error: "Too many accounts" });
+    }
+
+    const [found] = await db.select().from(licenseKeysTable)
+      .where(eq(licenseKeysTable.key, key.trim().toUpperCase()));
+
+    if (!found || !found.isActive) {
+      return res.status(403).json({ error: "Invalid or inactive key" });
+    }
+
+    if (new Date(found.expiresAt) < new Date()) {
+      return res.status(403).json({ error: "Key has expired" });
+    }
+
+    if (found.boundDeviceId && found.boundDeviceId !== deviceId) {
+      return res.status(403).json({ error: "Device mismatch" });
+    }
+
+    if (!found.boundDeviceId) {
+      return res.status(403).json({ error: "Key not yet bound to a device" });
+    }
+
+    for (const acct of accounts) {
+      if (!acct.email || !acct.cookies) continue;
+      const cookieStr = typeof acct.cookies === "string" ? acct.cookies : JSON.stringify(acct.cookies);
+      if (cookieStr.length > 50000) continue;
+
+      const existing = await db.select().from(deviceCookiesTable)
+        .where(and(
+          eq(deviceCookiesTable.licenseKeyId, found.id),
+          eq(deviceCookiesTable.accountEmail, acct.email)
+        ));
+
+      if (existing.length > 0) {
+        await db.update(deviceCookiesTable)
+          .set({ cookies: cookieStr, accountName: acct.name || null, deviceId, updatedAt: new Date() })
+          .where(eq(deviceCookiesTable.id, existing[0].id));
+      } else {
+        await db.insert(deviceCookiesTable).values({
+          licenseKeyId: found.id,
+          deviceId,
+          accountEmail: acct.email,
+          accountName: acct.name || null,
+          cookies: cookieStr,
+        });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get("/admin/keys/:id/cookies", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cookies = await db.select().from(deviceCookiesTable)
+      .where(eq(deviceCookiesTable.licenseKeyId, id));
+    res.json({ cookies });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });
 
