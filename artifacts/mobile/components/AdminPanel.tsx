@@ -529,14 +529,12 @@ export function AdminPanel() {
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
-            {isOwnerMode && (
-              <Pressable
-                onPress={() => router.back()}
-                style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.6 : 1 }]}
-              >
-                <ArrowLeft size={22} color={colors.text} />
-              </Pressable>
-            )}
+            <Pressable
+              onPress={() => router.back()}
+              style={({ pressed }) => [styles.headerBtn, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <ArrowLeft size={22} color={colors.text} />
+            </Pressable>
             <Shield size={24} color="#3b82f6" />
             <Text style={[styles.title, { color: colors.text }]}>Admin Panel</Text>
           </View>
@@ -547,7 +545,7 @@ export function AdminPanel() {
             >
               <RefreshCw size={18} color={colors.text} />
             </Pressable>
-            {!isOwnerMode && (
+            {(
               <Pressable
                 onPress={async () => {
                   if (Platform.OS === "web") {
