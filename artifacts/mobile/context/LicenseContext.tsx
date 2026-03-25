@@ -237,10 +237,15 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         if (hoursSinceValidation < 24) {
           setLicenseData(data);
           setIsLicensed(true);
-          await loadCachedFeatureConfig();
+          if (data.keyType === "admin") {
+            setIsAdmin(true);
+            setFeatureConfig(OWNER_FEATURE_CONFIG);
+          } else {
+            await loadCachedFeatureConfig();
+          }
           setIsLoading(false);
           validateKey(storedKey).then(async (r) => {
-            if (r.valid && r.featureConfig) {
+            if (r.valid && r.featureConfig && data.keyType !== "admin") {
               await saveFeatureConfig(r.featureConfig);
             }
           }).catch(() => {});
@@ -256,6 +261,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
           setIsLoading(false);
           return;
         }
+        const isOwnerKey = result.keyType === "admin";
         const data: LicenseData = {
           key: storedKey,
           maxAccounts: result.maxAccounts,
@@ -268,8 +274,11 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         await AsyncStorage.setItem(LICENSE_DATA_STORAGE, JSON.stringify(data));
         setLicenseData(data);
         setIsLicensed(true);
+        setIsAdmin(isOwnerKey);
         setError(null);
-        if (result.featureConfig) {
+        if (isOwnerKey) {
+          setFeatureConfig(OWNER_FEATURE_CONFIG);
+        } else if (result.featureConfig) {
           await saveFeatureConfig(result.featureConfig);
         }
       } else if (result.offline && storedData) {
@@ -277,7 +286,12 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
         if (new Date(data.expiresAt).getTime() > Date.now()) {
           setLicenseData(data);
           setIsLicensed(true);
-          await loadCachedFeatureConfig();
+          if (data.keyType === "admin") {
+            setIsAdmin(true);
+            setFeatureConfig(OWNER_FEATURE_CONFIG);
+          } else {
+            await loadCachedFeatureConfig();
+          }
         } else {
           setError("License key has expired");
           setIsLicensed(false);
@@ -335,6 +349,8 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
+    const isOwnerKey = result.keyType === "admin";
+
     const data: LicenseData = {
       key: upperKey,
       maxAccounts: result.maxAccounts,
@@ -349,13 +365,15 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem(LICENSE_DATA_STORAGE, JSON.stringify(data));
     await AsyncStorage.removeItem(ADMIN_SECRET_STORAGE);
     await AsyncStorage.removeItem(ADMIN_VALIDATED_AT_STORAGE);
-    if (result.featureConfig) {
-      await saveFeatureConfig(result.featureConfig);
+    const effectiveConfig = isOwnerKey ? OWNER_FEATURE_CONFIG : (result.featureConfig ?? null);
+    if (effectiveConfig) {
+      await saveFeatureConfig(effectiveConfig);
     }
     setLicenseData(data);
     setIsLicensed(true);
-    setIsAdmin(false);
+    setIsAdmin(isOwnerKey);
     setAdminSecret(null);
+    if (isOwnerKey) setFeatureConfig(OWNER_FEATURE_CONFIG);
     return true;
   }, [validateKey, validateAdmin, saveFeatureConfig]);
 
