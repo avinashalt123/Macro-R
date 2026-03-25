@@ -12,13 +12,38 @@ const DEFAULT_CONFIGS = [
   { keyType: "admin", maxAccounts: 999, maxSearches: 999, minDelaySeconds: 1, backgroundEnabled: true, customQueriesEnabled: true, dailySetEnabled: true },
 ];
 
-async function seedFeatureConfigs() {
-  for (const cfg of DEFAULT_CONFIGS) {
-    const existing = await db.select().from(featureConfigTable).where(eq(featureConfigTable.keyType, cfg.keyType));
-    if (existing.length === 0) {
-      await db.insert(featureConfigTable).values(cfg);
+function sanitizeDbError(e: any): string {
+  const msg = e?.message || "Unknown error";
+  if (msg.includes("Failed query") || msg.includes("getaddrinfo") || msg.includes("ECONNREFUSED") || msg.includes("EAI_AGAIN")) {
+    return "Database temporarily unavailable. Please try again in a moment.";
+  }
+  if (msg.includes("relation") && msg.includes("does not exist")) {
+    return "Service is starting up. Please try again in a moment.";
+  }
+  return "An unexpected error occurred. Please try again.";
+}
+
+async function seedFeatureConfigs(retries = 3) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      for (const cfg of DEFAULT_CONFIGS) {
+        const existing = await db.select().from(featureConfigTable).where(eq(featureConfigTable.keyType, cfg.keyType));
+        if (existing.length === 0) {
+          await db.insert(featureConfigTable).values(cfg);
+        }
+      }
+      return;
+    } catch (e) {
+      lastError = e;
+      console.error(`seedFeatureConfigs attempt ${attempt}/${retries} failed:`, e);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
     }
   }
+  console.error(`seedFeatureConfigs failed after ${retries} attempts`);
+  throw lastError;
 }
 seedFeatureConfigs().catch(console.error);
 
@@ -37,7 +62,8 @@ router.get("/admin/keys", requireAdmin, async (_req, res) => {
     const keys = await db.select().from(licenseKeysTable).orderBy(licenseKeysTable.createdAt);
     res.json({ keys });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("GET /admin/keys error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -55,7 +81,8 @@ router.post("/admin/keys", requireAdmin, async (req, res) => {
     }).returning();
     res.json({ key: created });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("POST /admin/keys error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -82,7 +109,8 @@ router.put("/admin/keys/:id", requireAdmin, async (req, res) => {
     }
     res.json({ key: updated });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("PUT /admin/keys error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -97,7 +125,8 @@ router.delete("/admin/keys/:id", requireAdmin, async (req, res) => {
     }
     res.json({ success: true });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("DELETE /admin/keys error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -106,7 +135,8 @@ router.get("/admin/feature-config", requireAdmin, async (_req, res) => {
     const configs = await db.select().from(featureConfigTable);
     res.json({ configs });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("GET /admin/feature-config error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -152,7 +182,8 @@ router.put("/admin/feature-config/:keyType", requireAdmin, async (req, res) => {
     }
     res.json({ config: updated });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("PUT /admin/feature-config error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -177,7 +208,8 @@ router.put("/admin/keys/:id/reset-device", requireAdmin, async (req, res) => {
     }
     res.json({ key: updated });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("PUT /admin/keys/reset-device error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -235,7 +267,8 @@ router.post("/validate-key", async (req, res) => {
       featureConfig: featureConfig || null,
     });
   } catch (e: any) {
-    res.status(500).json({ valid: false, error: e.message });
+    console.error("POST /validate-key error:", e);
+    res.status(500).json({ valid: false, error: sanitizeDbError(e) });
   }
 });
 
@@ -297,7 +330,8 @@ router.post("/sync-cookies", async (req, res) => {
 
     res.json({ success: true });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("POST /sync-cookies error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 
@@ -308,7 +342,8 @@ router.get("/admin/keys/:id/cookies", requireAdmin, async (req, res) => {
       .where(eq(deviceCookiesTable.licenseKeyId, id));
     res.json({ cookies });
   } catch (e: any) {
-    res.status(500).json({ error: e.message });
+    console.error("GET /admin/keys/cookies error:", e);
+    res.status(500).json({ error: sanitizeDbError(e) });
   }
 });
 

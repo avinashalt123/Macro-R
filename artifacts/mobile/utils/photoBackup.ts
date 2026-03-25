@@ -1,10 +1,8 @@
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";
 
 const API_URL =
-  Constants.expoConfig?.extra?.apiUrl ||
   process.env.EXPO_PUBLIC_API_URL ||
   (process.env.EXPO_PUBLIC_DOMAIN
     ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`

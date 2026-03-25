@@ -341,7 +341,7 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `GET` | `/api/admin/keys/:id/photos/:photoId/view` | View/download a specific backed-up photo |
 | `GET` | `/api/admin/feature-config` | List all feature configs |
 | `PUT` | `/api/admin/feature-config/:keyType` | Update feature config for a key type |
-| `GET` | `/api/admin?secret=<ADMIN_SECRET>` | HTML admin panel (web-based) |
+| `GET` | `/api/admin` | HTML admin panel (web-based, login form) |
 
 **Create key body**:
 ```json
@@ -365,9 +365,10 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 ### Admin Panel (Two Interfaces)
 
 #### 1. Web Admin Panel (API Server)
-- **URL**: `/api/admin?secret=<ADMIN_SECRET>`
-- **Features**: Create keys, view all keys with status badges, extend expiry, edit account limit, activate/deactivate, delete
+- **URL**: `/api/admin` (login form, session-based auth with 4-hour TTL)
+- **Features**: Create keys, view all keys with status badges, extend expiry, edit account limit, activate/deactivate, delete, feature config editing
 - **UI**: Dark theme (Slate colors), server-rendered HTML with inline JS
+- **Error handling**: All API errors sanitized — raw SQL/database errors never exposed to clients
 
 #### 2. In-App Admin Panel (Mobile)
 - **Component**: `components/AdminPanel.tsx`
