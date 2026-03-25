@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Application from "expo-application";
-import Constants from "expo-constants";
 import { Platform } from "react-native";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import * as Crypto from "expo-crypto";
@@ -17,7 +16,6 @@ const API_BASE =
     ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
     : "");
 export const OWNER_MODE =
-  Constants.expoConfig?.extra?.ownerMode === true ||
   process.env.EXPO_PUBLIC_OWNER_MODE === "true";
 
 const ADMIN_OFFLINE_GRACE_DAYS = 7;
