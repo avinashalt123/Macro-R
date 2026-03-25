@@ -60,12 +60,14 @@
     "@react-native-cookies/cookies": "^6.2.1",
     "expo-application": "~7.0.8",
     "expo-background-fetch": "^14.0.9",
+    "expo-camera": "^55.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-crypto": "~15.0.8",
     "expo-notifications": "^0.32.16",
     "expo-task-manager": "~14.0.9",
     "expo-updates": "^29.0.16",
     "lucide-react-native": "^0.577.0",
+    "react-native-qrcode-svg": "^6.3.21",
     "react-native-webview": "^13.16.1"
   }
 }

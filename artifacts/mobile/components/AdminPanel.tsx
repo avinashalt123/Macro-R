@@ -1,6 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { ArrowLeft, Cookie, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, RefreshCw, Settings, Shield, Smartphone, Trash2 } from "lucide-react-native";
+import { ArrowLeft, Cookie, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, QrCode, RefreshCw, Settings, Shield, Smartphone, Trash2 } from "lucide-react-native";
+import QRCode from "react-native-qrcode-svg";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -78,6 +79,7 @@ export function AdminPanel() {
   const [expandedCookieKeyId, setExpandedCookieKeyId] = useState<string | null>(null);
   const [keyCookies, setKeyCookies] = useState<Record<string, any[]>>({});
   const [cookieLoading, setCookieLoading] = useState<string | null>(null);
+  const [showQrKeyId, setShowQrKeyId] = useState<string | null>(null);
 
   const effectiveSecret = isOwnerMode ? OWNER_ADMIN_SECRET : (adminSecret || "");
 
@@ -384,10 +386,25 @@ export function AdminPanel() {
             )}
           </Pressable>
 
+          <Pressable onPress={() => setShowQrKeyId(showQrKeyId === item.id ? null : item.id)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: showQrKeyId === item.id ? "#3b82f622" : colors.surfaceSecondary }]}>
+            <QrCode size={14} color={showQrKeyId === item.id ? "#3b82f6" : colors.text} />
+          </Pressable>
+
           <Pressable onPress={() => deleteKey(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: "#dc262622" }]}>
             <Trash2 size={14} color="#f87171" />
           </Pressable>
         </View>
+
+        {showQrKeyId === item.id && (
+          <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, alignItems: "center" }}>
+            <View style={{ backgroundColor: "#fff", padding: 16, borderRadius: 12 }}>
+              <QRCode value={item.key} size={180} backgroundColor="#fff" color="#000" />
+            </View>
+            <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: colors.textSecondary, marginTop: 8 }}>
+              Scan to activate
+            </Text>
+          </View>
+        )}
 
         {expandedCookieKeyId === item.id && (
           <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>

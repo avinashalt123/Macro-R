@@ -9,9 +9,11 @@ import {
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Lock, KeyRound } from "lucide-react-native";
+import { Lock, KeyRound, ScanLine, X } from "lucide-react-native";
+import { CameraView } from "expo-camera";
 import { useLicense } from "@/context/LicenseContext";
 import { AdminPanel } from "@/components/AdminPanel";
 import Colors from "@/constants/colors";
@@ -24,6 +26,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   const [keyInput, setKeyInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   if (isLoading) {
     return (
@@ -48,6 +51,17 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
     setSubmitting(false);
   };
 
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    setShowScanner(false);
+    const scanned = data.trim().toUpperCase();
+    setKeyInput(scanned);
+    setTimeout(async () => {
+      setSubmitting(true);
+      await activateKey(scanned);
+      setSubmitting(false);
+    }, 300);
+  };
+
   return (
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}
@@ -60,7 +74,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
 
         <Text style={[styles.title, { color: colors.text }]}>License Required</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Enter your license key to access the app
+          Enter your license key or scan a QR code
         </Text>
 
         <View style={styles.inputContainer}>
@@ -77,6 +91,11 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
               returnKeyType="done"
               onSubmitEditing={handleActivate}
             />
+            {Platform.OS !== "web" && (
+              <Pressable onPress={() => setShowScanner(true)} style={{ padding: 4 }}>
+                <ScanLine size={22} color="#3b82f6" />
+              </Pressable>
+            )}
           </View>
 
           {error && (
@@ -99,8 +118,42 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
               <Text style={styles.buttonText}>Activate</Text>
             )}
           </Pressable>
+
+          {Platform.OS !== "web" && (
+            <Pressable
+              onPress={() => setShowScanner(true)}
+              style={({ pressed }) => [
+                styles.scanButton,
+                { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
+              ]}
+            >
+              <ScanLine size={20} color="#3b82f6" />
+              <Text style={[styles.scanButtonText, { color: colors.text }]}>Scan QR Code</Text>
+            </Pressable>
+          )}
         </View>
       </View>
+
+      <Modal visible={showScanner} animationType="slide" presentationStyle="fullScreen">
+        <View style={[styles.scannerContainer, { backgroundColor: "#000" }]}>
+          <View style={[styles.scannerHeader, { paddingTop: insets.top + 12 }]}>
+            <Text style={styles.scannerTitle}>Scan License QR Code</Text>
+            <Pressable onPress={() => setShowScanner(false)} style={styles.closeBtn}>
+              <X size={24} color="#fff" />
+            </Pressable>
+          </View>
+          <CameraView
+            style={styles.camera}
+            facing="back"
+            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+            onBarcodeScanned={handleBarCodeScanned}
+          />
+          <View style={styles.scanOverlay}>
+            <View style={styles.scanFrame} />
+          </View>
+          <Text style={styles.scanHint}>Point your camera at the QR code</Text>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -172,5 +225,61 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
+  },
+  scanButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    borderRadius: 12,
+    height: 50,
+    marginTop: 12,
+    borderWidth: 1,
+  },
+  scanButtonText: {
+    fontSize: 15,
+    fontFamily: "Inter_500Medium",
+  },
+  scannerContainer: {
+    flex: 1,
+  },
+  scannerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    zIndex: 10,
+  },
+  scannerTitle: {
+    fontSize: 18,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+  },
+  closeBtn: {
+    padding: 8,
+  },
+  camera: {
+    flex: 1,
+  },
+  scanOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  scanFrame: {
+    width: 250,
+    height: 250,
+    borderWidth: 2,
+    borderColor: "#3b82f6",
+    borderRadius: 20,
+  },
+  scanHint: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    textAlign: "center",
+    paddingBottom: 40,
+    paddingTop: 12,
   },
 });
