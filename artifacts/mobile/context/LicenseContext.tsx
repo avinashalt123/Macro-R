@@ -18,8 +18,7 @@ const API_BASE =
     : "");
 export const OWNER_MODE =
   Constants.expoConfig?.extra?.ownerMode === true ||
-  process.env.EXPO_PUBLIC_OWNER_MODE === "true" ||
-  Platform.OS === "web";
+  process.env.EXPO_PUBLIC_OWNER_MODE === "true";
 
 const ADMIN_OFFLINE_GRACE_DAYS = 7;
 
