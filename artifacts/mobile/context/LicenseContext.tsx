@@ -16,7 +16,9 @@ const API_BASE =
   (process.env.EXPO_PUBLIC_DOMAIN
     ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
     : "");
-export const OWNER_MODE = false;
+export const OWNER_MODE =
+  Constants.expoConfig?.extra?.ownerMode === true ||
+  process.env.EXPO_PUBLIC_OWNER_MODE === "true";
 
 const ADMIN_OFFLINE_GRACE_DAYS = 7;
 
@@ -183,13 +185,6 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      if (Platform.OS === "web") {
-        await AsyncStorage.multiRemove([
-          ADMIN_SECRET_STORAGE, ADMIN_VALIDATED_AT_STORAGE,
-          LICENSE_KEY_STORAGE, LICENSE_DATA_STORAGE,
-          FEATURE_CONFIG_STORAGE, ADMIN_VISIBLE_STORAGE,
-        ]);
-      }
       const storedAdminSecret = await AsyncStorage.getItem(ADMIN_SECRET_STORAGE);
       if (storedAdminSecret) {
         const result = await validateAdmin(storedAdminSecret);
