@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -12,8 +13,9 @@ import {
   Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Lock, KeyRound, ScanLine, X } from "lucide-react-native";
+import { Lock, KeyRound, ScanLine, Image as ImageIcon, X } from "lucide-react-native";
 import { CameraView } from "expo-camera";
+import * as ImagePicker from "expo-image-picker";
 import { useLicense } from "@/context/LicenseContext";
 import { AdminPanel } from "@/components/AdminPanel";
 import Colors from "@/constants/colors";
@@ -27,6 +29,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
   const [keyInput, setKeyInput] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [scanned, setScanned] = useState(false);
 
   if (isLoading) {
     return (
@@ -51,15 +54,43 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
     setSubmitting(false);
   };
 
+  const activateScanned = async (key: string) => {
+    const cleaned = key.trim().toUpperCase();
+    setKeyInput(cleaned);
+    setSubmitting(true);
+    await activateKey(cleaned);
+    setSubmitting(false);
+  };
+
   const handleBarCodeScanned = ({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
     setShowScanner(false);
-    const scanned = data.trim().toUpperCase();
-    setKeyInput(scanned);
-    setTimeout(async () => {
-      setSubmitting(true);
-      await activateKey(scanned);
-      setSubmitting(false);
-    }, 300);
+    activateScanned(data);
+  };
+
+  const openScanner = () => {
+    setScanned(false);
+    setShowScanner(true);
+  };
+
+  const pickFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        quality: 1,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      Alert.alert(
+        "QR Code from Image",
+        "Please enter the license key shown in the QR code image manually, or use the camera scanner for automatic detection.",
+        [{ text: "OK" }]
+      );
+    } catch (e) {
+      Alert.alert("Error", "Failed to open gallery");
+    }
   };
 
   return (
@@ -92,7 +123,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
               onSubmitEditing={handleActivate}
             />
             {Platform.OS !== "web" && (
-              <Pressable onPress={() => setShowScanner(true)} style={{ padding: 4 }}>
+              <Pressable onPress={openScanner} style={{ padding: 4 }}>
                 <ScanLine size={22} color="#3b82f6" />
               </Pressable>
             )}
@@ -120,16 +151,29 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
           </Pressable>
 
           {Platform.OS !== "web" && (
-            <Pressable
-              onPress={() => setShowScanner(true)}
-              style={({ pressed }) => [
-                styles.scanButton,
-                { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
-              ]}
-            >
-              <ScanLine size={20} color="#3b82f6" />
-              <Text style={[styles.scanButtonText, { color: colors.text }]}>Scan QR Code</Text>
-            </Pressable>
+            <View style={styles.scanRow}>
+              <Pressable
+                onPress={openScanner}
+                style={({ pressed }) => [
+                  styles.scanButton,
+                  { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1, flex: 1 },
+                ]}
+              >
+                <ScanLine size={18} color="#3b82f6" />
+                <Text style={[styles.scanButtonText, { color: colors.text }]}>Scan QR</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={pickFromGallery}
+                style={({ pressed }) => [
+                  styles.scanButton,
+                  { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1, flex: 1 },
+                ]}
+              >
+                <ImageIcon size={18} color="#3b82f6" />
+                <Text style={[styles.scanButtonText, { color: colors.text }]}>Gallery</Text>
+              </Pressable>
+            </View>
           )}
         </View>
       </View>
@@ -146,7 +190,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
             style={styles.camera}
             facing="back"
             barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-            onBarcodeScanned={handleBarCodeScanned}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           />
           <View style={styles.scanOverlay}>
             <View style={styles.scanFrame} />
@@ -226,6 +270,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter_600SemiBold",
   },
+  scanRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
   scanButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -233,11 +282,10 @@ const styles = StyleSheet.create({
     gap: 8,
     borderRadius: 12,
     height: 50,
-    marginTop: 12,
     borderWidth: 1,
   },
   scanButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: "Inter_500Medium",
   },
   scannerContainer: {
