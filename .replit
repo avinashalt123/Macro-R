@@ -31,6 +31,7 @@ timeoutMs = 20000
 [userenv.shared]
 ADMIN_SECRET = "5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551"
 EXPO_PUBLIC_ADMIN_SECRET = "5a3c08fc5bb635040ec2db32d5634203f50fc8c2ed599551"
+EXPO_PUBLIC_OWNER_MODE = "false"
 
 [nix]
 channel = "stable-25_05"
