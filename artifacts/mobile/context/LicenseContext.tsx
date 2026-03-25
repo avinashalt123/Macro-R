@@ -120,11 +120,9 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
   const [adminPanelVisible, setAdminPanelVisibleState] = useState(false);
 
   useEffect(() => {
-    if (OWNER_MODE) {
-      AsyncStorage.getItem(ADMIN_VISIBLE_STORAGE).then((val) => {
-        if (val === "true") setAdminPanelVisibleState(true);
-      });
-    }
+    AsyncStorage.getItem(ADMIN_VISIBLE_STORAGE).then((val) => {
+      if (val === "true") setAdminPanelVisibleState(true);
+    });
   }, []);
 
   const setAdminPanelVisible = useCallback(async (visible: boolean) => {
@@ -398,7 +396,7 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
   }, [loadStoredLicense]);
 
   return (
-    <LicenseContext.Provider value={{ isLicensed, isAdmin, isOwnerMode: OWNER_MODE, isLoading, licenseData, featureConfig, adminSecret, error, adminPanelVisible, setAdminPanelVisible, activateKey, removeLicense, revalidate }}>
+    <LicenseContext.Provider value={{ isLicensed, isAdmin, isOwnerMode: OWNER_MODE || isAdmin, isLoading, licenseData, featureConfig, adminSecret, error, adminPanelVisible, setAdminPanelVisible, activateKey, removeLicense, revalidate }}>
       {children}
     </LicenseContext.Provider>
   );

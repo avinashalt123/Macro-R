@@ -17,12 +17,11 @@ import { Lock, KeyRound, ScanLine, Image as ImageIcon, X } from "lucide-react-na
 import { CameraView, Camera } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import { useLicense } from "@/context/LicenseContext";
-import { AdminPanel } from "@/components/AdminPanel";
 import Colors from "@/constants/colors";
 
 export function LicenseGate({ children }: { children: React.ReactNode }) {
   const license = useLicense();
-  const { isLicensed, isAdmin, isLoading, error, activateKey } = license;
+  const { isLicensed, isLoading, error, activateKey } = license;
   const scheme = useColorScheme() ?? "dark";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
@@ -37,10 +36,6 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
         <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
-  }
-
-  if (isLicensed && isAdmin && !license.isOwnerMode) {
-    return <AdminPanel />;
   }
 
   if (isLicensed) {

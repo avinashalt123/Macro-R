@@ -28,7 +28,6 @@ export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { accounts, updateAccount, removeAccount, startRun, isRunning } = useAccounts();
   const account = accounts.find((a) => a.id === id);
-  const accountIndex = accounts.findIndex((a) => a.id === id);
   const { isOwnerMode, adminPanelVisible, setAdminPanelVisible } = useLicense();
 
   const scheme = useColorScheme() ?? "light";
@@ -175,7 +174,7 @@ export default function AccountDetailScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
-                {isOwnerMode && accountIndex === 1 && (
+                {isOwnerMode && (
                   <View style={[styles.ownerToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                     <View style={styles.ownerToggleLeft}>
                       {adminPanelVisible ? <Eye size={16} color="#7C3AED" /> : <EyeOff size={16} color={colors.textMuted} />}
