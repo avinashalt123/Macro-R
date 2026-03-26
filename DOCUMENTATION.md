@@ -730,8 +730,26 @@ eas build --platform android --profile production
 # Option A: ADB (USB cable)
 adb install path/to/downloaded.apk
 
-# Option B: Open the download link from EAS on your phone
+# Option B: Open the download link from EAS on your phone's browser and tap to install
+
+# Option C: Scan the QR code shown in the terminal after the build finishes
 ```
+
+### Update EAS Environment Variable (If URL Changes)
+
+If the production URL changes, update the EAS env var before rebuilding:
+
+```bash
+cd artifacts/mobile
+
+# If the variable already exists, update it:
+eas env:update --name EXPO_PUBLIC_API_URL --value "https://macro-rr.replit.app/api" --environment preview
+
+# If it doesn't exist yet, create it:
+eas env:create --name EXPO_PUBLIC_API_URL --value "https://macro-rr.replit.app/api" --environment preview --visibility plaintext
+```
+
+Then rebuild the APK for the change to take effect.
 
 ### OTA Updates (No APK Rebuild Needed)
 
