@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { ArrowLeft, Calendar, ChevronRight, Cookie, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, QrCode, RefreshCw, RotateCcw, Settings, Shield, Smartphone, Trash2, X } from "lucide-react-native";
+import { ArrowLeft, Calendar, ChevronRight, Cookie, Copy, Key, Minus, Plus, Power, PowerOff, QrCode, RefreshCw, RotateCcw, Settings, Shield, Smartphone, Trash2, X } from "lucide-react-native";
 import QRCode from "react-native-qrcode-svg";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -605,39 +605,12 @@ export function AdminPanel() {
             <Shield size={24} color="#3b82f6" />
             <Text style={[styles.title, { color: colors.text }]}>Admin Panel</Text>
           </View>
-          <View style={styles.headerRight}>
-            <Pressable
+          <Pressable
               onPress={loadKeys}
-              style={[styles.headerBtn, { backgroundColor: colors.surfaceSecondary }]}
+              style={[styles.refreshBtn, { backgroundColor: colors.surfaceSecondary }]}
             >
-              <RefreshCw size={18} color={colors.text} />
+              <RefreshCw size={20} color={colors.text} />
             </Pressable>
-            {(
-              <Pressable
-                onPress={async () => {
-                  if (Platform.OS === "web") {
-                    if (confirm("Leave admin panel?")) {
-                      await removeLicense();
-                    }
-                  } else {
-                    Alert.alert("Sign Out", "Leave admin panel?", [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Sign Out",
-                        style: "destructive",
-                        onPress: async () => {
-                          await removeLicense();
-                        },
-                      },
-                    ]);
-                  }
-                }}
-                style={[styles.headerBtn, { backgroundColor: "#dc262622" }]}
-              >
-                <LogOut size={18} color="#f87171" />
-              </Pressable>
-            )}
-          </View>
         </View>
 
         <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
@@ -925,6 +898,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refreshBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
