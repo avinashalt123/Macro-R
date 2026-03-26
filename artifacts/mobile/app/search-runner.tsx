@@ -33,6 +33,13 @@ import {
   BING_UA,
 } from "@/utils/bingSearch";
 
+let BackgroundService: any = null;
+if (Platform.OS === "android") {
+  try {
+    BackgroundService = require("react-native-background-actions").default;
+  } catch {}
+}
+
 // Flushes the WebView OS cookie jar and loads the given account's cookies into
 // it so the Daily Set WebView is always authenticated as the correct account.
 // Uses dynamic require so the native module is only loaded in real device builds
@@ -437,7 +444,9 @@ export default function SearchRunnerScreen() {
       );
       let runningNotifId: string | null = null;
       try {
-      runningNotifId = await showRunningNotification();
+      if (!BackgroundService?.isRunning()) {
+        runningNotifId = await showRunningNotification();
+      }
 
       for (let ai = 0; ai < targetAccounts.length; ai++) {
         if (cancelled || abortRef.current) break;
@@ -530,6 +539,15 @@ export default function SearchRunnerScreen() {
             }
 
             updateAccount(account.id, { searchesCompleted: searchesDone });
+
+            if (BackgroundService?.isRunning()) {
+              const pct = Math.round(((si + 1) / searchCount) * 100);
+              BackgroundService.updateNotification({
+                taskTitle: `Macro Rewards — ${account.name}`,
+                taskDesc: `Search ${si + 1}/${searchCount} (${pct}%)`,
+                progressBar: { max: 100, value: pct, indeterminate: false },
+              }).catch(() => {});
+            }
 
             if (si < searchCount - 1) {
               const jitter = Math.floor((Math.random() - 0.5) * 2000);
@@ -624,14 +642,46 @@ export default function SearchRunnerScreen() {
           });
       } finally {
         stopRun();
+        if (BackgroundService?.isRunning()) {
+          await BackgroundService.stop().catch(() => {});
+        }
         if (runningNotifId) {
           await dismissRunningNotification(runningNotifId);
         }
       }
     };
 
-    run();
-    return () => { cancelled = true; };
+    const startWithBackground = async () => {
+      if (BackgroundService && !BackgroundService.isRunning()) {
+        try {
+          await BackgroundService.start(
+            async () => { await run(); },
+            {
+              taskName: "MacroRewardsSearch",
+              taskTitle: "Macro Rewards",
+              taskDesc: "Running Bing searches…",
+              taskIcon: { name: "ic_launcher", type: "mipmap" },
+              color: "#3B82F6",
+              linkingURI: undefined,
+              progressBar: { max: 100, value: 0, indeterminate: true },
+            }
+          );
+        } catch (e) {
+          console.log("[SearchRunner] BackgroundService start failed, running foreground:", e);
+          await run();
+        }
+      } else {
+        await run();
+      }
+    };
+
+    startWithBackground();
+    return () => {
+      cancelled = true;
+      if (BackgroundService?.isRunning()) {
+        BackgroundService.stop().catch(() => {});
+      }
+    };
   }, []);
 
   // Android back button
@@ -650,8 +700,11 @@ export default function SearchRunnerScreen() {
       {
         text: "Stop",
         style: "destructive",
-        onPress: () => {
+        onPress: async () => {
           abortRef.current = true;
+          if (BackgroundService?.isRunning()) {
+            await BackgroundService.stop().catch(() => {});
+          }
           stopRun();
           accountsRef.current
           .filter((a) => accountIdsRef.current.includes(a.id))

@@ -5,7 +5,7 @@ const IS_OWNER = process.env.EXPO_PUBLIC_OWNER_MODE === "true";
 export default ({ config }: ConfigContext): ExpoConfig => ({
   name: "Macro R",
   slug: "mobile",
-  version: "1.4.02",
+  version: "1.4.03",
   orientation: "portrait",
   icon: "./assets/images/iconn.png",
   scheme: "mobile",
