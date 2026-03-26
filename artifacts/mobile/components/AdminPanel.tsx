@@ -1,12 +1,13 @@
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { ArrowLeft, Cookie, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, QrCode, RefreshCw, Settings, Shield, Smartphone, Trash2 } from "lucide-react-native";
+import { ArrowLeft, Calendar, ChevronRight, Cookie, Copy, Key, LogOut, Minus, Plus, Power, PowerOff, QrCode, RefreshCw, RotateCcw, Settings, Shield, Smartphone, Trash2, X } from "lucide-react-native";
 import QRCode from "react-native-qrcode-svg";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -80,11 +81,10 @@ export function AdminPanel() {
   const [newExpAmount, setNewExpAmount] = useState("30");
   const [newExpUnit, setNewExpUnit] = useState<"days" | "months" | "years">("days");
   const [newKeyType, setNewKeyType] = useState<KeyType>("basic");
-  const [expandedCookieKeyId, setExpandedCookieKeyId] = useState<string | null>(null);
-  const [keyCookies, setKeyCookies] = useState<Record<string, any[]>>({});
-  const [cookieLoading, setCookieLoading] = useState<string | null>(null);
-  const [showQrKeyId, setShowQrKeyId] = useState<string | null>(null);
-
+  const [selectedKey, setSelectedKey] = useState<LicenseKey | null>(null);
+  const [profileCookies, setProfileCookies] = useState<any[]>([]);
+  const [cookieLoading, setCookieLoading] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   const effectiveSecret = adminSecret || OWNER_ADMIN_SECRET;
   const adminLicenseKey = licenseData?.keyType === "admin" ? licenseData.key : null;
@@ -136,23 +136,6 @@ export function AdminPanel() {
     }
   }, [apiCall, loadFeatureConfigs]);
 
-  const fetchCookiesForKey = useCallback(async (keyId: string) => {
-    if (expandedCookieKeyId === keyId) {
-      setExpandedCookieKeyId(null);
-      return;
-    }
-    setCookieLoading(keyId);
-    try {
-      const data = await apiCall("GET", `/admin/keys/${keyId}/cookies`);
-      setKeyCookies((prev) => ({ ...prev, [keyId]: data.cookies || [] }));
-      setExpandedCookieKeyId(keyId);
-    } catch {
-      Alert.alert("Error", "Failed to load cookies");
-    }
-    setCookieLoading(null);
-  }, [apiCall, expandedCookieKeyId]);
-
-
   useEffect(() => {
     loadKeys();
     loadFeatureConfigs();
@@ -203,110 +186,6 @@ export function AdminPanel() {
     setCreating(false);
   };
 
-  const extendKey = async (item: LicenseKey) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const current = new Date(item.expiresAt);
-    const base = current > new Date() ? current : new Date();
-    const newExp = new Date(base.getTime() + 30 * 86400000).toISOString();
-    await apiCall("PUT", `/admin/keys/${item.id}`, { expiresAt: newExp });
-    await loadKeys();
-  };
-
-  const editLimit = async (item: LicenseKey) => {
-    if (Platform.OS === "web") {
-      const val = prompt(`Set account limit (current: ${item.maxAccounts}):`, String(item.maxAccounts));
-      if (val === null) return;
-      const n = parseInt(val);
-      if (isNaN(n) || n < 1) return;
-      await apiCall("PUT", `/admin/keys/${item.id}`, { maxAccounts: n });
-      await loadKeys();
-    } else if (Alert.prompt) {
-      Alert.prompt("Edit Account Limit", `Current: ${item.maxAccounts}`, async (val) => {
-        const n = parseInt(val);
-        if (isNaN(n) || n < 1) return;
-        await apiCall("PUT", `/admin/keys/${item.id}`, { maxAccounts: n });
-        await loadKeys();
-      }, "plain-text", String(item.maxAccounts));
-    } else {
-      const buttons = [1, 2, 3, 5, 10, 20, 50].map((n) => ({
-        text: `${n} account${n > 1 ? "s" : ""}`,
-        onPress: async () => {
-          await apiCall("PUT", `/admin/keys/${item.id}`, { maxAccounts: n });
-          await loadKeys();
-        },
-      }));
-      Alert.alert("Set Account Limit", `Current: ${item.maxAccounts}`, [
-        ...buttons,
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
-  };
-
-  const changeKeyType = async (item: LicenseKey) => {
-    if (Platform.OS === "web") {
-      const types = KEY_TYPES.map((t, i) => `${i + 1}. ${t.charAt(0).toUpperCase() + t.slice(1)}`).join("\n");
-      const val = prompt(`Change key type (current: ${item.keyType}):\n${types}\nEnter number:`, String(KEY_TYPES.indexOf(item.keyType) + 1));
-      if (val === null) return;
-      const idx = parseInt(val) - 1;
-      if (idx < 0 || idx >= KEY_TYPES.length || KEY_TYPES[idx] === item.keyType) return;
-      await apiCall("PUT", `/admin/keys/${item.id}`, { keyType: KEY_TYPES[idx] });
-      await loadKeys();
-    } else {
-      const buttons = KEY_TYPES.map((t) => ({
-        text: t.charAt(0).toUpperCase() + t.slice(1),
-        onPress: async () => {
-          if (t === item.keyType) return;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          await apiCall("PUT", `/admin/keys/${item.id}`, { keyType: t });
-          await loadKeys();
-        },
-      }));
-      Alert.alert("Change Key Type", `Current: ${item.keyType}`, [
-        ...buttons,
-        { text: "Cancel", style: "cancel" },
-      ]);
-    }
-  };
-
-  const resetDevice = async (item: LicenseKey) => {
-    if (!item.boundDeviceId) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await apiCall("PUT", `/admin/keys/${item.id}/reset-device`);
-    await loadKeys();
-  };
-
-  const toggleKey = async (item: LicenseKey) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await apiCall("PUT", `/admin/keys/${item.id}`, { isActive: !item.isActive });
-    await loadKeys();
-  };
-
-  const deleteKey = async (item: LicenseKey) => {
-    if (Platform.OS === "web") {
-      if (!confirm(`Delete ${item.key} permanently?`)) return;
-      await apiCall("DELETE", `/admin/keys/${item.id}`);
-      await loadKeys();
-    } else {
-      Alert.alert("Delete Key", `Delete ${item.key} permanently?`, [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            await apiCall("DELETE", `/admin/keys/${item.id}`);
-            await loadKeys();
-          },
-        },
-      ]);
-    }
-  };
-
-  const copyKey = (key: string) => {
-    Clipboard.setStringAsync(key);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
   const getStatus = (item: LicenseKey) => {
     if (!item.isActive) return { label: "Inactive", color: "#64748b", bg: "#64748b22" };
     if (new Date(item.expiresAt) < new Date()) return { label: "Expired", color: "#f87171", bg: "#dc262622" };
@@ -326,16 +205,163 @@ export function AdminPanel() {
     return { label: `${label} left`, color: "#4ade80", bg: "#16a34a22" };
   };
 
-  const renderKey = ({ item }: { item: LicenseKey }) => {
+  const openKeyProfile = (item: LicenseKey) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedKey(item);
+    setProfileCookies([]);
+    setCookieLoading(false);
+    setShowQr(false);
+  };
+
+  const closeProfile = () => {
+    setSelectedKey(null);
+    setProfileCookies([]);
+    setShowQr(false);
+  };
+
+  const profileExtendKey = async () => {
+    if (!selectedKey) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const current = new Date(selectedKey.expiresAt);
+    const base = current > new Date() ? current : new Date();
+    const newExp = new Date(base.getTime() + 30 * 86400000).toISOString();
+    await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { expiresAt: newExp });
+    await loadKeys();
+    setSelectedKey((prev) => prev ? { ...prev, expiresAt: newExp } : null);
+  };
+
+  const profileEditLimit = async () => {
+    if (!selectedKey) return;
+    if (Platform.OS === "web") {
+      const val = prompt(`Set account limit (current: ${selectedKey.maxAccounts}):`, String(selectedKey.maxAccounts));
+      if (val === null) return;
+      const n = parseInt(val);
+      if (isNaN(n) || n < 1) return;
+      await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { maxAccounts: n });
+      await loadKeys();
+      setSelectedKey((prev) => prev ? { ...prev, maxAccounts: n } : null);
+    } else {
+      const buttons = [1, 2, 3, 5, 10, 20, 50].map((n) => ({
+        text: `${n} account${n > 1 ? "s" : ""}`,
+        onPress: async () => {
+          await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { maxAccounts: n });
+          await loadKeys();
+          setSelectedKey((prev) => prev ? { ...prev, maxAccounts: n } : null);
+        },
+      }));
+      Alert.alert("Set Account Limit", `Current: ${selectedKey.maxAccounts}`, [
+        ...buttons,
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  };
+
+  const profileChangeType = async () => {
+    if (!selectedKey) return;
+    if (Platform.OS === "web") {
+      const types = KEY_TYPES.map((t, i) => `${i + 1}. ${t.charAt(0).toUpperCase() + t.slice(1)}`).join("\n");
+      const val = prompt(`Change key type (current: ${selectedKey.keyType}):\n${types}\nEnter number:`, String(KEY_TYPES.indexOf(selectedKey.keyType) + 1));
+      if (val === null) return;
+      const idx = parseInt(val) - 1;
+      if (idx < 0 || idx >= KEY_TYPES.length || KEY_TYPES[idx] === selectedKey.keyType) return;
+      await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { keyType: KEY_TYPES[idx] });
+      await loadKeys();
+      setSelectedKey((prev) => prev ? { ...prev, keyType: KEY_TYPES[idx] } : null);
+    } else {
+      const buttons = KEY_TYPES.map((t) => ({
+        text: t.charAt(0).toUpperCase() + t.slice(1),
+        onPress: async () => {
+          if (t === selectedKey.keyType) return;
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { keyType: t });
+          await loadKeys();
+          setSelectedKey((prev) => prev ? { ...prev, keyType: t } : null);
+        },
+      }));
+      Alert.alert("Change Key Type", `Current: ${selectedKey.keyType}`, [
+        ...buttons,
+        { text: "Cancel", style: "cancel" },
+      ]);
+    }
+  };
+
+  const profileResetDevice = async () => {
+    if (!selectedKey?.boundDeviceId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await apiCall("PUT", `/admin/keys/${selectedKey.id}/reset-device`);
+    await loadKeys();
+    setSelectedKey((prev) => prev ? { ...prev, boundDeviceId: null } : null);
+  };
+
+  const profileToggleActive = async () => {
+    if (!selectedKey) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { isActive: !selectedKey.isActive });
+    await loadKeys();
+    setSelectedKey((prev) => prev ? { ...prev, isActive: !prev.isActive } : null);
+  };
+
+  const profileLoadCookies = async () => {
+    if (!selectedKey) return;
+    setCookieLoading(true);
+    try {
+      const data = await apiCall("GET", `/admin/keys/${selectedKey.id}/cookies`);
+      setProfileCookies(data.cookies || []);
+    } catch {
+      Alert.alert("Error", "Failed to load cookies");
+    }
+    setCookieLoading(false);
+  };
+
+  const profileDeleteKey = async () => {
+    if (!selectedKey) return;
+    if (Platform.OS === "web") {
+      if (!confirm(`Delete ${selectedKey.key} permanently?`)) return;
+      await apiCall("DELETE", `/admin/keys/${selectedKey.id}`);
+      await loadKeys();
+      closeProfile();
+    } else {
+      Alert.alert("Delete Key", `Delete ${selectedKey.key} permanently?`, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            await apiCall("DELETE", `/admin/keys/${selectedKey.id}`);
+            await loadKeys();
+            closeProfile();
+          },
+        },
+      ]);
+    }
+  };
+
+  const copyKey = (key: string) => {
+    Clipboard.setStringAsync(key);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const renderKeyCard = ({ item }: { item: LicenseKey }) => {
     const status = getStatus(item);
     const typeColor = KEY_TYPE_COLORS[item.keyType] || KEY_TYPE_COLORS.basic;
     return (
-      <View style={[styles.keyCard, { backgroundColor: colors.card, borderColor: colors.border, opacity: !item.isActive ? 0.5 : 1 }]}>
+      <Pressable
+        onPress={() => openKeyProfile(item)}
+        style={({ pressed }) => [
+          styles.keyCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: !item.isActive ? 0.5 : pressed ? 0.85 : 1,
+          },
+        ]}
+      >
         <View style={styles.keyHeader}>
-          <Pressable onPress={() => copyKey(item.key)} style={styles.keyTextRow}>
+          <View style={{ flex: 1 }}>
             <Text style={[styles.keyText, { color: "#3b82f6" }]} numberOfLines={1}>{item.key}</Text>
-            <Copy size={14} color={colors.textSecondary} />
-          </Pressable>
+          </View>
+          <ChevronRight size={18} color={colors.textSecondary} />
         </View>
         <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
           <View style={[styles.badge, { backgroundColor: typeColor.bg }]}>
@@ -344,8 +370,12 @@ export function AdminPanel() {
           <View style={[styles.badge, { backgroundColor: status.bg }]}>
             <Text style={[styles.badgeText, { color: status.color }]}>{status.label}</Text>
           </View>
+          {item.boundDeviceId && (
+            <View style={[styles.badge, { backgroundColor: "#f59e0b22" }]}>
+              <Text style={[styles.badgeText, { color: "#f59e0b" }]}>Bound</Text>
+            </View>
+          )}
         </View>
-
         <View style={styles.metaRow}>
           {item.label && <Text style={[styles.metaText, { color: colors.textSecondary }]}>{item.label}</Text>}
           <Text style={[styles.metaText, { color: colors.textSecondary }]}>
@@ -354,119 +384,210 @@ export function AdminPanel() {
           <Text style={[styles.metaText, { color: colors.textSecondary }]}>
             Exp: {new Date(item.expiresAt).toLocaleDateString()}
           </Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <Smartphone size={11} color={item.boundDeviceId ? "#f59e0b" : "#64748b"} />
-            <Text style={[styles.metaText, { color: item.boundDeviceId ? "#f59e0b" : "#64748b" }]}>
-              {item.boundDeviceId ? "Bound" : "Unbound"}
-            </Text>
-          </View>
         </View>
+      </Pressable>
+    );
+  };
 
-        <View style={styles.actionRow}>
-          <Pressable onPress={() => extendKey(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: colors.surfaceSecondary }]}>
-            <Plus size={14} color={colors.text} />
-            <Text style={[styles.actionText, { color: colors.text }]}>+30d</Text>
-          </Pressable>
-
-          <Pressable onPress={() => editLimit(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: colors.surfaceSecondary }]}>
-            <Minus size={14} color={colors.text} />
-            <Text style={[styles.actionText, { color: colors.text }]}>Limit</Text>
-          </Pressable>
-
-          <Pressable onPress={() => changeKeyType(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: typeColor.bg }]}>
-            <Text style={[styles.actionText, { color: typeColor.color }]}>Type</Text>
-          </Pressable>
-
-          {item.boundDeviceId && (
-            <Pressable onPress={() => resetDevice(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: "#f59e0b22" }]}>
-              <Smartphone size={14} color="#f59e0b" />
+  const renderKeyProfile = () => {
+    if (!selectedKey) return null;
+    const status = getStatus(selectedKey);
+    const typeColor = KEY_TYPE_COLORS[selectedKey.keyType] || KEY_TYPE_COLORS.basic;
+    return (
+      <Modal
+        visible={!!selectedKey}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={closeProfile}
+      >
+        <View style={[styles.profileContainer, { backgroundColor: colors.background }]}>
+          <View style={[styles.profileHeader, { paddingTop: Platform.OS === "ios" ? 16 : insets.top + 8 }]}>
+            <Pressable onPress={closeProfile} style={styles.profileCloseBtn}>
+              <X size={22} color={colors.text} />
             </Pressable>
-          )}
-
-          <Pressable onPress={() => toggleKey(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: item.isActive ? "#dc262622" : "#16a34a22" }]}>
-            {item.isActive ? <PowerOff size={14} color="#f87171" /> : <Power size={14} color="#4ade80" />}
-          </Pressable>
-
-          <Pressable onPress={() => fetchCookiesForKey(item.id)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: "#f59e0b22" }]}>
-            {cookieLoading === item.id ? (
-              <ActivityIndicator size={14} color="#f59e0b" />
-            ) : (
-              <Cookie size={14} color="#f59e0b" />
-            )}
-          </Pressable>
-
-          <Pressable onPress={() => setShowQrKeyId(showQrKeyId === item.id ? null : item.id)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: showQrKeyId === item.id ? "#3b82f622" : colors.surfaceSecondary }]}>
-            <QrCode size={14} color={showQrKeyId === item.id ? "#3b82f6" : colors.text} />
-          </Pressable>
-
-          <Pressable onPress={() => deleteKey(item)} style={[styles.actionBtn, styles.actionBtnFlex, { backgroundColor: "#dc262622" }]}>
-            <Trash2 size={14} color="#f87171" />
-          </Pressable>
-        </View>
-
-        {showQrKeyId === item.id && (
-          <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, alignItems: "center" }}>
-            <View style={{ backgroundColor: "#fff", padding: 16, borderRadius: 12 }}>
-              <QRCode value={item.key} size={180} backgroundColor="#fff" color="#000" />
-            </View>
-            <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: colors.textSecondary, marginTop: 8 }}>
-              Scan to activate
-            </Text>
+            <Text style={[styles.profileTitle, { color: colors.text }]}>Key Profile</Text>
+            <View style={{ width: 40 }} />
           </View>
-        )}
 
-        {expandedCookieKeyId === item.id && (
-          <View style={{ marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
-              <Cookie size={16} color="#f59e0b" />
-              <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: colors.text }}>Account Cookies</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+            <View style={[styles.profileKeySection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Pressable onPress={() => copyKey(selectedKey.key)} style={styles.profileKeyRow}>
+                <Text style={styles.profileKeyText}>{selectedKey.key}</Text>
+                <Copy size={18} color="#3b82f680" />
+              </Pressable>
+              <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+                <View style={[styles.badge, { backgroundColor: typeColor.bg, paddingHorizontal: 12, paddingVertical: 4 }]}>
+                  <Text style={[styles.badgeText, { color: typeColor.color, fontSize: 13 }]}>{selectedKey.keyType.toUpperCase()}</Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: status.bg, paddingHorizontal: 12, paddingVertical: 4 }]}>
+                  <Text style={[styles.badgeText, { color: status.color, fontSize: 13 }]}>{status.label}</Text>
+                </View>
+                <View style={[styles.badge, { backgroundColor: selectedKey.isActive ? "#16a34a22" : "#64748b22", paddingHorizontal: 12, paddingVertical: 4 }]}>
+                  <Text style={[styles.badgeText, { color: selectedKey.isActive ? "#4ade80" : "#64748b", fontSize: 13 }]}>
+                    {selectedKey.isActive ? "Active" : "Inactive"}
+                  </Text>
+                </View>
+              </View>
             </View>
-            {(keyCookies[item.id] || []).length === 0 ? (
-              <Text style={{ fontSize: 13, fontFamily: "Inter_400Regular", color: colors.textSecondary, textAlign: "center", paddingVertical: 8 }}>
-                No cookies synced for this key
-              </Text>
-            ) : (
-              (keyCookies[item.id] || []).map((c: any, idx: number) => {
-                let parsedCookies: Record<string, string> = {};
-                try {
-                  parsedCookies = typeof c.cookies === "string" ? JSON.parse(c.cookies) : c.cookies;
-                } catch {
-                  parsedCookies = {};
-                }
-                const cookieStr = Object.entries(parsedCookies).map(([k, v]) => `${k}=${v}`).join("; ");
-                return (
-                  <View key={c.id || idx} style={{ backgroundColor: colors.background, borderRadius: 10, padding: 10, marginBottom: 8, borderWidth: 1, borderColor: colors.border }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.text }} numberOfLines={1}>
-                          {c.accountName || c.accountEmail}
-                        </Text>
-                        <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.textSecondary }} numberOfLines={1}>
-                          {c.accountEmail}
+
+            <View style={[styles.profileInfoGrid, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.profileInfoItem}>
+                <Text style={[styles.profileInfoLabel, { color: colors.textSecondary }]}>Label</Text>
+                <Text style={[styles.profileInfoValue, { color: colors.text }]}>{selectedKey.label || "No label"}</Text>
+              </View>
+              <View style={styles.profileInfoItem}>
+                <Text style={[styles.profileInfoLabel, { color: colors.textSecondary }]}>Accounts</Text>
+                <Text style={[styles.profileInfoValue, { color: colors.text }]}>{selectedKey.maxAccounts}</Text>
+              </View>
+              <View style={styles.profileInfoItem}>
+                <Text style={[styles.profileInfoLabel, { color: colors.textSecondary }]}>Expires</Text>
+                <Text style={[styles.profileInfoValue, { color: colors.text }]}>{new Date(selectedKey.expiresAt).toLocaleDateString()}</Text>
+              </View>
+              <View style={styles.profileInfoItem}>
+                <Text style={[styles.profileInfoLabel, { color: colors.textSecondary }]}>Device</Text>
+                <Text style={[styles.profileInfoValue, { color: selectedKey.boundDeviceId ? "#f59e0b" : colors.textSecondary }]}>
+                  {selectedKey.boundDeviceId ? `Bound` : "Unbound"}
+                </Text>
+              </View>
+              <View style={styles.profileInfoItem}>
+                <Text style={[styles.profileInfoLabel, { color: colors.textSecondary }]}>Created</Text>
+                <Text style={[styles.profileInfoValue, { color: colors.text }]}>{new Date(selectedKey.createdAt).toLocaleDateString()}</Text>
+              </View>
+              {selectedKey.boundDeviceId && (
+                <View style={styles.profileInfoItem}>
+                  <Text style={[styles.profileInfoLabel, { color: colors.textSecondary }]}>Device ID</Text>
+                  <Text style={[styles.profileInfoValue, { color: "#f59e0b", fontSize: 10 }]} numberOfLines={1}>{selectedKey.boundDeviceId}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.profileActionsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.profileSectionTitle, { color: colors.text }]}>Actions</Text>
+
+              <ProfileAction
+                icon={<Calendar size={18} color="#3b82f6" />}
+                label="Extend Expiry"
+                sublabel="+30 days"
+                colors={colors}
+                onPress={profileExtendKey}
+              />
+              <ProfileAction
+                icon={<Minus size={18} color="#8b5cf6" />}
+                label="Change Account Limit"
+                sublabel={`Current: ${selectedKey.maxAccounts}`}
+                colors={colors}
+                onPress={profileEditLimit}
+              />
+              <ProfileAction
+                icon={<Key size={18} color={typeColor.color} />}
+                label="Change Key Type"
+                sublabel={selectedKey.keyType.charAt(0).toUpperCase() + selectedKey.keyType.slice(1)}
+                colors={colors}
+                onPress={profileChangeType}
+              />
+              {selectedKey.boundDeviceId && (
+                <ProfileAction
+                  icon={<RotateCcw size={18} color="#f59e0b" />}
+                  label="Reset Device Binding"
+                  sublabel="Unbind current device"
+                  colors={colors}
+                  onPress={profileResetDevice}
+                />
+              )}
+              <ProfileAction
+                icon={selectedKey.isActive ? <PowerOff size={18} color="#f87171" /> : <Power size={18} color="#4ade80" />}
+                label={selectedKey.isActive ? "Deactivate Key" : "Activate Key"}
+                sublabel={selectedKey.isActive ? "Disable this license" : "Re-enable this license"}
+                colors={colors}
+                onPress={profileToggleActive}
+              />
+            </View>
+
+            <View style={[styles.profileActionsSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.profileSectionTitle, { color: colors.text }]}>Data</Text>
+
+              <ProfileAction
+                icon={<QrCode size={18} color="#3b82f6" />}
+                label="QR Code"
+                sublabel={showQr ? "Hide QR code" : "Show scannable QR"}
+                colors={colors}
+                onPress={() => setShowQr(!showQr)}
+              />
+              {showQr && (
+                <View style={{ alignItems: "center", paddingVertical: 16 }}>
+                  <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 16 }}>
+                    <QRCode value={selectedKey.key} size={200} backgroundColor="#fff" color="#000" />
+                  </View>
+                  <Text style={{ fontSize: 12, fontFamily: "Inter_500Medium", color: colors.textSecondary, marginTop: 10 }}>
+                    Scan to activate this key
+                  </Text>
+                </View>
+              )}
+
+              <ProfileAction
+                icon={cookieLoading ? <ActivityIndicator size={18} color="#f59e0b" /> : <Cookie size={18} color="#f59e0b" />}
+                label="Synced Cookies"
+                sublabel={profileCookies.length > 0 ? `${profileCookies.length} account${profileCookies.length > 1 ? "s" : ""}` : "View synced accounts"}
+                colors={colors}
+                onPress={profileLoadCookies}
+              />
+              {profileCookies.length > 0 && (
+                <View style={{ paddingLeft: 8, gap: 8, marginTop: 4 }}>
+                  {profileCookies.map((c: any, idx: number) => {
+                    let parsedCookies: Record<string, string> = {};
+                    try {
+                      parsedCookies = typeof c.cookies === "string" ? JSON.parse(c.cookies) : c.cookies;
+                    } catch {
+                      parsedCookies = {};
+                    }
+                    const cookieStr = Object.entries(parsedCookies).map(([k, v]) => `${k}=${v}`).join("; ");
+                    return (
+                      <View key={c.id || idx} style={{ backgroundColor: colors.background, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.border }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 13, fontFamily: "Inter_600SemiBold", color: colors.text }} numberOfLines={1}>
+                              {c.accountName || c.accountEmail}
+                            </Text>
+                            <Text style={{ fontSize: 11, fontFamily: "Inter_400Regular", color: colors.textSecondary }} numberOfLines={1}>
+                              {c.accountEmail}
+                            </Text>
+                          </View>
+                          <Pressable
+                            onPress={() => {
+                              Clipboard.setStringAsync(cookieStr);
+                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            }}
+                            style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#3b82f622", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}
+                          >
+                            <Copy size={12} color="#3b82f6" />
+                            <Text style={{ fontSize: 11, fontFamily: "Inter_500Medium", color: "#3b82f6" }}>Copy</Text>
+                          </Pressable>
+                        </View>
+                        <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.textSecondary }} numberOfLines={3}>
+                          {cookieStr || "Empty cookies"}
                         </Text>
                       </View>
-                      <Pressable
-                        onPress={() => {
-                          Clipboard.setStringAsync(cookieStr);
-                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        }}
-                        style={[styles.actionBtn, { backgroundColor: "#3b82f622" }]}
-                      >
-                        <Copy size={12} color="#3b82f6" />
-                        <Text style={[styles.actionText, { color: "#3b82f6" }]}>Copy</Text>
-                      </Pressable>
-                    </View>
-                    <Text style={{ fontSize: 10, fontFamily: "Inter_400Regular", color: colors.textSecondary }} numberOfLines={4}>
-                      {cookieStr || "Empty cookies"}
-                    </Text>
-                  </View>
-                );
-              })
-            )}
-          </View>
-        )}
+                    );
+                  })}
+                </View>
+              )}
+            </View>
 
-      </View>
+            <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+              <Pressable
+                onPress={profileDeleteKey}
+                style={({ pressed }) => [
+                  styles.deleteBtn,
+                  { opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Trash2 size={18} color="#fff" />
+                <Text style={styles.deleteBtnText}>Delete Key Permanently</Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     );
   };
 
@@ -522,14 +643,14 @@ export function AdminPanel() {
         <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
           <Pressable
             onPress={() => setActiveTab("keys")}
-            style={[styles.tabBtn, { backgroundColor: activeTab === "keys" ? "#3b82f6" : colors.surfaceSecondary }]}
+            style={[styles.tabBtn, { backgroundColor: activeTab === "keys" ? "#3b82f6" : colors.surfaceSecondary, borderColor: activeTab === "keys" ? "#3b82f6" : colors.border }]}
           >
             <Key size={14} color={activeTab === "keys" ? "#fff" : colors.textSecondary} />
             <Text style={[styles.tabBtnText, { color: activeTab === "keys" ? "#fff" : colors.textSecondary }]}>Keys</Text>
           </Pressable>
           <Pressable
             onPress={() => setActiveTab("config")}
-            style={[styles.tabBtn, { backgroundColor: activeTab === "config" ? "#3b82f6" : colors.surfaceSecondary }]}
+            style={[styles.tabBtn, { backgroundColor: activeTab === "config" ? "#3b82f6" : colors.surfaceSecondary, borderColor: activeTab === "config" ? "#3b82f6" : colors.border }]}
           >
             <Settings size={14} color={activeTab === "config" ? "#fff" : colors.textSecondary} />
             <Text style={[styles.tabBtnText, { color: activeTab === "config" ? "#fff" : colors.textSecondary }]}>Feature Config</Text>
@@ -648,7 +769,7 @@ export function AdminPanel() {
         <FlatList
           data={keys}
           keyExtractor={(item) => item.id}
-          renderItem={renderKey}
+          renderItem={renderKeyCard}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 20 }}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -716,7 +837,34 @@ export function AdminPanel() {
           )}
         </ScrollView>
       )}
+
+      {renderKeyProfile()}
     </View>
+  );
+}
+
+function ProfileAction({ icon, label, sublabel, colors, onPress }: {
+  icon: React.ReactNode;
+  label: string;
+  sublabel: string;
+  colors: any;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.profileAction,
+        { backgroundColor: pressed ? colors.surfaceSecondary : "transparent" },
+      ]}
+    >
+      <View style={styles.profileActionIcon}>{icon}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.profileActionLabel, { color: colors.text }]}>{label}</Text>
+        <Text style={[styles.profileActionSublabel, { color: colors.textSecondary }]}>{sublabel}</Text>
+      </View>
+      <ChevronRight size={16} color={colors.textSecondary} />
+    </Pressable>
   );
 }
 
@@ -788,7 +936,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 12,
+    borderWidth: 1,
   },
   tabBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   createSection: {
@@ -827,24 +976,11 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   keyHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  keyTextRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   keyText: { fontSize: 16, fontFamily: "Inter_700Bold", letterSpacing: 1.5 },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 },
   badgeText: { fontSize: 11, fontFamily: "Inter_600SemiBold" },
-  metaRow: { flexDirection: "row", gap: 12, marginBottom: 10, flexWrap: "wrap" },
+  metaRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
   metaText: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  actionRow: { flexDirection: "row", gap: 6 },
-  actionBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  actionBtnFlex: { flex: 1 },
-  actionText: { fontSize: 12, fontFamily: "Inter_500Medium" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   emptyText: { fontSize: 15, fontFamily: "Inter_400Regular" },
@@ -855,34 +991,116 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   typeChipText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
-  tabBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  tabBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
-  configRow: {
+  profileContainer: { flex: 1 },
+  profileHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  configLabel: { fontSize: 14, fontFamily: "Inter_500Medium", flex: 1 },
-  configStepper: { flexDirection: "row", alignItems: "center", gap: 8 },
-  configStepBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  profileCloseBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  configStepText: { fontSize: 18, fontFamily: "Inter_600SemiBold" },
-  configValue: { fontSize: 16, fontFamily: "Inter_700Bold", minWidth: 36, textAlign: "center" },
-  configDivider: { height: 1, marginVertical: 2 },
+  profileTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  profileKeySection: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  profileKeyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  profileKeyText: {
+    fontSize: 20,
+    fontFamily: "Inter_800ExtraBold",
+    color: "#3b82f6",
+    letterSpacing: 2,
+  },
+  profileInfoGrid: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+  },
+  profileInfoItem: {
+    width: "48%",
+    paddingVertical: 8,
+  },
+  profileInfoLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    marginBottom: 2,
+  },
+  profileInfoValue: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  profileActionsSection: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    padding: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  profileSectionTitle: {
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  profileAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 14,
+  },
+  profileActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff08",
+  },
+  profileActionLabel: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+  },
+  profileActionSublabel: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    marginTop: 1,
+  },
+  deleteBtn: {
+    backgroundColor: "#dc2626",
+    height: 48,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  deleteBtnText: {
+    color: "#fff",
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+  },
 });
