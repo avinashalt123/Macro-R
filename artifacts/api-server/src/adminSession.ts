@@ -50,7 +50,7 @@ export function requireAdmin(req: any, res: any, next: any): void {
     res.status(401).json({ error: "Unauthorized — ADMIN_SECRET not configured" });
     return;
   }
-  const headerSecret = req.headers["x-admin-secret"] || req.query.secret;
+  const headerSecret = req.headers["x-admin-secret"];
   if (headerSecret === ADMIN_SECRET) { next(); return; }
 
   const sessionToken = getSessionFromCookie(req.headers.cookie);

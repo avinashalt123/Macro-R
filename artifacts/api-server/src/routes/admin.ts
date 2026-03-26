@@ -10,6 +10,8 @@ import {
 const router: IRouter = Router();
 
 const ADMIN_SECRET = process.env["ADMIN_SECRET"] || "";
+const IS_PROD = process.env.NODE_ENV === "production";
+const COOKIE_FLAGS = `HttpOnly; SameSite=Strict; Path=/${IS_PROD ? "; Secure" : ""}`;
 
 // ── HTML helpers ──────────────────────────────────────────────────────────────
 function esc(s: unknown): string {
@@ -315,18 +317,6 @@ router.get("/admin", (req, res) => {
     return res.send(dashboardPage());
   }
 
-  // Legacy: accept ?secret in URL — auto-upgrade to session (removes secret from URL)
-  const querySecret = req.query.secret as string;
-  if (querySecret && querySecret === ADMIN_SECRET) {
-    const token = createSession();
-    const cleanPath = req.originalUrl.split("?")[0];
-    res.setHeader(
-      "Set-Cookie",
-      `admin_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=14400`
-    );
-    return res.redirect(303, cleanPath);
-  }
-
   return res.status(401).send(loginPage());
 });
 
@@ -339,7 +329,7 @@ router.post("/admin/login", (req, res) => {
   const adminPath = req.path.replace(/\/login$/, "");
   res.setHeader(
     "Set-Cookie",
-    `admin_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=14400`
+    `admin_session=${token}; ${COOKIE_FLAGS}; Max-Age=14400`
   );
   return res.redirect(303, adminPath || "/admin");
 });
@@ -349,7 +339,7 @@ router.post("/admin/logout", (req, res) => {
   deleteSession(token);
   res.setHeader(
     "Set-Cookie",
-    "admin_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0"
+    `admin_session=; ${COOKIE_FLAGS}; Max-Age=0`
   );
   const adminPath = req.path.replace(/\/logout$/, "");
   return res.redirect(303, adminPath || "/admin");

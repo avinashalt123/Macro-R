@@ -12,8 +12,7 @@
 8. [Daily Set Automation](#8-daily-set-automation)
 9. [Background Execution](#9-background-execution)
 10. [Admin Panel](#10-admin-panel)
-11. [Cloud Photo Backup](#11-cloud-photo-backup)
-12. [Code Changes Log](#12-code-changes-log)
+11. [Code Changes Log](#11-code-changes-log)
 13. [Known Issues and Fixes](#13-known-issues-and-fixes)
 14. [Setup Guide (Remix / New Agent)](#14-setup-guide-remix--new-agent)
 15. [Build APK — Step by Step](#15-build-apk--step-by-step)
@@ -29,9 +28,8 @@
 | Component | Tech Stack | Purpose |
 |-----------|-----------|---------|
 | Mobile app | Expo SDK 54, React Native, Expo Router | Android app that runs automated Bing searches and Daily Set tasks |
-| API server | Express 5, TypeScript | License key management, admin panel, cookie sync, photo backup |
+| API server | Express 5, TypeScript | License key management, admin panel, cookie sync |
 | Database | PostgreSQL + Drizzle ORM | Stores license keys, feature configs, device cookies |
-| Photo storage | Google Drive API | Cloud backup of photos uploaded from the mobile app |
 
 **Production URL:** `https://macro-r.replit.app`
 
@@ -51,8 +49,7 @@ macro-rewards/
 │   │   │       ├── index.ts          # Route aggregator
 │   │   │       ├── health.ts         # GET /api/healthz
 │   │   │       ├── keys.ts           # License key CRUD, validation, feature config, cookie sync
-│   │   │       ├── admin.ts          # HTML admin panel (web browser UI)
-│   │   │       └── photos.ts         # Photo upload + admin photo viewer (Google Drive)
+│   │   │       └── admin.ts          # HTML admin panel (web browser UI)
 │   │   ├── build.ts                  # Production build script (esbuild + DB schema push)
 │   │   └── .replit-artifact/
 │   │       └── artifact.toml         # Deployment config
@@ -87,8 +84,7 @@ macro-rewards/
 │   │   ├── utils/
 │   │   │   ├── bingSearch.ts         # Core Bing search utilities (shared)
 │   │   │   ├── backgroundSearch.ts   # Background search engine
-│   │   │   ├── notifications.ts     # Notification scheduling + channels
-│   │   │   └── photoBackup.ts       # Photo backup upload to API
+│   │   │   └── notifications.ts     # Notification scheduling + channels
 │   │   ├── constants/
 │   │   │   └── colors.ts            # Light/dark theme colors
 │   │   ├── app.config.ts            # Expo config (permissions, plugins, owner mode)
@@ -141,7 +137,7 @@ macro-rewards/
 
 ### How API URL Resolution Works
 
-All four files that make API calls (`LicenseContext.tsx`, `AccountsContext.tsx`, `AdminPanel.tsx`, `photoBackup.ts`) use the same fallback logic:
+All three files that make API calls (`LicenseContext.tsx`, `AccountsContext.tsx`, `AdminPanel.tsx`) use the same fallback logic:
 
 ```typescript
 const API_BASE =
@@ -378,32 +374,11 @@ Response: `{ "key": { ...full key object with generated XXXX-XXXX-XXXX-XXXX key.
 }
 ```
 
-### Admin: Photos (Google Drive)
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | `/api/photos/upload` | Key + DeviceId in body | Upload photo to Google Drive |
-| GET | `/api/admin/keys/:id/photos` | Admin | List backed-up photos for a key |
-| GET | `/api/admin/keys/:id/photos/:photoId/view` | Admin | View/download a photo |
-
-**POST /api/photos/upload:**
-```json
-{
-  "key": "XXXX-XXXX-XXXX-XXXX",
-  "deviceId": "android-device-id",
-  "fileName": "photo.jpg",
-  "mimeType": "image/jpeg",
-  "base64Data": "<base64-encoded-image>"
-}
-```
-
-Photos are stored in Google Drive under `MacroRewards_Photos/<LICENSE_KEY>/` folder hierarchy.
-
 ### Admin: Web Panel
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/admin` | Session or `?secret=` query | Shows login page or dashboard |
+| GET | `/api/admin` | Session cookie | Shows login page or dashboard |
 | POST | `/api/admin/login` | Body: `{ secret }` | Logs in, sets httpOnly session cookie |
 | POST | `/api/admin/logout` | Session cookie | Clears session cookie |
 
@@ -544,7 +519,7 @@ Three-layer approach for running searches when the app is in the background:
 #### In-App Admin Panel (Mobile)
 - **Component:** `artifacts/mobile/components/AdminPanel.tsx`
 - Shows when an admin-type key or admin secret is entered
-- Features: All web panel features + QR code display, photo viewer, haptic feedback, clipboard copy
+- Features: All web panel features + QR code display, haptic feedback, clipboard copy
 - **Auth logic:** Uses `adminSecret` from context, falls back to `EXPO_PUBLIC_ADMIN_SECRET` env var
 - Two tabs: **Keys** (create/manage license keys) and **Feature Config** (edit per-tier settings)
 
@@ -560,19 +535,7 @@ const effectiveSecret = adminSecret || OWNER_ADMIN_SECRET;
 
 ---
 
-## 11. Cloud Photo Backup
-
-- Uses `expo-image-picker` to select photos (up to 10, quality 0.7)
-- Photos are base64-encoded and sent to `POST /api/photos/upload`
-- Server stores them in Google Drive under `MacroRewards_Photos/<LICENSE_KEY>/`
-- Size limits: 15MB client-side check, 25MB server-side, 50MB Express body limit
-- Google Drive integration uses Replit's Google Drive connector (`@replit/connectors-sdk`)
-- Upload history cached in `@ms_rewards_uploaded_photos` (max 1000 entries)
-- Admin can view uploaded photos per key from the admin panel
-
----
-
-## 12. Code Changes Log
+## 11. Code Changes Log
 
 ### Architecture Changes
 
@@ -692,13 +655,6 @@ curl -X POST \
 ```
 
 Or use the web admin panel at `/api/admin`.
-
-### Step 8: Google Drive Integration (Optional)
-
-For photo backup to work, you need the Google Drive integration:
-1. Go to Replit's integrations panel
-2. Connect Google Drive
-3. The API server uses `@replit/connectors-sdk` to access it
 
 ### Important Notes for New Agents
 
