@@ -31,7 +31,7 @@
 | API server | Express 5, TypeScript | License key management, admin panel, cookie sync |
 | Database | PostgreSQL + Drizzle ORM | Stores license keys, feature configs, device cookies |
 
-**Production URL:** `https://macro-r.replit.app`
+**Production URL:** `https://macro-rr.replit.app`
 
 ---
 
@@ -130,7 +130,7 @@ macro-rewards/
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `EXPO_PUBLIC_API_URL` | **Yes** (production) | Full base URL of the deployed API. Example: `https://macro-r.replit.app/api` |
+| `EXPO_PUBLIC_API_URL` | **Yes** (production) | Full base URL of the deployed API. Example: `https://macro-rr.replit.app/api` |
 | `EXPO_PUBLIC_DOMAIN` | Auto | Set by the dev script to `$REPLIT_DEV_DOMAIN`. Used as fallback if `EXPO_PUBLIC_API_URL` is not set. |
 | `EXPO_PUBLIC_OWNER_MODE` | No | Set to `"true"` to bypass license gate entirely (dev/owner builds). Default: `"false"` |
 | `EXPO_PUBLIC_ADMIN_SECRET` | No | Same value as `ADMIN_SECRET`. Needed so the in-app admin panel can make API calls. |
@@ -148,7 +148,7 @@ const API_BASE =
 ```
 
 - **In development:** `EXPO_PUBLIC_DOMAIN` is set automatically by the dev script, so it builds the URL from the Replit dev domain.
-- **In production APK builds:** Set `EXPO_PUBLIC_API_URL` in EAS environment to point to the deployed URL (e.g., `https://macro-r.replit.app/api`).
+- **In production APK builds:** Set `EXPO_PUBLIC_API_URL` in EAS environment to point to the deployed URL (e.g., `https://macro-rr.replit.app/api`).
 
 ### Important Notes on EXPO_PUBLIC_OWNER_MODE
 
@@ -511,7 +511,7 @@ Three-layer approach for running searches when the app is in the background:
 ### Two Interfaces
 
 #### Web Admin Panel (Browser)
-- **URL:** `https://macro-r.replit.app/api/admin`
+- **URL:** `https://macro-rr.replit.app/api/admin`
 - Log in with your `ADMIN_SECRET` via the login form (uses httpOnly session cookie)
 - Dark theme, server-rendered HTML with inline JS
 - Features: Create/manage keys, view feature configs, manage device bindings
@@ -585,7 +585,7 @@ The production database is separate from the development database. When you add 
 ### Replit Dev Domain vs Production
 
 - **Dev domain** (`*.sisko.replit.dev`): Only accessible within Replit or through the web preview. Mobile devices on external networks CANNOT reach this URL.
-- **Production domain** (`macro-r.replit.app`): Publicly accessible from any device. This is what you must use for mobile APK builds.
+- **Production domain** (`macro-rr.replit.app`): Publicly accessible from any device. This is what you must use for mobile APK builds.
 
 ### Web Preview Cache
 
@@ -699,7 +699,7 @@ eas build:configure
 
 ```bash
 # Set the production API URL (REQUIRED for the APK to connect to the server)
-eas env:create --name EXPO_PUBLIC_API_URL --value "https://macro-r.replit.app/api" --environment preview --visibility plaintext
+eas env:create --name EXPO_PUBLIC_API_URL --value "https://macro-rr.replit.app/api" --environment preview --visibility plaintext
 
 # Set owner mode (false for distributed builds, true for personal dev builds)
 eas env:create --name EXPO_PUBLIC_OWNER_MODE --value "false" --environment preview --visibility plaintext
@@ -773,8 +773,8 @@ The deployment is configured in `artifacts/api-server/.replit-artifact/artifact.
 
 ### After Deploying
 
-1. Note the production URL (e.g., `https://macro-r.replit.app`)
-2. Set `EXPO_PUBLIC_API_URL` in EAS env to `https://macro-r.replit.app/api`
+1. Note the production URL (e.g., `https://macro-rr.replit.app`)
+2. Set `EXPO_PUBLIC_API_URL` in EAS env to `https://macro-rr.replit.app/api`
 3. Build a new APK with the production URL baked in
 
 ---
