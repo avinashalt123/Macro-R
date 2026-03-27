@@ -642,9 +642,11 @@ export default function SearchRunnerScreen() {
           });
       } finally {
         stopRun();
-        if (BackgroundService?.isRunning()) {
-          await BackgroundService.stop().catch(() => {});
-        }
+        try {
+          if (BackgroundService?.isRunning()) {
+            await BackgroundService.stop().catch(() => {});
+          }
+        } catch {}
         if (runningNotifId) {
           await dismissRunningNotification(runningNotifId);
         }
@@ -652,25 +654,31 @@ export default function SearchRunnerScreen() {
     };
 
     const startWithBackground = async () => {
-      if (BackgroundService && !BackgroundService.isRunning()) {
-        try {
-          await BackgroundService.start(
-            async () => { await run(); },
-            {
-              taskName: "MacroRewardsSearch",
-              taskTitle: "Macro Rewards",
-              taskDesc: "Running Bing searches…",
-              taskIcon: { name: "ic_launcher", type: "mipmap" },
-              color: "#3B82F6",
-              linkingURI: undefined,
-              progressBar: { max: 100, value: 0, indeterminate: true },
-            }
-          );
-        } catch (e) {
-          console.log("[SearchRunner] BackgroundService start failed, running foreground:", e);
+      try {
+        const isRunning = BackgroundService ? BackgroundService.isRunning() : false;
+        if (BackgroundService && !isRunning) {
+          try {
+            await BackgroundService.start(
+              async () => { await run(); },
+              {
+                taskName: "MacroRewardsSearch",
+                taskTitle: "Macro Rewards",
+                taskDesc: "Running Bing searches…",
+                taskIcon: { name: "ic_launcher", type: "mipmap" },
+                color: "#3B82F6",
+                linkingURI: undefined,
+                progressBar: { max: 100, value: 0, indeterminate: true },
+              }
+            );
+          } catch (e) {
+            console.log("[SearchRunner] BackgroundService start failed, running foreground:", e);
+            await run();
+          }
+        } else {
           await run();
         }
-      } else {
+      } catch (e) {
+        console.log("[SearchRunner] BackgroundService check failed, running foreground:", e);
         await run();
       }
     };
@@ -678,9 +686,11 @@ export default function SearchRunnerScreen() {
     startWithBackground();
     return () => {
       cancelled = true;
-      if (BackgroundService?.isRunning()) {
-        BackgroundService.stop().catch(() => {});
-      }
+      try {
+        if (BackgroundService?.isRunning()) {
+          BackgroundService.stop().catch(() => {});
+        }
+      } catch {}
     };
   }, []);
 
@@ -702,9 +712,11 @@ export default function SearchRunnerScreen() {
         style: "destructive",
         onPress: async () => {
           abortRef.current = true;
-          if (BackgroundService?.isRunning()) {
-            await BackgroundService.stop().catch(() => {});
-          }
+          try {
+            if (BackgroundService?.isRunning()) {
+              await BackgroundService.stop().catch(() => {});
+            }
+          } catch {}
           stopRun();
           accountsRef.current
           .filter((a) => accountIdsRef.current.includes(a.id))
