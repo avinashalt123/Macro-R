@@ -34,11 +34,14 @@ import {
 } from "@/utils/bingSearch";
 
 let BackgroundService: any = null;
-if (Platform.OS === "android") {
-  try {
-    BackgroundService = require("react-native-background-actions").default;
-  } catch {}
-}
+// Disabled: react-native-background-actions causes native crashes on Android 14+
+// when foregroundServiceType is not declared in the manifest. Searches run in
+// foreground mode instead — the app must stay open during the run.
+// if (Platform.OS === "android") {
+//   try {
+//     BackgroundService = require("react-native-background-actions").default;
+//   } catch {}
+// }
 
 // Flushes the WebView OS cookie jar and loads the given account's cookies into
 // it so the Daily Set WebView is always authenticated as the correct account.
