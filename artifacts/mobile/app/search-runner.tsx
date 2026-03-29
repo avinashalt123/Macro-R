@@ -377,53 +377,44 @@ export default function SearchRunnerScreen() {
     onStatus("Daily Set: loading Rewards page…");
     setWebViewUrl("https://rewards.bing.com/");
     await waitForLoad(15000);
-    // Give the React-rendered SPA time to fully paint activity cards
-    await sleep(4000);
+    await sleep(2000);
 
     for (let attempt = 0; attempt < MAX_CARDS; attempt++) {
       if (abortRef.current) break;
 
-      // ── 2. On subsequent iterations navigate back to Rewards ─────────────
       if (attempt > 0) {
         onStatus(`Daily Set: back to Rewards (${completed} done so far)…`);
         navigateTo("https://rewards.bing.com/");
         await waitForLoad(15000);
-        await sleep(3500);
+        await sleep(1500);
       }
 
-      // ── 3. Inject script with the list of already-clicked IDs ────────────
       onStatus("Daily Set: scanning for next activity…");
       webViewRef.current?.injectJavaScript(makeClickScript(clickedIds));
       const msg = await waitForMessage("card_clicked", 10000);
 
       if (!msg?.found) {
-        // No more unclicked cards — we're done
         if (completed === 0 && attempt === 0) {
           onStatus("Daily Set: no activities found — try re-logging in");
-          await sleep(3000);
+          await sleep(1500);
         } else {
           onStatus(`Daily Set: all activities done (${completed} completed)`);
-          await sleep(2000);
+          await sleep(1000);
         }
         break;
       }
 
-      // ── 4. Record this card so we never click it again ───────────────────
       if (msg.cardId) clickedIds.push(msg.cardId);
       if (msg.href && clickedIds.indexOf(msg.href) === -1) {
         clickedIds.push(msg.href);
       }
 
-      // ── 5. Wait for any navigation the click triggered to settle ─────────
       const label = msg.text || `Activity ${completed + 1}`;
       onStatus(`Daily Set: clicked "${label}" — waiting…`);
       setDailySetResult({ completed, total: completed + 1 });
 
-      // Use a short waitForLoad — some clicks navigate, others are AJAX-only.
-      // Either way we cap the wait so we don't block for the full timeout.
       await waitForLoad(5000);
-      // Extra settle time for server-side registration before going back
-      await sleep(2500);
+      await sleep(1500);
 
       completed++;
       setDailySetResult({ completed, total: completed });
