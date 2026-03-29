@@ -133,19 +133,21 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
           )}
 
           <View style={styles.info}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-                {account.name}
-              </Text>
+            <View style={styles.topRow}>
+              <View style={styles.nameBlock}>
+                <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+                  {account.name}
+                </Text>
+                <Text style={[styles.email, { color: colors.textSecondary }]} numberOfLines={1}>
+                  {account.email}
+                </Text>
+              </View>
               <StatusBadge
                 status={account.status}
                 searchesCompleted={account.searchesCompleted}
                 searchCount={account.searchCount}
               />
             </View>
-            <Text style={[styles.email, { color: colors.textSecondary }]} numberOfLines={1}>
-              {account.email}
-            </Text>
 
             {account.status === "running" && (
               <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
@@ -317,15 +319,19 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 4,
   },
-  nameRow: {
+  topRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 8,
+  },
+  nameBlock: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
   },
   name: {
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
-    flex: 1,
   },
   email: {
     fontSize: 13,
