@@ -505,15 +505,8 @@ export function AdminPanel() {
               <Text style={[styles.profileSectionTitle, { color: colors.text }]}>Actions</Text>
 
               <ProfileAction
-                icon={<Calendar size={18} color="#3b82f6" />}
-                label="Extend Expiry"
-                sublabel="+30 days"
-                colors={colors}
-                onPress={profileExtendKey}
-              />
-              <ProfileAction
                 icon={<Calendar size={18} color="#10b981" />}
-                label="Set Custom Expiry"
+                label="Extend Expiry"
                 sublabel={new Date(selectedKey.expiresAt).toLocaleDateString()}
                 colors={colors}
                 onPress={openExpiryPopup}
