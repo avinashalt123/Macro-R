@@ -618,6 +618,12 @@ export default function SearchRunnerScreen() {
         if (shouldRunDailySet) {
           setPhase("dailyset");
 
+          if (mode !== "dailyset") {
+            setStatusLine(`[${account.name}] Re-injecting cookies for Daily Set…`);
+            await injectAccountCookies(acctCookies);
+            await sleep(500);
+          }
+
           const ds = await runDailySetViaWebView(setStatusLine);
           dailySetDone = ds.completed > 0 || ds.alreadyDone;
           setDailySetResult({ completed: ds.completed, total: ds.total });
@@ -894,7 +900,7 @@ export default function SearchRunnerScreen() {
       <WebViewComponent
         ref={webViewRef}
         source={{ uri: webViewUrl }}
-        userAgent={phase === "pc_searching" ? BING_PC_UA : BING_UA}
+        userAgent={BING_UA}
         style={styles.webView}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
