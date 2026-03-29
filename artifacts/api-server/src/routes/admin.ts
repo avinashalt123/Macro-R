@@ -291,6 +291,7 @@ function dashboardPage(): string {
             '<div class="form-group"><label>Background</label><select onchange="updateConfig(' + JSON.stringify(kt) + ', {backgroundEnabled: this.value===\'true\'})"><option value="true"' + (c.backgroundEnabled ? ' selected' : '') + '>Yes</option><option value="false"' + (!c.backgroundEnabled ? ' selected' : '') + '>No</option></select></div>' +
             '<div class="form-group"><label>Custom Queries</label><select onchange="updateConfig(' + JSON.stringify(kt) + ', {customQueriesEnabled: this.value===\'true\'})"><option value="true"' + (c.customQueriesEnabled ? ' selected' : '') + '>Yes</option><option value="false"' + (!c.customQueriesEnabled ? ' selected' : '') + '>No</option></select></div>' +
             '<div class="form-group"><label>Daily Set</label><select onchange="updateConfig(' + JSON.stringify(kt) + ', {dailySetEnabled: this.value===\'true\'})"><option value="true"' + (c.dailySetEnabled ? ' selected' : '') + '>Yes</option><option value="false"' + (!c.dailySetEnabled ? ' selected' : '') + '>No</option></select></div>' +
+            '<div class="form-group"><label>PC Search</label><select onchange="updateConfig(' + JSON.stringify(kt) + ', {pcSearchEnabled: this.value===\'true\'})"><option value="true"' + (c.pcSearchEnabled ? ' selected' : '') + '>Yes</option><option value="false"' + (!c.pcSearchEnabled ? ' selected' : '') + '>No</option></select></div>' +
           '</div>' +
         '</div>';
       }).join('');

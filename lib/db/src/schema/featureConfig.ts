@@ -10,6 +10,7 @@ export const featureConfigTable = pgTable("feature_config", {
   backgroundEnabled: boolean("background_enabled").notNull().default(false),
   customQueriesEnabled: boolean("custom_queries_enabled").notNull().default(false),
   dailySetEnabled: boolean("daily_set_enabled").notNull().default(true),
+  pcSearchEnabled: boolean("pc_search_enabled").notNull().default(true),
 });
 
 export const insertFeatureConfigSchema = createInsertSchema(featureConfigTable);

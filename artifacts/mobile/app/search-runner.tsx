@@ -562,7 +562,8 @@ export default function SearchRunnerScreen() {
         // ── PC/Desktop searches ────────────────────────────────────────────
         let pcSearchesDone = 0;
 
-        if (mode !== "dailyset" && (mode === "pconly" || settings.pcSearchEnabled) && !networkLost) {
+        const pcAllowed = featureConfig?.pcSearchEnabled !== false;
+        if (mode !== "dailyset" && pcAllowed && (mode === "pconly" || settings.pcSearchEnabled) && !networkLost) {
           const pcSearchCount = Math.min(settings.pcSearchCount, maxSearches);
           const pcQueries = pickQueries(pcSearchCount);
 

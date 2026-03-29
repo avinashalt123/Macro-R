@@ -28,7 +28,7 @@ export default function AccountDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { accounts, updateAccount, removeAccount, startRun, isRunning } = useAccounts();
   const account = accounts.find((a) => a.id === id);
-  const { isOwnerMode, adminPanelVisible, setAdminPanelVisible } = useLicense();
+  const { isOwnerMode, adminPanelVisible, setAdminPanelVisible, featureConfig } = useLicense();
 
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
@@ -291,15 +291,17 @@ export default function AccountDetailScreen() {
                 </LinearGradient>
               </Pressable>
 
-              <Pressable
-                onPress={handlePcSearch}
-                style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
-              >
-                <LinearGradient colors={["#7C3AED", "#5B21B6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.runBtnGradient}>
-                  <Monitor size={18} color="#fff" />
-                  <Text style={styles.runBtnText}>PC Search</Text>
-                </LinearGradient>
-              </Pressable>
+              {featureConfig?.pcSearchEnabled !== false && (
+                <Pressable
+                  onPress={handlePcSearch}
+                  style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
+                >
+                  <LinearGradient colors={["#7C3AED", "#5B21B6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.runBtnGradient}>
+                    <Monitor size={18} color="#fff" />
+                    <Text style={styles.runBtnText}>PC Search</Text>
+                  </LinearGradient>
+                </Pressable>
+              )}
 
               <Pressable
                 onPress={handleDelete}

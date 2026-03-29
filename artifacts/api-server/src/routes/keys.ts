@@ -6,10 +6,10 @@ import crypto from "crypto";
 import { requireAdmin } from "../adminSession";
 
 const DEFAULT_CONFIGS = [
-  { keyType: "basic", maxAccounts: 2, maxSearches: 20, minDelaySeconds: 5, backgroundEnabled: false, customQueriesEnabled: false, dailySetEnabled: true },
-  { keyType: "premium", maxAccounts: 5, maxSearches: 40, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true, dailySetEnabled: true },
-  { keyType: "unlimited", maxAccounts: 999, maxSearches: 999, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true, dailySetEnabled: true },
-  { keyType: "admin", maxAccounts: 999, maxSearches: 999, minDelaySeconds: 1, backgroundEnabled: true, customQueriesEnabled: true, dailySetEnabled: true },
+  { keyType: "basic", maxAccounts: 2, maxSearches: 20, minDelaySeconds: 5, backgroundEnabled: false, customQueriesEnabled: false, dailySetEnabled: true, pcSearchEnabled: false },
+  { keyType: "premium", maxAccounts: 5, maxSearches: 40, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true, dailySetEnabled: true, pcSearchEnabled: true },
+  { keyType: "unlimited", maxAccounts: 999, maxSearches: 999, minDelaySeconds: 3, backgroundEnabled: true, customQueriesEnabled: true, dailySetEnabled: true, pcSearchEnabled: true },
+  { keyType: "admin", maxAccounts: 999, maxSearches: 999, minDelaySeconds: 1, backgroundEnabled: true, customQueriesEnabled: true, dailySetEnabled: true, pcSearchEnabled: true },
 ];
 
 function sanitizeDbError(e: any): string {
@@ -168,6 +168,7 @@ router.put("/admin/feature-config/:keyType", requireAdmin, async (req, res) => {
     if (backgroundEnabled !== undefined) updates.backgroundEnabled = Boolean(backgroundEnabled);
     if (customQueriesEnabled !== undefined) updates.customQueriesEnabled = Boolean(customQueriesEnabled);
     if (req.body.dailySetEnabled !== undefined) updates.dailySetEnabled = Boolean(req.body.dailySetEnabled);
+    if (req.body.pcSearchEnabled !== undefined) updates.pcSearchEnabled = Boolean(req.body.pcSearchEnabled);
 
     const [updated] = await db.update(featureConfigTable)
       .set(updates)

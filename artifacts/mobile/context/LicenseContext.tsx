@@ -42,6 +42,7 @@ export interface FeatureConfig {
   backgroundEnabled: boolean;
   customQueriesEnabled: boolean;
   dailySetEnabled: boolean;
+  pcSearchEnabled: boolean;
 }
 
 const DEFAULT_FEATURE_CONFIG: FeatureConfig = {
@@ -52,6 +53,7 @@ const DEFAULT_FEATURE_CONFIG: FeatureConfig = {
   backgroundEnabled: false,
   customQueriesEnabled: false,
   dailySetEnabled: true,
+  pcSearchEnabled: false,
 };
 
 const FEATURE_CONFIG_STORAGE = "@ms_rewards_feature_config";
@@ -107,6 +109,7 @@ const OWNER_FEATURE_CONFIG: FeatureConfig = {
   backgroundEnabled: true,
   customQueriesEnabled: true,
   dailySetEnabled: true,
+  pcSearchEnabled: true,
 };
 
 export function LicenseProvider({ children }: { children: React.ReactNode }) {

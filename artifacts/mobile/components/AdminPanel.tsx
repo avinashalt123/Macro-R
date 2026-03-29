@@ -62,6 +62,7 @@ interface FeatureConfig {
   backgroundEnabled: boolean;
   customQueriesEnabled: boolean;
   dailySetEnabled: boolean;
+  pcSearchEnabled: boolean;
 }
 
 export function AdminPanel() {
@@ -842,6 +843,12 @@ export function AdminPanel() {
                       value={cfg.dailySetEnabled}
                       colors={colors}
                       onToggle={(v) => updateFeatureConfig(cfg.keyType, { dailySetEnabled: v })}
+                    />
+                    <ConfigToggle
+                      label="PC Search"
+                      value={cfg.pcSearchEnabled}
+                      colors={colors}
+                      onToggle={(v) => updateFeatureConfig(cfg.keyType, { pcSearchEnabled: v })}
                     />
                   </View>
                 </View>
