@@ -1,0 +1,359 @@
+~/workspace$ cd artifacts/mobile && eas build --platform android --profile preview --local
+Resolved "preview" environment for the build. Learn more: https://docs.expo.dev/eas/environment-variables/#setting-the-environment-for-your-builds
+Environment variables with visibility "Plain text" and "Sensitive" loaded from the "preview" environment on EAS: EXPO_PUBLIC_API_URL.
+
+✔ Using remote Android credentials (Expo server)
+✔ Using Keystore from configuration: Build Credentials 6zc0bUwyEo (default)
+✔ Compressed project files 1s (8.7 MB)
+✔ Computed project fingerprint
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated rimraf@2.4.5: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated lodash.get@4.4.2: This package is deprecated. Use the optional chaining (?.) operator instead.
+npm warn deprecated @xmldom/xmldom@0.7.13: this version has critical issues, please update to the latest version
+npm warn deprecated glob@6.0.4: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated tar@7.5.7: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+ANDROID_NDK_HOME environment variable was not specified, continuing build without NDK
+[SETUP_WORKINGDIR] Preparing workingdir /tmp/runner/eas-build-local-nodejs/ba3df427-88cf-4ab2-a0c7-e40d12948e27
+[START_BUILD] Starting build
+  "job": {
+    "type": "managed",
+    "platform": "android",
+    "projectRootDirectory": "artifacts/mobile",
+    "projectArchive": {
+      "type": "PATH",
+      "path": "/tmp/runner/eas-cli-nodejs/939a5cdc-d54d-47a8-962e-5deef5c38a71.tar.gz"
+    },
+    "builderEnvironment": {
+      "env": {}
+    },
+    "cache": {
+      "disabled": false,
+      "paths": [],
+      "clear": false
+    },
+    "updates": {},
+    "buildType": "apk",
+    "username": "meoow123",
+    "experimental": {},
+    "mode": "build",
+    "triggeredBy": "EAS_CLI",
+    "appId": "e44f3f61-0e90-468d-9a3d-378d6aaf7c45",
+    "initiatingUserId": "c9fe84f4-d8a4-4734-93fa-bf86b7579d4a"
+  }
+Local build, skipping project archive refresh
+[PREPARE_PROJECT] .npmrc found at .npmrc
+[READ_EAS_JSON] Using eas.json:
+[READ_EAS_JSON] {
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "gradleCommand": ":app:assembleDebug",
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": false
+      }
+    },
+    "development-simulator": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
+
+[READ_PACKAGE_JSON] Using package.json:
+[READ_PACKAGE_JSON] {
+  "name": "@workspace/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_EXPO_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_REPL_ID=$REPL_ID REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN pnpm exec expo start --localhost --port $PORT",
+    "build": "node scripts/build.js",
+    "serve": "node server/serve.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "update": "eas update --branch preview --message"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@expo-google-fonts/inter": "^0.4.0",
+    "@expo/cli": "54.0.23",
+    "@expo/ngrok": "^4.1.0",
+    "@expo/vector-icons": "^15.0.3",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@stardazed/streams-text-encoding": "^1.0.2",
+    "@tanstack/react-query": "^5.90.21",
+    "@types/react": "~19.1.10",
+    "@types/react-dom": "~19.1.7",
+    "@ungap/structured-clone": "^1.3.0",
+    "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
+    "babel-preset-expo": "~54.0.10",
+    "expo": "~54.0.27",
+    "expo-blur": "~15.0.8",
+    "expo-constants": "~18.0.11",
+    "expo-font": "~14.0.10",
+    "expo-glass-effect": "~0.1.4",
+    "expo-haptics": "~15.0.8",
+    "expo-image": "~3.0.11",
+    "expo-image-picker": "~17.0.10",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-linking": "~8.0.10",
+    "expo-location": "~19.0.8",
+    "expo-router": "~6.0.17",
+    "expo-splash-screen": "~31.0.12",
+    "expo-status-bar": "~3.0.9",
+    "expo-symbols": "~1.0.8",
+    "expo-system-ui": "~6.0.9",
+    "expo-web-browser": "~15.0.10",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-keyboard-controller": "1.18.5",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-svg": "15.12.1",
+    "react-native-web": "^0.21.0",
+    "react-native-worklets": "0.5.1",
+    "typescript": "~5.9.2",
+    "zod": "^3.25.76",
+    "zod-validation-error": "^3.4.0"
+  },
+  "dependencies": {
+    "@react-native-cookies/cookies": "^6.2.1",
+    "expo-application": "~7.0.8",
+    "expo-background-fetch": "^14.0.9",
+    "expo-camera": "~17.0.10",
+    "expo-clipboard": "~8.0.8",
+    "expo-crypto": "~15.0.8",
+    "expo-file-system": "~19.0.21",
+    "expo-notifications": "^0.32.16",
+    "expo-task-manager": "~14.0.9",
+    "expo-updates": "^29.0.16",
+    "lucide-react-native": "^0.577.0",
+    "react-native-background-actions": "^4.0.1",
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-webview": "13.15.0"
+  }
+}
+[INSTALL_DEPENDENCIES] We detected that 'artifacts/mobile' is a pnpm workspace
+[INSTALL_DEPENDENCIES] Running "pnpm install --frozen-lockfile" in /tmp/runner/eas-build-local-nodejs/ba3df427-88cf-4ab2-a0c7-e40d12948e27/build directory
+[INSTALL_DEPENDENCIES] Scope: all 9 workspace projects
+[INSTALL_DEPENDENCIES] Lockfile is up to date, resolution step is skipped
+[INSTALL_DEPENDENCIES] Progress: resolved 1, reused 0, downloaded 0, added 0
+[INSTALL_DEPENDENCIES] Packages: +1140
+[INSTALL_DEPENDENCIES] ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 61
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 155
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 235
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 306
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 447
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 633
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 713
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 888
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 1003
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 1009
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 1012
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 1107
+[INSTALL_DEPENDENCIES] Progress: resolved 1140, reused 1113, downloaded 0, added 1140, done
+[INSTALL_DEPENDENCIES] devDependencies:
+[INSTALL_DEPENDENCIES] + prettier 3.8.1
+[INSTALL_DEPENDENCIES] + typescript 5.9.3
+[INSTALL_DEPENDENCIES] . preinstall$ sh -c 'if [ "$EAS_BUILD" = "1" ]; then exit 0; fi; rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+[INSTALL_DEPENDENCIES] . preinstall: Done
+[INSTALL_DEPENDENCIES] Done in 14s using pnpm v10.26.1
+The NODE_ENV environment variable is required but was not specified. Ensure the project is bundled with Expo CLI or NODE_ENV is set.
+Proceeding without mode-specific .env
+[READ_APP_CONFIG] Using app configuration:
+[READ_APP_CONFIG] {
+  "name": "Macro R",
+  "slug": "mobile",
+  "version": "1.4.03",
+  "orientation": "portrait",
+  "icon": "./assets/images/iconn.png",
+  "scheme": "mobile",
+  "userInterfaceStyle": "automatic",
+  "newArchEnabled": true,
+  "splash": {
+    "image": "./assets/images/splash-icon.png",
+    "resizeMode": "contain",
+    "backgroundColor": "#0f172a"
+  },
+  "ios": {
+    "supportsTablet": false,
+    "bundleIdentifier": "com.msrewards.automation"
+  },
+  "android": {
+    "package": "com.msrewards.automation",
+    "permissions": [
+      "android.permission.SCHEDULE_EXACT_ALARM",
+      "android.permission.USE_EXACT_ALARM",
+      "android.permission.RECEIVE_BOOT_COMPLETED",
+      "android.permission.VIBRATE",
+      "android.permission.WAKE_LOCK",
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
+      "android.permission.CAMERA",
+      "android.permission.READ_MEDIA_IMAGES",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.RECORD_AUDIO"
+    ]
+  },
+  "web": {
+    "favicon": "./assets/images/icon.png"
+  },
+  "plugins": [
+    [
+      "expo-router",
+      {
+        "origin": "https://replit.com/"
+      }
+    ],
+    "expo-font",
+    "expo-web-browser",
+    [
+      "expo-notifications",
+      {
+        "icon": "./assets/images/notification-icon.png",
+        "color": "#3B82F6",
+        "sounds": []
+      }
+    ],
+    "expo-task-manager",
+    "expo-updates",
+    [
+      "expo-camera",
+      {
+        "cameraPermission": "Allow Macro R to access your camera to scan QR codes."
+      }
+    ],
+    [
+      "expo-image-picker",
+      {
+        "photosPermission": "Allow Macro R to access your photos to scan QR codes from images.",
+        "cameraPermission": "Allow Macro R to access your camera to scan QR codes."
+      }
+    ]
+  ],
+  "updates": {
+    "url": "https://u.expo.dev/e44f3f61-0e90-468d-9a3d-378d6aaf7c45"
+  },
+  "runtimeVersion": {
+    "policy": "appVersion"
+  },
+  "experiments": {
+    "typedRoutes": true,
+    "reactCompiler": true
+  },
+  "extra": {
+    "ownerMode": false,
+    "eas": {
+      "projectId": "e44f3f61-0e90-468d-9a3d-378d6aaf7c45"
+    },
+    "router": {
+      "origin": "https://replit.com/"
+    }
+  },
+  "owner": "meoow123",
+  "sdkVersion": "54.0.0",
+  "platforms": [
+    "ios",
+    "android",
+    "web"
+  ]
+}
+[PREBUILD] - Creating native directory (./android)
+[PREBUILD] ✔ Created native directory
+[PREBUILD] - Updating package.json
+[PREBUILD] ✔ Updated package.json
+[PREBUILD] - Running prebuild
+[PREBUILD] ✔ Finished prebuild
+[PREBUILD] We detected that 'artifacts/mobile' is a pnpm workspace
+[PREBUILD] Running "pnpm install --no-frozen-lockfile" in /tmp/runner/eas-build-local-nodejs/ba3df427-88cf-4ab2-a0c7-e40d12948e27/build directory
+[PREBUILD] Scope: all 9 workspace projects
+[PREBUILD] Progress: resolved 0, reused 1, downloaded 0, added 0
+[PREBUILD] artifacts/mobile                         |  WARN  deprecated @react-native-cookies/cookies@6.2.1
+[PREBUILD] Progress: resolved 415, reused 412, downloaded 0, added 0
+[PREBUILD] Progress: resolved 1108, reused 1106, downloaded 0, added 0
+[PREBUILD] Progress: resolved 1114, reused 1112, downloaded 0, added 0
+[PREBUILD] Progress: resolved 1115, reused 1112, downloaded 0, added 0
+[PREBUILD] WARN  6 deprecated subdependencies found: glob@7.2.3, inflight@1.0.6, node-domexception@1.0.0, rimraf@3.0.2, text-encoding@0.7.0, uuid@3.4.0
+[PREBUILD] Already up to date
+[PREBUILD] Progress: resolved 1115, reused 1113, downloaded 0, added 0, done
+[PREBUILD] . preinstall$ sh -c 'if [ "$EAS_BUILD" = "1" ]; then exit 0; fi; rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+[PREBUILD] . preinstall: Done
+[PREBUILD] 
+[PREBUILD] Done in 5.7s using pnpm v10.26.1
+[RESTORE_CACHE] Local builds do not support restoring cache
+[CALCULATE_EXPO_UPDATES_RUNTIME_VERSION] Resolved runtime version: 1.4.03
+[PREPARE_CREDENTIALS] Writing secrets to the project's directory
+[PREPARE_CREDENTIALS] Injecting signing config into build.gradle
+[PREPARE_CREDENTIALS] Signing config injected
+[CONFIGURE_EXPO_UPDATES] This build has an invalid EAS Update configuration: update.url is set to "https://u.expo.dev/e44f3f61-0e90-468d-9a3d-378d6aaf7c45" in app config, but a channel is not specified for the current build profile "null" in eas.json.
+[CONFIGURE_EXPO_UPDATES] - No channel will be set and EAS Update will be disabled for the build.
+[CONFIGURE_EXPO_UPDATES] - Run `eas update:configure` to set your channel in eas.json. For more details, see https://docs.expo.dev/eas-update/getting-started/#configure-your-project
+[EAGER_BUNDLE] React Compiler enabled
+[EAGER_BUNDLE] Starting Metro Bundler
+[EAGER_BUNDLE] Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__647f0c9f9fafa8cae778bbb6d28cc5ec/node_modules/expo-router/entry.js ▓▓░░░░░░░░░░░░░░ 16.0% ( 24/158)
+[EAGER_BUNDLE] Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__647f0c9f9fafa8cae778bbb6d28cc5ec/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 65.3% (567/706)
+[EAGER_BUNDLE] Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__647f0c9f9fafa8cae778bbb6d28cc5ec/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 74.5% (719/837)
+[EAGER_BUNDLE] Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__647f0c9f9fafa8cae778bbb6d28cc5ec/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 74.5% (1524/2822)
+[EAGER_BUNDLE] Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__647f0c9f9fafa8cae778bbb6d28cc5ec/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 94.5% (2962/3088)
+[EAGER_BUNDLE] Android node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__647f0c9f9fafa8cae778bbb6d28cc5ec/node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.0% (3556/3610)
+[EAGER_BUNDLE] Android Bundled 19665ms node_modules/.pnpm/expo-router@6.0.23_@types+react-dom@19.1.11_@types+react@19.1.17__@types+react@19.1.17__647f0c9f9fafa8cae778bbb6d28cc5ec/node_modules/expo-router/entry.js (3728 modules)
+[EAGER_BUNDLE] Writing bundle output to: /tmp/8ylzfm6n7b/index.js
+[EAGER_BUNDLE] Copying 45 asset files
+[EAGER_BUNDLE] Done writing bundle output
+[RUN_GRADLEW] Running 'gradlew :app:assembleRelease' in /tmp/runner/eas-build-local-nodejs/ba3df427-88cf-4ab2-a0c7-e40d12948e27/build/artifacts/mobile/android
+[RUN_GRADLEW] ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+[RUN_GRADLEW] Please set the JAVA_HOME variable in your environment to match the
+[RUN_GRADLEW] location of your Java installation.
+[RUN_GRADLEW] Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+
+Build failed
+Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+Error: Gradle build failed with unknown error. See logs for the "Run gradlew" phase for more information.
+    at resolveBuildPhaseErrorAsync (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/@expo/build-tools/dist/buildErrors/detectError.js:61:12)
+    at async BuildContext.handleBuildPhaseErrorAsync (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/@expo/build-tools/dist/context.js:192:28)
+    at async BuildContext.runBuildPhase (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/@expo/build-tools/dist/context.js:137:35)
+    at async buildAsync (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/@expo/build-tools/dist/builders/android.js:132:5)
+    at async runBuilderWithHooksAsync (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/@expo/build-tools/dist/builders/common.js:12:13)
+    at async Object.androidBuilder (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/@expo/build-tools/dist/builders/android.js:28:16)
+    at async buildAndroidAsync (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/eas-cli-local-build-plugin/dist/android.js:43:12)
+    at async buildAsync (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/eas-cli-local-build-plugin/dist/build.js:54:29)
+    at async main (/home/runner/.npm/_npx/7c5cb04dd06e9766/node_modules/eas-cli-local-build-plugin/dist/main.js:16:9)
+npm notice
+npm notice New minor version of npm available! 11.6.2 -> 11.12.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.1
+npm notice To update run: npm install -g npm@11.12.1
+npm notice
+npx -y eas-cli-local-build-plugin@18.4.0 eyJqb2IiOnsidHlwZSI6Im1hbmFnZWQiLCJwbGF0Zm9ybSI6ImFuZHJvaWQiLCJwcm9qZWN0Um9vdERpcmVjdG9yeSI6ImFydGlmYWN0cy9tb2JpbGUiLCJwcm9qZWN0QXJjaGl2ZSI6eyJ0eXBlIjoiUEFUSCIsInBhdGgiOiIvdG1wL3J1bm5lci9lYXMtY2xpLW5vZGVqcy85MzlhNWNkYy1kNTRkLTQ3YTgtOTYyZS01ZGVlZjVjMzhhNzEudGFyLmd6In0sImJ1aWxkZXJFbnZpcm9ubWVudCI6eyJlbnYiOnt9fSwiY2FjaGUiOnsiZGlzYWJsZWQiOmZhbHNlLCJwYXRocyI6W10sImNsZWFyIjpmYWxzZX0sInNlY3JldHMiOnsiYnVpbGRDcmVkZW50aWFscyI6eyJrZXlzdG9yZSI6eyJkYXRhQmFzZTY0IjoiL3UzKzdRQUFBQUlBQUFBQkFBQUFBUUFnTURsalpXRmlOREE1TVdVMFl6Rm1ZVGhpTUdZMk1HVm1OekU1TTJWbVpqa0FBQUdkSUhkSEpnQUFCUUl3Z2dUK01BNEdDaXNHQVFRQktnSVJBUUVGQUFTQ0JPcEtqbzYrL1BqL3VWaEVSZEZOTHNWekRUQ05mVHJSTE9ScGVvaFpHM2l3UFo2Q0ZCSzFEUWxXK0NYTGN6ZDdnTnRwUFEzTk5MaElrcGpSUEU1eVpQTzJWUExSTDdybytsQ1VMMmN1TllPbVhFRHNrYVRlRmRXWHBEZ2lQM1VsSDU3eDJ2WE9EVkRDNHo3elFmYmloRUtnRXpKTElnSmNuaHZpalp4VWxPM2crdktJc3FwVmpXK1JyMXFCcW1aSVp2NmV3Z3VCcEpCOG1CVzRmYmZYVDZraDlwSnFodFFWMElnRVZSdXU4YmtXMjF5TGsrNlpyK1FYTSttM2cyVTRiTEVIRXdGcU13alUxK0NlOThacU1NNjJLVTQxSlB2THp3YzE3blJiaDEvN0JqRDBpenNFYXZ1VUJvVWhWSncrdUpzUUhMTGREUlpDZjExbjliYzJmNEt3Q0VWUmhOTFFGNE03c1NUdU02R0xvZ0xlS1FONUVrcXhPbmk5TmhjYWxURzd1cVlnemZ0NFpkTFAzVHJNQ2JZZUwvdEszRjl0bWFWYUdHQURnekx6MnR6bDVXcDh2bzB6ZmRFY0xnNHJyRHlKOXNtMGNheG8yRUFqS1BFSU5mKzRySUkxQ3ZOS2o5UElNL3Z6cHkvakdzaGk4SWlyZHZCTnlqQkJvTlh2QUw0d20zN1Vhcmt3UUc4R1ZjMjVTeEJNTlRScS9TM2ltNDEreXNmNGJJbkZTS2JQU1pnQVdvNVpmQmt1YUhjQkR3Qyt0djRzaE1NeGlua2pqbVJ4UEVJNU1ObURpZXJCTXZUYkdXYmUrR1lVcHlwY0wyRXdUV0h0WXRpYzZHenBNVE9IaFphc0hXK2lZbEY5QU9kZVcrdmFReVM1akNDdWFjWDI5aVYzU2JFbXFqNHFVckRNd3NmZjZ0VEhvNTVWY2s4ZE9GcEtHVmZoeVFLYjdmVUU4MlBWbUJxSUhxZjh3ZXpRbU5MV08vTXdCZjFKYUhYQm9pak9zNitYMFVla2wza0ZFRDhML3lpeDR6M3RaeWY0QXRrWjFmT1lIYlVUSFZzUVVLUDRYeU45cGFtZ0RPN0ovRXhRajJtMGJBeUt5aTZKS0R5dStWbFpraXU2RFB2cTUrN3Q4eUlFbXFJcTF4REFjVlY5VldheGw3TmExQkt6Y1VCQkhmWEEyU1hrWjRNdzV0OGxZbjRSdG5EVUlxU2REcUZpUGV6OFJzV2VRdDRJTTJHRjBmVUhPdDhVQkZibnNCcEczajE5c2ZBYnZhRUlpTlg5UHliREFwekxIajhzNnNCbER1ZlZ6MmFJY0V5b2JCYitJVWtTQjM5YVJpaE4xVUhUaG04QzdmWVNsZFRvOGdYNG5BeDdCallsQTB3THdrdHA1K29QSFVxOU1HN2lIS1NoM04xajBheWUzYzF0RXJhVnhvYTRPdG5GNzFoNXNxTXNSSHFvMDhNdkVSek9pcW1tdFhZWDZycjRkQXVjMWlnVFZGZldzN21kQUxvcTJUL2N6UmRDMWhFS1JXUHhvYWhVTXFoV0ZKNjNNMitYYzBuZVdHV1B1QStUejAxTlJGcFhoRkJsaGljRlVFYThuR29EbEl6M2R4Z2N2NTdKdzRxSktHdThTZUdMM3hCdFlDRjJoeWV1ZkJjalBKM2xNSHdJczFRdmpadElpdGtUc0FyTk1MWFNibkVWNEFUN2lMMVZ3Z2I3YlJQQXVubnJsNlRIT05aWktlVDlFTVdTUDdOYXZ0Y3JQRDE2V0tBb24wSjV0SEFmM3lHa2doZUM2MUM1bG5zZTJtSEUzdkZpRmFVK0JZQlVMenhld09iSFZkeUdKUmxsSTNMZGkyWjUyRVczLzFQSG5YbFp0UnRVdnNBQXVtTGoxeGNEbWJGUG5EMGNXZGJRTHNVeHVoQXZSTHNWYm9RdnFQdDN1VU1GeUYyMk0yNnZXT1NkTWlZVTBjZWR6dXZodm5mUTY5WDR3MTBVZjNOOHJPTWIxSGVENDllNzRIUmlnVDd1WHhQQW1GRDA4aHdwL3dKdi9Ed3V1Z25oSitJZ0Y4ZWdqcGhNNXBWREVOSDdXODZ5bmpQa0NBdmpUOG9NOTRCVENwdm9uS2srUVJkREVqVE1uZDZJbFNYRzJtYWZPeERHWmkwREtzQ3o0N3pkc3h2bklKUi9oYmhQMGtPZjF6c3Rnc1dmdnIzYStHa2NHY0RxWnF1YjJWMGQ3VU1kd3JkVUFBQUFBUUFGV0M0MU1Ea0FBQU10TUlJREtUQ0NBaEdnQXdJQkFnSUlkOTJRQzI0WlcrY3dEUVlKS29aSWh2Y05BUUVMQlFBd1FqRUpNQWNHQTFVRUJoTUFNUWt3QndZRFZRUUlFd0F4Q1RBSEJnTlZCQWNUQURFSk1BY0dBMVVFQ2hNQU1Ra3dCd1lEVlFRTEV3QXhDVEFIQmdOVkJBTVRBREFnRncweU5qQXpNalF4TlRJNU5EQmFHQTh5TURVek1EZ3dPVEUxTWprME1Gb3dRakVKTUFjR0ExVUVCaE1BTVFrd0J3WURWUVFJRXdBeENUQUhCZ05WQkFjVEFERUpNQWNHQTFVRUNoTUFNUWt3QndZRFZRUUxFd0F4Q1RBSEJnTlZCQU1UQURDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBSlBIYUN5MENHelVMYTJYQTl0dW5RODNUbjlEMC9vMzdHYnVmcTdtMitOWjR6ZjNZRGxjVXQzc29mcnRjZjZwT2xoS3o2ak50VU9ZMS92Qkd1R0M2V1htQUlkKzlSaUlUS0ZHbW95ZDZ6WXFGOGlhZmtxenNyZzZxVTNGVWRkQWVSaVo3eU5SS1NWVTZLV1hlcGlqZERrNkNCZTRDU21nUlloalM1NmhlbHRNcTl3c0Z6dVZWZTJKUmIwOGx5V0dYSFdnaEExOXRHNEx1SUJsaVZGSkZkYXY1Z21ZZ045R1h6M1lVQXEweU9MYjFsNHhMZW1mQ21SanUyVUprVUZ5ZUdjS3ViQXpiMkoxbnNHMFFqK05oVVZMNHVVU1pZdDJaeTIxc00xWHFiMlVrTjVTRkVhNEpCZWJBUGtDZ2tkWXJDeUFrOVpzaUdRNWRSQjdXNDUwVGpzQ0F3RUFBYU1oTUI4d0hRWURWUjBPQkJZRUZNbHZnYXlaNVlCdStHdjYrSEZWb2U0elNDdFBNQTBHQ1NxR1NJYjNEUUVCQ3dVQUE0SUJBUUFQSjNUQ2FPdlRuSDR2RTZGTWJFZWtQaDBvRjRZN2Q2anV3VzBreURuajlhRGNVa1pDY1BrdWRUVStmVHVpQWJrcXhGbUZUV2hwYjJiYnpKQWZGejFPbTM0Unk5Z0hvVU53NE1ETW91ZmVYUUFDeXNBVGRUeE54aUE5WXdwKzZPTnhYSiszYi9wakZieE5FV0ttMG9ON1RRYW1EMzFlSGdoUm9NNzVsMTFiYnNDM2ZpN2hzcDdMVjhPN1U3RnlHZk9oaDRrRFV4aTNZem1qaVp1QUQxcS9pU2tRNDBkS1lWZHhZaFZkUHNKTUNDS2ZqVjViRXgxc1Y0Q0VYdG5jWW1DbnRPSk5Sci9DOEZLZmxtL3VsTzUwY0czN1pLMmt5OVdEMDFScWxnMnErRXpSbDVDWHJSMEt3RVZQTmZnY0ZVWFVsUkpFaXVhT0NScGZ0TWZocFNXWUZZcHJhQ0RrdXo5UGsrUEJOUisyc29LVkppRT0iLCJrZXlzdG9yZVBhc3N3b3JkIjoiYTczNTZjYmM3YzI0ZmUyMDY0NTQ0ZWZhOGFmZWJmMTgiLCJrZXlBbGlhcyI6IjA5Y2VhYjQwOTFlNGMxZmE4YjBmNjBlZjcxOTNlZmY5Iiwia2V5UGFzc3dvcmQiOiJmYjYyYWU1MGZlZjU3OWZmNDEyZDQxMzVmNmFmMjJjZSJ9fX0sInVwZGF0ZXMiOnt9LCJidWlsZFR5cGUiOiJhcGsiLCJ1c2VybmFtZSI6Im1lb293MTIzIiwiZXhwZXJpbWVudGFsIjp7fSwibW9kZSI6ImJ1aWxkIiwidHJpZ2dlcmVkQnkiOiJFQVNfQ0xJIiwiYXBwSWQiOiJlNDRmM2Y2MS0wZTkwLTQ2OGQtOWEzZC0zNzhkNmFhZjdjNDUiLCJpbml0aWF0aW5nVXNlcklkIjoiYzlmZTg0ZjQtZDhhNC00NzM0LTkzZmEtYmY4NmI3NTc5ZDRhIn0sIm1ldGFkYXRhIjp7InRyYWNraW5nQ29udGV4dCI6eyJ0cmFja2luZ19pZCI6ImQ5ODhlMDdlLTQzNTItNDc1ZS1iOTNkLWYwOGIwMDE3N2QxMCIsInBsYXRmb3JtIjoiYW5kcm9pZCIsInNka192ZXJzaW9uIjoiNTQuMC4wIiwiYWNjb3VudF9pZCI6IjczZjIzNzNkLTQ4MjAtNDgzYi1hMTA0LWU3OGY1OTNkM2FiYyIsInByb2plY3RfaWQiOiJlNDRmM2Y2MS0wZTkwLTQ2OGQtOWEzZC0zNzhkNmFhZjdjNDUiLCJwcm9qZWN0X3R5cGUiOiJtYW5hZ2VkIiwiZGV2X2NsaWVudCI6ZmFsc2UsIm5vX3dhaXQiOmZhbHNlLCJydW5fZnJvbV9jaSI6ZmFsc2UsImxvY2FsIjp0cnVlfSwiYXBwQnVpbGRWZXJzaW9uIjoiMSIsImFwcFZlcnNpb24iOiIxLjQuMDMiLCJjbGlWZXJzaW9uIjoiMTguNC4wIiwid29ya2Zsb3ciOiJtYW5hZ2VkIiwiY3JlZGVudGlhbHNTb3VyY2UiOiJyZW1vdGUiLCJzZGtWZXJzaW9uIjoiNTQuMC4wIiwicnVudGltZVZlcnNpb24iOiIxLjQuMDMiLCJmaW5nZXJwcmludEhhc2giOiI2ZWM0YWUyNTE2OGUyOTgwOGY0M2YyOTk5NjY3YTM3OTZhOWE3MTA1IiwicmVhY3ROYXRpdmVWZXJzaW9uIjoiMC44MS41IiwiZGlzdHJpYnV0aW9uIjoiaW50ZXJuYWwiLCJhcHBOYW1lIjoiTWFjcm8gUiIsImFwcElkZW50aWZpZXIiOiJjb20ubXNyZXdhcmRzLmF1dG9tYXRpb24iLCJidWlsZFByb2ZpbGUiOiJwcmV2aWV3IiwiZ2l0Q29tbWl0SGFzaCI6Ijc2OWVhNjlkZWYwOGJiM2EwODgyYzVmMWVhZTQ4ZDNjNjM4NjAxYmEiLCJnaXRDb21taXRNZXNzYWdlIjoiQWRkIGNvbmZpcm1hdGlvbiBwcm9tcHQgd2hlbiBkZWFjdGl2YXRpbmcga2V5cyBpbiB0aGUgbW9iaWxlIGFwcFxuXG5JbnRyb2R1Y2UgQWxlcnQuYWxlcnQgY29uZmlybWF0aW9uIGZvciB0aGUgXCJEZWFjdGl2YXRlIEtleVwiIGFjdGlvbiBpbiBBZG1pblBhbmVsLnRzeCwgcHJldmVudGluZyBhY2NpZGVudGFsIGRlYWN0aXZhdGlvbnMuXG5cblJlcGxpdC1Db21taXQtQXV0aG9yOiBBZ2VudFxuUmVwbGl0LUNvbW1pdC1TZXNzaW9uLUlkOiAzMDE5MTFiOC1mYTA1LTQyMzQtYTNhNS1iZmM2N2IxM2U5Y2VcblJlcGxpdC1Db21taXQtQ2hlY2twb2ludC1UeXBlOiBmdWxsX2NoZWNrcG9pbnRcblJlcGxpdC1Db21taXQtRXZlbnQtSWQ6IGJlMzUxMmRlLThkZDYtNGExYy1hZWJkLWRlOWU3MzMwMmZlZVxuUmVwbGl0LUNvbW1pdC1TY3JlZW5zaG90LVVybDogaHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL3NjcmVlbnNob3QtcHJvZHVjdGlvbi11cy1jZW50cmFsMS80ZDg2M2U4NS0wMzkwLTRjZTUtYTQ2ZC01MTk2ODAxNWFlOWYvMzAxOTExYjgtZmEwNS00MjM0LWEzYTUtYmZjNjdiMTNlOWNlL2hBSm1TamNcblJlcGxpdC1IZWxpdW0tQ2hlY2twb2ludC1DcmVhdGVkOiB0cnVlIiwiaXNHaXRXb3JraW5nVHJlZURpcnR5IjpmYWxzZSwidXNlcm5hbWUiOiJtZW9vdzEyMyIsInJ1bldpdGhOb1dhaXRGbGFnIjpmYWxzZSwicnVuRnJvbUNJIjpmYWxzZSwiZGV2ZWxvcG1lbnRDbGllbnQiOmZhbHNlLCJyZXF1aXJlZFBhY2thZ2VNYW5hZ2VyIjoicG5wbSIsInNpbXVsYXRvciI6ZmFsc2V9fQ== exited with non-zero code: 1
+    Error: build command failed.
+~/.../artifacts/mobile$ 
