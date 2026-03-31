@@ -567,12 +567,9 @@ export default function SearchRunnerScreen() {
             if (cancelled || abortRef.current) break;
 
             const query = pcQueries[si] ?? `windows tips ${si + 1}`;
-            const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&form=QBLH&cvid=${randomHex(32).toUpperCase()}`;
 
             setCurrentSearchIdx(si + 1);
             setStatusLine(`[${account.name}] PC: "${query}"`);
-
-            navigateTo(searchUrl);
 
             const result = await performBingSearch(query, acctCookies, BING_PC_UA);
             if (result.networkError) {
