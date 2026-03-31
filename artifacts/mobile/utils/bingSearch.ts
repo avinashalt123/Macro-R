@@ -34,10 +34,12 @@ export async function performBingSearch(
   const headers: Record<string, string> = {
     Cookie: cookieStr,
     "User-Agent": userAgent || BING_UA,
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
     Referer: "https://www.bing.com/",
-    "Cache-Control": "no-cache",
+    "Cache-Control": "max-age=0",
+    "Upgrade-Insecure-Requests": "1",
   };
   if (isPC) {
     headers["Sec-Ch-Ua"] = '"Microsoft Edge";v="131", "Chromium";v="131", "Not_A Brand";v="24"';
@@ -46,13 +48,16 @@ export async function performBingSearch(
     headers["Sec-Fetch-Dest"] = "document";
     headers["Sec-Fetch-Mode"] = "navigate";
     headers["Sec-Fetch-Site"] = "same-origin";
+    headers["Sec-Fetch-User"] = "?1";
   }
   try {
     const resp = await fetch(url, {
       method: "GET",
       credentials: "omit",
+      redirect: "follow",
       headers,
     });
+    try { await resp.text(); } catch {}
     return { ok: resp.ok || resp.status === 302, status: resp.status };
   } catch (e: any) {
     if (e?.message?.includes("Network request failed")) {
