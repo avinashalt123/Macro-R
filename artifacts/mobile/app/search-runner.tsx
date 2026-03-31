@@ -243,6 +243,8 @@ export default function SearchRunnerScreen() {
   const msgEventQueueRef = useRef<any[]>([]);
 
   const [webViewUrl, setWebViewUrl] = useState("about:blank");
+  const [webViewUA, setWebViewUA] = useState(BING_UA);
+  const [webViewKey, setWebViewKey] = useState(0);
 
   // Derive the initial name from the live accounts list (first matching account)
   const firstAccount = accounts.find((a) => accountIdsRef.current.includes(a.id));
@@ -308,10 +310,8 @@ export default function SearchRunnerScreen() {
     } catch {}
   }, []);
 
-  // Returns a promise that resolves when the next WebView load completes (or times out).
-  // H1: drains the load buffer first — if the load already fired, resolves immediately.
   const waitForLoad = useCallback((timeoutMs = 12000): Promise<void> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       if (loadEventBufferedRef.current) {
         loadEventBufferedRef.current = false;
         resolve();
@@ -319,7 +319,7 @@ export default function SearchRunnerScreen() {
       }
       const timer = setTimeout(() => {
         webViewLoadResolverRef.current = null;
-        resolve();
+        reject(new Error("WebView load timeout"));
       }, timeoutMs);
       webViewLoadResolverRef.current = () => {
         clearTimeout(timer);
@@ -376,7 +376,7 @@ export default function SearchRunnerScreen() {
     // ── 1. Load the Rewards dashboard once ──────────────────────────────────
     onStatus("Daily Set: loading Rewards page…");
     setWebViewUrl("https://rewards.bing.com/");
-    await waitForLoad(15000);
+    try { await waitForLoad(15000); } catch {}
     await sleep(2000);
 
     for (let attempt = 0; attempt < MAX_CARDS; attempt++) {
@@ -385,7 +385,7 @@ export default function SearchRunnerScreen() {
       if (attempt > 0) {
         onStatus(`Daily Set: back to Rewards (${completed} done so far)…`);
         navigateTo("https://rewards.bing.com/");
-        await waitForLoad(15000);
+        try { await waitForLoad(15000); } catch {}
         await sleep(1500);
       }
 
@@ -413,7 +413,7 @@ export default function SearchRunnerScreen() {
       onStatus(`Daily Set: clicked "${label}" — waiting…`);
       setDailySetResult({ completed, total: completed + 1 });
 
-      await waitForLoad(5000);
+      try { await waitForLoad(5000); } catch {}
       await sleep(1500);
 
       completed++;
@@ -561,7 +561,12 @@ export default function SearchRunnerScreen() {
           setPhase("pc_searching");
           setCurrentSearchIdx(0);
           setTotalSearches(pcSearchCount);
-          setStatusLine(`[${account.name}] Starting PC searches…`);
+          setStatusLine(`[${account.name}] Switching to PC mode…`);
+
+          setWebViewUA(BING_PC_UA);
+          setWebViewKey((k: number) => k + 1);
+          loadEventBufferedRef.current = false;
+          await sleep(2000);
 
           for (let si = 0; si < pcSearchCount; si++) {
             if (cancelled || abortRef.current) break;
@@ -572,22 +577,25 @@ export default function SearchRunnerScreen() {
             setCurrentSearchIdx(si + 1);
             setStatusLine(`[${account.name}] PC: "${query}"`);
 
+            loadEventBufferedRef.current = false;
+
             if (si === 0) {
               setWebViewUrl(pcSearchUrl);
             } else {
               navigateTo(pcSearchUrl);
             }
 
-            const result = await performBingSearch(query, acctCookies, BING_PC_UA);
-            if (result.networkError) {
-              setNetworkError(true);
-              networkLost = true;
-              setStatusLine("No internet connection");
-              break;
-            }
-            if (result.ok) {
+            let loaded = false;
+            try {
+              await waitForLoad(12000);
+              loaded = true;
+            } catch {}
+
+            if (loaded) {
               pcSearchesDone++;
               setNetworkError(false);
+            } else {
+              setStatusLine(`[${account.name}] PC search ${si + 1} timed out`);
             }
 
             if (si < pcSearchCount - 1) {
@@ -595,6 +603,10 @@ export default function SearchRunnerScreen() {
               await sleep(Math.max(2500, delay + jitter));
             }
           }
+
+          setWebViewUA(BING_UA);
+          setWebViewKey((k: number) => k + 1);
+          await sleep(500);
         }
 
         if (cancelled || abortRef.current) break;
@@ -896,9 +908,10 @@ export default function SearchRunnerScreen() {
 
       {/* WebView — navigated through Bing searches and Rewards activities */}
       <WebViewComponent
+        key={webViewKey}
         ref={webViewRef}
         source={{ uri: webViewUrl }}
-        userAgent={BING_UA}
+        userAgent={webViewUA}
         style={styles.webView}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
