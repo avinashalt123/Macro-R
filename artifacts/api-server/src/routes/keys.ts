@@ -99,6 +99,13 @@ router.put("/admin/keys/:id", requireAdmin, async (req, res) => {
     if (isActive !== undefined) updates.isActive = isActive;
     if (keyType !== undefined && validTypes.includes(keyType)) updates.keyType = keyType;
 
+    if (isActive !== undefined) {
+      const [current] = await db.select().from(licenseKeysTable).where(eq(licenseKeysTable.id, id));
+      if (current) {
+        console.log(`[KEY STATUS CHANGE] Key ${current.key} (${current.label || 'no label'}) changed from isActive=${current.isActive} to isActive=${isActive} at ${new Date().toISOString()} — source IP: ${req.ip || req.headers['x-forwarded-for'] || 'unknown'}`);
+      }
+    }
+
     const [updated] = await db.update(licenseKeysTable)
       .set(updates)
       .where(eq(licenseKeysTable.id, id))

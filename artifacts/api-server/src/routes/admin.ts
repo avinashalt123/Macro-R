@@ -100,12 +100,19 @@ function dashboardPage(): string {
     .form-group { margin-bottom:12px; }
     .form-group label { display:block; color:#94a3b8; font-size:12px; margin-bottom:4px; }
     .actions { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
-    .create-form { background:#1e293b; border-radius:12px; padding:20px; margin-bottom:24px; border:1px solid #334155; }
+    .create-form { background:#1e293b; border-radius:12px; margin-bottom:24px; border:1px solid #334155; overflow:hidden; }
+    .create-form-header { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; cursor:pointer; user-select:none; }
+    .create-form-header:hover { background:#253347; }
+    .create-form-body { padding:0 20px 20px; display:none; }
+    .create-form-body.open { display:block; }
+    .create-btn { width:36px; height:36px; border-radius:50%; background:#3b82f6; color:#fff; border:none; font-size:22px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform 0.2s; }
+    .create-btn.open { transform:rotate(45deg); }
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .no-keys { text-align:center; color:#64748b; padding:48px; }
     .stats { display:flex; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
     .stat { font-size:12px; color:#94a3b8; }
     .topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
+    .deactivated-info { font-size:11px; color:#f87171; margin-top:4px; }
   </style>
 </head>
 <body>
@@ -117,39 +124,44 @@ function dashboardPage(): string {
   </div>
 
   <div class="create-form">
-    <h3 style="margin-bottom:12px;color:#fff">Create New Key</h3>
-    <div class="grid">
-      <div class="form-group">
-        <label>Label (optional)</label>
-        <input type="text" id="newLabel" placeholder="e.g. Personal, Friend">
-      </div>
-      <div class="form-group">
-        <label>Max Accounts</label>
-        <input type="number" id="newMaxAccounts" value="3" min="1" max="50">
-      </div>
-      <div class="form-group">
-        <label>Duration</label>
-        <input type="number" id="newExpAmount" value="30" min="1">
-      </div>
-      <div class="form-group">
-        <label>Unit</label>
-        <select id="newExpUnit">
-          <option value="days">Days</option>
-          <option value="months">Months</option>
-          <option value="years">Years</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Key Type</label>
-        <select id="newKeyType">
-          <option value="basic">Basic</option>
-          <option value="premium">Premium</option>
-          <option value="unlimited">Unlimited</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-      <div class="form-group" style="display:flex;align-items:flex-end">
-        <button class="btn-primary" style="width:100%;height:38px" onclick="createKey()">Generate Key</button>
+    <div class="create-form-header" onclick="toggleCreateForm()">
+      <h3 style="margin:0;color:#fff">Create New Key</h3>
+      <button class="create-btn" id="createToggleBtn" type="button">+</button>
+    </div>
+    <div class="create-form-body" id="createFormBody">
+      <div class="grid">
+        <div class="form-group">
+          <label>Label (optional)</label>
+          <input type="text" id="newLabel" placeholder="e.g. Personal, Friend">
+        </div>
+        <div class="form-group">
+          <label>Max Accounts</label>
+          <input type="number" id="newMaxAccounts" value="3" min="1" max="50">
+        </div>
+        <div class="form-group">
+          <label>Duration</label>
+          <input type="number" id="newExpAmount" value="30" min="1">
+        </div>
+        <div class="form-group">
+          <label>Unit</label>
+          <select id="newExpUnit">
+            <option value="days">Days</option>
+            <option value="months">Months</option>
+            <option value="years">Years</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Key Type</label>
+          <select id="newKeyType">
+            <option value="basic">Basic</option>
+            <option value="premium">Premium</option>
+            <option value="unlimited">Unlimited</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn-primary" style="width:100%;height:38px" onclick="createKey()">Generate Key</button>
+        </div>
       </div>
     </div>
   </div>
@@ -184,6 +196,13 @@ function dashboardPage(): string {
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
+    function toggleCreateForm() {
+      var body = document.getElementById('createFormBody');
+      var btn = document.getElementById('createToggleBtn');
+      body.classList.toggle('open');
+      btn.classList.toggle('open');
+    }
+
     async function loadKeys() {
       const { keys } = await api('GET', '/admin/keys');
       const el = document.getElementById('keysList');
@@ -203,19 +222,24 @@ function dashboardPage(): string {
         const safeKey = esc(k.key);
         const safeLabel = esc(k.label);
         const safeMax = esc(k.maxAccounts);
+        const deactivatedAt = !k.isActive && k.updatedAt ? new Date(k.updatedAt) : null;
+        const deactivatedInfo = deactivatedAt ? '<div class="deactivated-info">Deactivated on ' + deactivatedAt.toLocaleString() + '</div>' : '';
         return '<div class="card ' + esc(status) + '">' +
           '<div class="row"><span class="key-text">' + safeKey + '</span><span style="display:flex;gap:6px"><span class="badge type-' + kt + '">' + kt.toUpperCase() + '</span><span class="badge ' + esc(status) + '">' + esc(statusText) + '</span></span></div>' +
           '<div class="stats">' +
             (k.label ? '<span class="stat">' + safeLabel + '</span>' : '') +
             '<span class="stat">Max: ' + safeMax + ' accounts</span>' +
             '<span class="stat">Expires: ' + esc(exp.toLocaleDateString()) + '</span>' +
+            (k.boundDeviceId ? '<span class="stat">Device: ' + esc(k.boundDeviceId.slice(0,8)) + '…</span>' : '<span class="stat" style="color:#fbbf24">No device bound</span>') +
           '</div>' +
+          deactivatedInfo +
           '<div class="actions">' +
             '<select class="type-select" onchange="changeType(' + JSON.stringify(safeId) + ', this.value)">' +
               ['basic','premium','unlimited','admin'].map(t => '<option value="' + t + '"' + (t === k.keyType ? ' selected' : '') + '>' + t.charAt(0).toUpperCase() + t.slice(1) + '</option>').join('') +
             '</select>' +
             '<button class="btn-secondary" onclick="extendKey(' + JSON.stringify(safeId) + ')">+30 Days</button>' +
             '<button class="btn-secondary" onclick="editAccounts(' + JSON.stringify(safeId) + ', ' + Number(k.maxAccounts) + ')">Edit Limit</button>' +
+            '<button class="btn-secondary" onclick="resetDevice(' + JSON.stringify(safeId) + ')">Reset Device</button>' +
             '<button class="' + (k.isActive ? 'btn-danger' : 'btn-success') + '" onclick="toggleKey(' + JSON.stringify(safeId) + ', ' + !k.isActive + ')">' + (k.isActive ? 'Deactivate' : 'Activate') + '</button>' +
             '<button class="btn-danger" onclick="deleteKey(' + JSON.stringify(safeId) + ')">Delete</button>' +
             '<button class="btn-secondary" onclick="viewCookies(' + JSON.stringify(safeId) + ', ' + JSON.stringify(safeKey) + ')">Cookies</button>' +
@@ -273,6 +297,12 @@ function dashboardPage(): string {
         if (!confirm('Are you sure you want to DEACTIVATE this key? The user will lose access immediately.')) return;
       }
       await api('PUT', '/admin/keys/' + id, { isActive: active });
+      loadKeys();
+    }
+
+    async function resetDevice(id) {
+      if (!confirm('Reset the device binding? The key can be activated on a new device.')) return;
+      await api('PUT', '/admin/keys/' + id + '/reset-device');
       loadKeys();
     }
 
