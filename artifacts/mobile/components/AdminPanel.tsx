@@ -6,6 +6,7 @@ import QRCode from "react-native-qrcode-svg";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Platform,
@@ -344,13 +345,38 @@ export function AdminPanel() {
 
   const profileToggleActive = async () => {
     if (!selectedKey) return;
+    const willDeactivate = selectedKey.isActive;
+    if (willDeactivate) {
+      Alert.alert(
+        "Deactivate Key?",
+        `This will immediately disable key ${selectedKey.key}. The user will lose access.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Deactivate",
+            style: "destructive",
+            onPress: async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              try {
+                await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { isActive: false });
+                await loadKeys();
+                setSelectedKey((prev) => prev ? { ...prev, isActive: false } : null);
+              } catch {
+                showError("Error", "Failed to deactivate key.");
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { isActive: !selectedKey.isActive });
+      await apiCall("PUT", `/admin/keys/${selectedKey.id}`, { isActive: true });
       await loadKeys();
-      setSelectedKey((prev) => prev ? { ...prev, isActive: !prev.isActive } : null);
+      setSelectedKey((prev) => prev ? { ...prev, isActive: true } : null);
     } catch {
-      showError("Error", "Failed to toggle key status.");
+      showError("Error", "Failed to activate key.");
     }
   };
 
