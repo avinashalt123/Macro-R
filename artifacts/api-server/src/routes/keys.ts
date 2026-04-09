@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db } from "@workspace/db";
+import { db, ensureTables } from "@workspace/db";
 import { licenseKeysTable, featureConfigTable, deviceCookiesTable, globalConfigTable } from "@workspace/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import crypto from "crypto";
@@ -45,7 +45,11 @@ async function seedFeatureConfigs(retries = 3) {
   console.error(`seedFeatureConfigs failed after ${retries} attempts`);
   throw lastError;
 }
-seedFeatureConfigs().catch(console.error);
+async function initDatabase() {
+  await ensureTables();
+  await seedFeatureConfigs();
+  await seedGlobalConfig();
+}
 
 const DEFAULT_GLOBAL_CONFIG: Record<string, string> = {
   search_enabled: "true",
@@ -63,7 +67,8 @@ async function seedGlobalConfig() {
     console.error("seedGlobalConfig failed:", e);
   }
 }
-seedGlobalConfig().catch(console.error);
+
+initDatabase().catch(console.error);
 
 const router: IRouter = Router();
 
