@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
-import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, Clock, Edit2, Eye, EyeOff, Monitor, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
+import { AlertCircle, AlertTriangle, ArrowLeft, Award, Calendar, Clock, Edit2, Eye, EyeOff, RefreshCw, Search, Shield, ShieldOff, Smartphone, Star, Trash2, X } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -112,12 +112,6 @@ export default function AccountDetailScreen() {
     if (isRunning) return;
     startRun();
     router.push({ pathname: "/search-runner", params: { accountIds: JSON.stringify([id]) } });
-  };
-
-  const handlePcSearch = () => {
-    if (isRunning) return;
-    startRun();
-    router.push({ pathname: "/search-runner", params: { accountIds: JSON.stringify([id]), mode: "pconly" } });
   };
 
   return (
@@ -290,18 +284,6 @@ export default function AccountDetailScreen() {
                   <Text style={styles.runBtnText}>Run All</Text>
                 </LinearGradient>
               </Pressable>
-
-              {featureConfig?.pcSearchEnabled !== false && (
-                <Pressable
-                  onPress={handlePcSearch}
-                  style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}
-                >
-                  <LinearGradient colors={["#7C3AED", "#5B21B6"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.runBtnGradient}>
-                    <Monitor size={18} color="#fff" />
-                    <Text style={styles.runBtnText}>PC Search</Text>
-                  </LinearGradient>
-                </Pressable>
-              )}
 
               <Pressable
                 onPress={handleDelete}

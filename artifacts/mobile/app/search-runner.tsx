@@ -31,8 +31,6 @@ import {
   performBingSearch,
   fetchRewardsPoints,
   BING_UA,
-  BING_PC_UA,
-  DESKTOP_MODE_JS,
 } from "@/utils/bingSearch";
 
 let BackgroundService: any = null;
@@ -221,8 +219,7 @@ export default function SearchRunnerScreen() {
   const { featureConfig } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
 
-  // mode: "searchonly" = mobile searches only | "dailyset" = daily set only | "both" = searches + daily set | "pconly" = PC searches only
-  const mode = (rawMode === "dailyset" ? "dailyset" : rawMode === "searchonly" ? "searchonly" : rawMode === "pconly" ? "pconly" : "both") as "both" | "dailyset" | "searchonly" | "pconly";
+  const mode = (rawMode === "dailyset" ? "dailyset" : rawMode === "searchonly" ? "searchonly" : "both") as "both" | "dailyset" | "searchonly";
 
   let accountIds: string[] = [];
   try { accountIds = rawIds ? JSON.parse(rawIds) : []; } catch { accountIds = []; }
@@ -244,8 +241,6 @@ export default function SearchRunnerScreen() {
   const msgEventQueueRef = useRef<any[]>([]);
 
   const [webViewUrl, setWebViewUrl] = useState("about:blank");
-  const [webViewUA, setWebViewUA] = useState(BING_UA);
-  const [webViewKey, setWebViewKey] = useState(0);
 
   // Derive the initial name from the live accounts list (first matching account)
   const firstAccount = accounts.find((a) => accountIdsRef.current.includes(a.id));
@@ -256,8 +251,8 @@ export default function SearchRunnerScreen() {
   const [currentSearchIdx, setCurrentSearchIdx] = useState(0);
   const [totalSearches, setTotalSearches] = useState(settings.defaultSearchCount);
   const [statusLine, setStatusLine] = useState("Starting…");
-  const [phase, setPhase] = useState<"searching" | "pc_searching" | "dailyset" | "done">(
-    mode === "dailyset" ? "dailyset" : mode === "pconly" ? "pc_searching" : "searching"
+  const [phase, setPhase] = useState<"searching" | "dailyset" | "done">(
+    mode === "dailyset" ? "dailyset" : "searching"
   );
   const [dailySetResult, setDailySetResult] = useState<{ completed: number; total: number } | null>(null);
   const [isFinished, setIsFinished] = useState(false);
@@ -463,7 +458,7 @@ export default function SearchRunnerScreen() {
         setCurrentAccountName(account.name);
         setTotalSearches(searchCount);
         setCurrentSearchIdx(0);
-        setPhase(mode === "dailyset" ? "dailyset" : mode === "pconly" ? "pc_searching" : "searching");
+        setPhase(mode === "dailyset" ? "dailyset" : "searching");
         setDailySetResult(null);
 
         updateAccount(account.id, { status: "running", searchesCompleted: 0 });
@@ -503,7 +498,7 @@ export default function SearchRunnerScreen() {
         let searchesDone = 0;
         let networkLost = false;
 
-        if (mode !== "dailyset" && mode !== "pconly") {
+        if (mode !== "dailyset") {
           for (let si = 0; si < searchCount; si++) {
             if (cancelled || abortRef.current) break;
 
@@ -551,67 +546,6 @@ export default function SearchRunnerScreen() {
 
         if (cancelled || abortRef.current) break;
 
-        // ── PC/Desktop searches ────────────────────────────────────────────
-        let pcSearchesDone = 0;
-
-        const pcAllowed = featureConfig?.pcSearchEnabled !== false;
-        if (mode !== "dailyset" && pcAllowed && (mode === "pconly" || settings.pcSearchEnabled) && !networkLost) {
-          const pcSearchCount = Math.min(settings.pcSearchCount, maxSearches);
-          const pcQueries = pickQueries(pcSearchCount);
-
-          setPhase("pc_searching");
-          setCurrentSearchIdx(0);
-          setTotalSearches(pcSearchCount);
-          setStatusLine(`[${account.name}] Switching to PC mode…`);
-
-          setWebViewUA(BING_PC_UA);
-          setWebViewKey((k: number) => k + 1);
-          loadEventBufferedRef.current = false;
-          await sleep(2000);
-
-          for (let si = 0; si < pcSearchCount; si++) {
-            if (cancelled || abortRef.current) break;
-
-            const query = pcQueries[si] ?? `windows tips ${si + 1}`;
-            const pcSearchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&form=QBRE&cvid=${randomHex(32).toUpperCase()}&ensearch=1&PC=EDGEDHTML`;
-
-            setCurrentSearchIdx(si + 1);
-            setStatusLine(`[${account.name}] PC: "${query}"`);
-
-            loadEventBufferedRef.current = false;
-
-            if (si === 0) {
-              setWebViewUrl(pcSearchUrl);
-            } else {
-              navigateTo(pcSearchUrl);
-            }
-
-            let loaded = false;
-            try {
-              await waitForLoad(12000);
-              loaded = true;
-            } catch {}
-
-            if (loaded) {
-              pcSearchesDone++;
-              setNetworkError(false);
-            } else {
-              setStatusLine(`[${account.name}] PC search ${si + 1} timed out`);
-            }
-
-            if (si < pcSearchCount - 1) {
-              const jitter = Math.floor((Math.random() - 0.5) * 2000);
-              await sleep(Math.max(2500, delay + jitter));
-            }
-          }
-
-          setWebViewUA(BING_UA);
-          setWebViewKey((k: number) => k + 1);
-          await sleep(500);
-        }
-
-        if (cancelled || abortRef.current) break;
-
         // ── Daily Set via WebView ──────────────────────────────────────────
         // WebView uses the full OS cookie store (httpOnly included) so
         // navigating it to rewards.bing.com gives a properly authenticated page.
@@ -620,7 +554,6 @@ export default function SearchRunnerScreen() {
         const shouldRunDailySet =
           !networkLost &&
           mode !== "searchonly" &&
-          mode !== "pconly" &&
           (mode === "dailyset"
             ? true
             : settings.dailySetEnabled && (account.dailySetEnabled ?? true));
@@ -651,7 +584,7 @@ export default function SearchRunnerScreen() {
           ? (available > prevTotalPoints ? available - prevTotalPoints : 0)
           : today;
 
-        const totalSearchesDone = searchesDone + pcSearchesDone;
+        const totalSearchesDone = searchesDone;
         const finalStatus = networkLost && totalSearchesDone === 0 ? "failed" : "success";
 
         updateAccount(account.id, {
@@ -821,11 +754,9 @@ export default function SearchRunnerScreen() {
               const n = accountIdsRef.current.length;
               const pos = Math.min(currentAccountIdx + 1, n);
               if (mode === "dailyset") return `Daily Set Only · Account ${pos}/${n}`;
-              if (mode === "pconly") return `PC Only · Account ${pos}/${n} · ${currentSearchIdx}/${totalSearches}`;
               if (phase === "dailyset") return `Account ${pos}/${n} · Daily Set`;
-              if (phase === "pc_searching") return `Account ${pos}/${n} · PC Search ${currentSearchIdx}/${totalSearches}`;
               if (mode === "searchonly") return `Searches Only · Account ${pos}/${n} · ${currentSearchIdx}/${totalSearches}`;
-              return `Account ${pos}/${n} · Mobile ${currentSearchIdx}/${totalSearches}`;
+              return `Account ${pos}/${n} · Search ${currentSearchIdx}/${totalSearches}`;
             })()}
           </Text>
         </View>
@@ -862,15 +793,6 @@ export default function SearchRunnerScreen() {
         </View>
       </View>
 
-      {phase === "pc_searching" && (
-        <View style={[styles.phasePill, { backgroundColor: "#1E3040" }]}>
-          <Search size={13} color="#38BDF8" />
-          <Text style={[styles.phaseText, { color: "#7DD3FC" }]}>
-            PC/Desktop Searches · {currentSearchIdx}/{totalSearches}
-          </Text>
-        </View>
-      )}
-
       {phase === "dailyset" && (
         <View style={styles.phasePill}>
           <CheckCircle size={13} color="#A78BFA" />
@@ -889,7 +811,6 @@ export default function SearchRunnerScreen() {
           backgroundColor:
             isFinished ? "#14532D"
             : phase === "dailyset" ? "#2E1065"
-            : phase === "pc_searching" ? "#0C2D48"
             : "#1E293B",
         },
       ]}>
@@ -900,7 +821,6 @@ export default function SearchRunnerScreen() {
               isFinished ? "#4ADE80"
               : networkError ? "#F87171"
               : phase === "dailyset" ? "#A78BFA"
-              : phase === "pc_searching" ? "#38BDF8"
               : "#60A5FA",
           },
         ]} />
@@ -909,10 +829,9 @@ export default function SearchRunnerScreen() {
 
       {/* WebView — navigated through Bing searches and Rewards activities */}
       <WebViewComponent
-        key={webViewKey}
         ref={webViewRef}
         source={{ uri: webViewUrl }}
-        userAgent={webViewUA}
+        userAgent={BING_UA}
         style={styles.webView}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
@@ -922,10 +841,6 @@ export default function SearchRunnerScreen() {
         startInLoadingState
         onLoadEnd={handleWebViewLoadEnd}
         onMessage={handleWebViewMessage}
-        {...(webViewUA === BING_PC_UA ? {
-          injectedJavaScriptBeforeContentLoaded: DESKTOP_MODE_JS,
-          forceDarkOn: false,
-        } : {})}
       />
       {AlertComponent}
     </View>
