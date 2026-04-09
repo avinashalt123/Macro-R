@@ -372,8 +372,8 @@ export default function SearchRunnerScreen() {
     // ── 1. Load the Rewards dashboard once ──────────────────────────────────
     onStatus("Daily Set: loading Rewards page…");
     setWebViewUrl("https://rewards.bing.com/");
-    try { await waitForLoad(15000); } catch {}
-    await sleep(2000);
+    try { await waitForLoad(30000); } catch {}
+    await sleep(3000);
 
     for (let attempt = 0; attempt < MAX_CARDS; attempt++) {
       if (abortRef.current) break;
@@ -381,13 +381,13 @@ export default function SearchRunnerScreen() {
       if (attempt > 0) {
         onStatus(`Daily Set: back to Rewards (${completed} done so far)…`);
         navigateTo("https://rewards.bing.com/");
-        try { await waitForLoad(15000); } catch {}
-        await sleep(1500);
+        try { await waitForLoad(30000); } catch {}
+        await sleep(3000);
       }
 
       onStatus("Daily Set: scanning for next activity…");
       webViewRef.current?.injectJavaScript(makeClickScript(clickedIds));
-      const msg = await waitForMessage("card_clicked", 10000);
+      const msg = await waitForMessage("card_clicked", 20000);
 
       if (!msg?.found) {
         if (completed === 0 && attempt === 0) {
@@ -409,8 +409,8 @@ export default function SearchRunnerScreen() {
       onStatus(`Daily Set: clicked "${label}" — waiting…`);
       setDailySetResult({ completed, total: completed + 1 });
 
-      try { await waitForLoad(5000); } catch {}
-      await sleep(1500);
+      try { await waitForLoad(15000); } catch {}
+      await sleep(2000);
 
       completed++;
       setDailySetResult({ completed, total: completed });
