@@ -369,13 +369,15 @@ export default function SearchRunnerScreen() {
     // Both the composite cardId and the bare href are stored so either key hits.
     const clickedIds: string[] = [];
 
-    const loadTimeoutMs = (settings.dailySetLoadTimeout ?? 30) * 1000;
-    const cardTimeoutMs = (settings.dailySetCardTimeout ?? 20) * 1000;
+    const t1 = (settings.dsTimeoutInitialLoad ?? 30) * 1000;
+    const t2 = (settings.dsTimeoutReturnLoad ?? 25) * 1000;
+    const t3 = (settings.dsTimeoutCardScan ?? 20) * 1000;
+    const t4 = (settings.dsTimeoutPostClick ?? 15) * 1000;
 
     // ── 1. Load the Rewards dashboard once ──────────────────────────────────
     onStatus("Daily Set: loading Rewards page…");
     setWebViewUrl("https://rewards.bing.com/");
-    try { await waitForLoad(loadTimeoutMs); } catch {}
+    try { await waitForLoad(t1); } catch {}
     await sleep(3000);
 
     for (let attempt = 0; attempt < MAX_CARDS; attempt++) {
@@ -384,13 +386,13 @@ export default function SearchRunnerScreen() {
       if (attempt > 0) {
         onStatus(`Daily Set: back to Rewards (${completed} done so far)…`);
         navigateTo("https://rewards.bing.com/");
-        try { await waitForLoad(loadTimeoutMs); } catch {}
+        try { await waitForLoad(t2); } catch {}
         await sleep(3000);
       }
 
       onStatus("Daily Set: scanning for next activity…");
       webViewRef.current?.injectJavaScript(makeClickScript(clickedIds));
-      const msg = await waitForMessage("card_clicked", cardTimeoutMs);
+      const msg = await waitForMessage("card_clicked", t3);
 
       if (!msg?.found) {
         if (completed === 0 && attempt === 0) {
@@ -412,7 +414,7 @@ export default function SearchRunnerScreen() {
       onStatus(`Daily Set: clicked "${label}" — waiting…`);
       setDailySetResult({ completed, total: completed + 1 });
 
-      try { await waitForLoad(cardTimeoutMs); } catch {}
+      try { await waitForLoad(t4); } catch {}
       await sleep(2000);
 
       completed++;
@@ -421,7 +423,9 @@ export default function SearchRunnerScreen() {
 
     const alreadyDone = completed === 0;
     return { completed, total: completed, alreadyDone };
-  }, [navigateTo, waitForLoad, waitForMessage, settings.dailySetLoadTimeout, settings.dailySetCardTimeout]);
+  }, [navigateTo, waitForLoad, waitForMessage,
+    settings.dsTimeoutInitialLoad, settings.dsTimeoutReturnLoad,
+    settings.dsTimeoutCardScan, settings.dsTimeoutPostClick]);
 
   // ─── Main automation loop ─────────────────────────────────────────────────
 

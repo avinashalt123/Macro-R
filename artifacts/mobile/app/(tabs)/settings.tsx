@@ -431,7 +431,7 @@ export default function SettingsScreen() {
                         Timing settings
                       </Text>
                       <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                        Load {settings.dailySetLoadTimeout ?? 30}s · Card {settings.dailySetCardTimeout ?? 20}s
+                        {settings.dsTimeoutInitialLoad ?? 30}s · {settings.dsTimeoutReturnLoad ?? 25}s · {settings.dsTimeoutCardScan ?? 20}s · {settings.dsTimeoutPostClick ?? 15}s
                       </Text>
                     </View>
                   </View>
