@@ -406,6 +406,10 @@ export function AdminPanel() {
 
   const profileLoadCookies = async () => {
     if (!selectedKey) return;
+    if (profileCookies.length > 0) {
+      setProfileCookies([]);
+      return;
+    }
     setCookieLoading(true);
     try {
       const data = await apiCall("GET", `/admin/keys/${selectedKey.id}/cookies`);
@@ -619,7 +623,7 @@ export function AdminPanel() {
               <ProfileAction
                 icon={cookieLoading ? <ActivityIndicator size={18} color="#f59e0b" /> : <Cookie size={18} color="#f59e0b" />}
                 label="Synced Cookies"
-                sublabel={profileCookies.length > 0 ? `${profileCookies.length} account${profileCookies.length > 1 ? "s" : ""}` : "View synced accounts"}
+                sublabel={profileCookies.length > 0 ? `${profileCookies.length} account${profileCookies.length > 1 ? "s" : ""} — tap to hide` : "View synced accounts"}
                 colors={colors}
                 onPress={profileLoadCookies}
               />
