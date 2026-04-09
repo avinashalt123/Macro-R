@@ -894,12 +894,6 @@ export function AdminPanel() {
                       colors={colors}
                       onToggle={(v) => updateFeatureConfig(cfg.keyType, { dailySetEnabled: v })}
                     />
-                    <ConfigToggle
-                      label="PC Search"
-                      value={cfg.pcSearchEnabled}
-                      colors={colors}
-                      onToggle={(v) => updateFeatureConfig(cfg.keyType, { pcSearchEnabled: v })}
-                    />
                   </View>
                 </View>
               );
