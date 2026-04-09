@@ -74,6 +74,12 @@ export default function SettingsScreen() {
     String(settings.defaultSearchCount)
   );
   const [delayText, setDelayText] = useState(String(settings.searchDelay ?? 5));
+  const [dsLoadTimeoutText, setDsLoadTimeoutText] = useState(
+    String(settings.dailySetLoadTimeout ?? 30)
+  );
+  const [dsCardTimeoutText, setDsCardTimeoutText] = useState(
+    String(settings.dailySetCardTimeout ?? 20)
+  );
 
   const [slotHourTexts, setSlotHourTexts] = useState<string[]>(() =>
     initHourTexts(settings.overnightSlots)
@@ -108,6 +114,26 @@ export default function SettingsScreen() {
     if (clamped !== (settings.searchDelay ?? 5)) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       updateSettings({ searchDelay: clamped });
+    }
+  };
+
+  const commitDsLoadTimeout = () => {
+    const parsed = parseInt(dsLoadTimeoutText, 10);
+    const clamped = isNaN(parsed) ? 30 : Math.max(5, Math.min(60, parsed));
+    setDsLoadTimeoutText(String(clamped));
+    if (clamped !== (settings.dailySetLoadTimeout ?? 30)) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      updateSettings({ dailySetLoadTimeout: clamped });
+    }
+  };
+
+  const commitDsCardTimeout = () => {
+    const parsed = parseInt(dsCardTimeoutText, 10);
+    const clamped = isNaN(parsed) ? 20 : Math.max(5, Math.min(60, parsed));
+    setDsCardTimeoutText(String(clamped));
+    if (clamped !== (settings.dailySetCardTimeout ?? 20)) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      updateSettings({ dailySetCardTimeout: clamped });
     }
   };
 
@@ -410,6 +436,74 @@ export default function SettingsScreen() {
                 thumbColor="#fff"
               />
             </View>
+
+            {settings.dailySetEnabled && featureConfig.dailySetEnabled && (
+              <>
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                <View style={styles.settingRow}>
+                  <View style={styles.settingLabel}>
+                    <View style={[styles.iconBg, { backgroundColor: "#FFF7ED" }]}>
+                      <Clock size={16} color="#F97316" />
+                    </View>
+                    <View style={styles.labelText}>
+                      <Text style={[styles.settingTitle, { color: colors.text }]}>
+                        Page load timeout
+                      </Text>
+                      <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                        Wait for Rewards page to load (5–60s)
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.inputWithUnit}>
+                    <TextInput
+                      style={inputStyle}
+                      value={dsLoadTimeoutText}
+                      onChangeText={setDsLoadTimeoutText}
+                      onBlur={commitDsLoadTimeout}
+                      onSubmitEditing={commitDsLoadTimeout}
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                      maxLength={2}
+                      selectTextOnFocus
+                    />
+                    <Text style={[styles.unit, { color: colors.textMuted }]}>s</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+                <View style={styles.settingRow}>
+                  <View style={styles.settingLabel}>
+                    <View style={[styles.iconBg, { backgroundColor: "#FFF7ED" }]}>
+                      <Zap size={16} color="#F97316" />
+                    </View>
+                    <View style={styles.labelText}>
+                      <Text style={[styles.settingTitle, { color: colors.text }]}>
+                        Card scan timeout
+                      </Text>
+                      <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                        Wait for activity cards to respond (5–60s)
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.inputWithUnit}>
+                    <TextInput
+                      style={inputStyle}
+                      value={dsCardTimeoutText}
+                      onChangeText={setDsCardTimeoutText}
+                      onBlur={commitDsCardTimeout}
+                      onSubmitEditing={commitDsCardTimeout}
+                      keyboardType="number-pad"
+                      returnKeyType="done"
+                      maxLength={2}
+                      selectTextOnFocus
+                    />
+                    <Text style={[styles.unit, { color: colors.textMuted }]}>s</Text>
+                  </View>
+                </View>
+              </>
+            )}
           </View>
         </Section>
 
