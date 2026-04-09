@@ -216,7 +216,7 @@ export default function SearchRunnerScreen() {
   const { accounts, updateAccount, addLog, stopRun } = useAccounts();
   const { pickQueries } = useQueries();
   const { settings } = useSettings();
-  const { featureConfig } = useLicense();
+  const { featureConfig, searchEnabled } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
 
   const mode = (rawMode === "dailyset" ? "dailyset" : rawMode === "searchonly" ? "searchonly" : "both") as "both" | "dailyset" | "searchonly";
@@ -434,9 +434,11 @@ export default function SearchRunnerScreen() {
     let cancelled = false;
 
     const run = async () => {
-      // H4: compute target accounts from the live ref so we always have the
-      // freshest cookies — not the stale mount-time snapshot.
-      // Declared here (before try) so the catch block can reference it too.
+      if (!searchEnabled) {
+        setStatusLine("Search runner is currently disabled by admin");
+        setPhase("done");
+        return;
+      }
       let targetAccounts = accountsRef.current.filter((a) =>
         accountIdsRef.current.includes(a.id)
       );

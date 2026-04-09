@@ -78,6 +78,8 @@ export function AdminPanel() {
   const [featureConfigs, setFeatureConfigs] = useState<FeatureConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [configLoading, setConfigLoading] = useState(true);
+  const [globalSearchEnabled, setGlobalSearchEnabled] = useState(true);
+  const [globalConfigLoading, setGlobalConfigLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newMaxAccounts, setNewMaxAccounts] = useState("3");
@@ -148,6 +150,26 @@ export function AdminPanel() {
     setConfigLoading(false);
   }, [apiCall]);
 
+  const loadGlobalConfig = useCallback(async () => {
+    try {
+      const data = await apiCall("GET", "/global-config");
+      const cfg = data.config || {};
+      setGlobalSearchEnabled(cfg.search_enabled !== "false");
+    } catch {}
+    setGlobalConfigLoading(false);
+  }, [apiCall]);
+
+  const toggleGlobalSearch = useCallback(async (enabled: boolean) => {
+    try {
+      setGlobalSearchEnabled(enabled);
+      await apiCall("PUT", "/admin/global-config", { search_enabled: enabled ? "true" : "false" });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      setGlobalSearchEnabled(!enabled);
+      showError("Update Failed", "Could not update global config. Try again.");
+    }
+  }, [apiCall]);
+
   const updateFeatureConfig = useCallback(async (keyType: string, updates: any) => {
     try {
       await apiCall("PUT", `/admin/feature-config/${keyType}`, updates);
@@ -161,7 +183,8 @@ export function AdminPanel() {
   useEffect(() => {
     loadKeys();
     loadFeatureConfigs();
-  }, [loadKeys, loadFeatureConfigs]);
+    loadGlobalConfig();
+  }, [loadKeys, loadFeatureConfigs, loadGlobalConfig]);
 
   const createKey = async () => {
     if (creating) return;
@@ -845,6 +868,37 @@ export function AdminPanel() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 20 }}
         >
+          <View style={[styles.keyCard, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 12 }]}>
+            <Text style={{ fontSize: 16, fontFamily: "Inter_700Bold", color: "#f87171", marginBottom: 4 }}>
+              GLOBAL CONTROLS
+            </Text>
+            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 12 }}>
+              Kill switch — disables search runner for all users
+            </Text>
+            {globalConfigLoading ? (
+              <ActivityIndicator size="small" color="#3b82f6" />
+            ) : (
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  {globalSearchEnabled ? (
+                    <Power size={16} color="#22c55e" />
+                  ) : (
+                    <PowerOff size={16} color="#f87171" />
+                  )}
+                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: globalSearchEnabled ? "#22c55e" : "#f87171" }}>
+                    {globalSearchEnabled ? "Search Runner Active" : "Search Runner Disabled"}
+                  </Text>
+                </View>
+                <Switch
+                  value={globalSearchEnabled}
+                  onValueChange={toggleGlobalSearch}
+                  trackColor={{ false: "#3e3e3e", true: "#22c55e55" }}
+                  thumbColor={globalSearchEnabled ? "#22c55e" : "#f87171"}
+                />
+              </View>
+            )}
+          </View>
+
           {configLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#3b82f6" />

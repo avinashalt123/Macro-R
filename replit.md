@@ -278,6 +278,7 @@ SafeAreaProvider
 | `POST` | `/api/validate-admin` | Validate admin secret |
 | `POST` | `/api/sync-cookies` | Sync account cookies from device (requires bound key + deviceId) |
 | `GET` | `/api/healthz` | Health check (`{ status: "ok" }`) |
+| `GET` | `/api/global-config` | Get global config (includes `search_enabled` kill switch) |
 
 **validate-key request body**:
 ```json
@@ -330,6 +331,7 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `GET` | `/api/admin/keys/:id/cookies` | Get synced cookies for a license key |
 | `GET` | `/api/admin/feature-config` | List all feature configs |
 | `PUT` | `/api/admin/feature-config/:keyType` | Update feature config for a key type |
+| `PUT` | `/api/admin/global-config` | Update global config (kill switch, etc.) |
 | `GET` | `/api/admin` | HTML admin panel (web-based, login form) |
 
 **Create key body**:
@@ -401,6 +403,15 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `updated_at` | TIMESTAMP | `now()` | Last sync timestamp |
 
 Unique constraint on `(license_key_id, account_email)`.
+
+#### `global_config` table (`lib/db/src/schema/globalConfig.ts`)
+
+| Column | Type | Default | Description |
+|--------|------|---------|-------------|
+| `key` | TEXT | — | Primary key (config key name) |
+| `value` | TEXT | — | Config value as string |
+
+Seeded on startup with `search_enabled: "true"`. Used as a global kill switch for the search runner across all users.
 
 #### `feature_config` table (`lib/db/src/schema/featureConfig.ts`)
 

@@ -165,7 +165,40 @@ export async function getLastBackgroundRun(): Promise<number> {
   return val ? parseInt(val, 10) : 0;
 }
 
+const API_BASE =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api`
+    : "");
+
+async function isSearchKilled(): Promise<boolean> {
+  try {
+    const resp = await fetch(`${API_BASE}/global-config`, { method: "GET" });
+    if (resp.ok) {
+      const data = await resp.json();
+      const cfg = data.config || {};
+      await AsyncStorage.setItem("@ms_rewards_global_config", JSON.stringify(cfg));
+      if (cfg.search_enabled === "false") return true;
+      return false;
+    }
+  } catch {}
+  try {
+    const cached = await AsyncStorage.getItem("@ms_rewards_global_config");
+    if (cached) {
+      const gc = JSON.parse(cached);
+      if (gc.search_enabled === "false") return true;
+    }
+  } catch {}
+  return false;
+}
+
 export async function runBackgroundSearches(): Promise<void> {
+  const killed = await isSearchKilled();
+  if (killed) {
+    console.log("[BackgroundSearch] Search runner disabled by admin, skipping");
+    return;
+  }
+
   const alreadyRunning = await isBackgroundRunning();
   if (alreadyRunning) {
     console.log("[BackgroundSearch] Already running, skipping");
