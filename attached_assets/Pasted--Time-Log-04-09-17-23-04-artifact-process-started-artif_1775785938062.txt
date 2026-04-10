@@ -1,0 +1,177 @@
+
+Time
+Log
+04-09 17:23:04
+artifact process started artifact=artifacts/api-server pid=21
+04-10 01:55:06
+query: 'select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1',
+04-10 01:55:06
+at Jm.queryWithCache (/home/runner/workspace/artifacts/api-server/dist/index.cjs:66:32402)
+04-10 01:55:06
+params: basic
+04-10 02:10:10
+sending SIGTERM to artifact process artifact=artifacts/api-server
+04-10 02:10:10
+received signal, shutting down artifact processes signal=terminated
+04-10 02:22:13
+starting artifact processes for monorepo deployment
+04-10 02:22:13
+starting up user application
+04-10 02:22:13
+artifact mode enabled runnable=1 static=0
+04-10 02:22:13
+metasidecar: loaded enterprise status from environment is_enterprise=false
+04-10 02:22:13
+forwarding local port 0 to external port 80 (mapped as 1104)
+04-10 02:22:13
+waiting for runnable artifact ports ports=[8080]
+04-10 02:22:13
+starting artifact processes count=1
+04-10 02:22:13
+starting artifact process args=[sh -c PORT=8080 node artifacts/api-server/dist/index.cjs] port=8080 artifact=artifacts/api-server
+04-10 02:22:13
+artifact process started artifact=artifacts/api-server pid=20
+04-10 02:22:13
+artifact port detected port=8080 detected=1 expected=1
+04-10 02:22:13
+all artifact ports detected
+04-10 02:22:13
+Server listening on port 8080
+04-10 02:22:13
+artifact processes running, waiting for signal or process exit
+04-10 02:22:13
+at async jU (/home/runner/workspace/artifacts/api-server/dist/index.cjs:94:27961) {
+04-10 02:22:13
+params: [ 'basic' ],
+04-10 02:22:13
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35852
+04-10 02:22:13
+seedFeatureConfigs attempt 1/3 failed: t [Error]: Failed query: select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1
+04-10 02:22:13
+at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+04-10 02:22:13
+at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+04-10 02:22:13
+query: 'select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1',
+04-10 02:22:13
+cause: Error: getaddrinfo EAI_AGAIN helium
+04-10 02:22:13
+at Jm.queryWithCache (/home/runner/workspace/artifacts/api-server/dist/index.cjs:66:32402)
+04-10 02:22:13
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35643
+04-10 02:22:13
+params: basic
+04-10 02:22:13
+at /home/runner/workspace/artifacts/api-server/dist/index.cjs:59:15227
+04-10 02:22:15
+}
+04-10 02:22:15
+}
+04-10 02:22:15
+hostname: 'helium'
+04-10 02:22:20
+at async jU (/home/runner/workspace/artifacts/api-server/dist/index.cjs:94:27961) {
+04-10 02:22:20
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35852
+04-10 02:22:20
+seedFeatureConfigs failed after 3 attempts
+04-10 02:22:20
+syscall: 'getaddrinfo',
+04-10 02:22:20
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35643
+04-10 02:22:20
+at async jU (/home/runner/workspace/artifacts/api-server/dist/index.cjs:94:27961) {
+04-10 02:22:20
+at async jU (/home/runner/workspace/artifacts/api-server/dist/index.cjs:94:27961) {
+04-10 02:22:20
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35643
+04-10 02:22:20
+at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+04-10 02:22:20
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35643
+04-10 02:22:20
+cause: Error: getaddrinfo EAI_AGAIN helium
+04-10 02:22:20
+t [Error]: Failed query: select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1
+04-10 02:22:20
+query: 'select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1',
+04-10 02:22:20
+hostname: 'helium'
+04-10 02:22:20
+at Jm.queryWithCache (/home/runner/workspace/artifacts/api-server/dist/index.cjs:66:32402)
+04-10 02:22:20
+at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+04-10 02:22:20
+seedFeatureConfigs attempt 3/3 failed: t [Error]: Failed query: select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1
+04-10 02:22:20
+}
+04-10 02:22:20
+at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+04-10 02:22:20
+params: basic
+04-10 02:22:20
+at Jm.queryWithCache (/home/runner/workspace/artifacts/api-server/dist/index.cjs:66:32402)
+04-10 02:22:20
+at /home/runner/workspace/artifacts/api-server/dist/index.cjs:59:15227
+04-10 02:22:20
+params: [ 'basic' ],
+04-10 02:22:20
+at async Jm.queryWithCache (/home/runner/workspace/artifacts/api-server/dist/index.cjs:66:32377)
+04-10 02:22:20
+code: 'EAI_AGAIN',
+04-10 02:22:20
+}
+04-10 02:22:20
+params: basic
+04-10 02:22:20
+query: 'select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1',
+04-10 02:22:20
+params: [ 'basic' ],
+04-10 02:22:20
+errno: -3001,
+04-10 02:37:20
+sending SIGTERM to artifact process artifact=artifacts/api-server
+04-10 02:37:20
+received signal, shutting down artifact processes signal=terminated
+04-10 03:25:48
+waiting for runnable artifact ports ports=[8080]
+04-10 03:25:48
+metasidecar: loaded enterprise status from environment is_enterprise=false
+04-10 03:25:48
+starting artifact processes for monorepo deployment
+04-10 03:25:48
+forwarding local port 0 to external port 80 (mapped as 1104)
+04-10 03:25:48
+starting up user application
+04-10 03:25:48
+starting artifact processes count=1
+04-10 03:25:48
+starting artifact process args=[sh -c PORT=8080 node artifacts/api-server/dist/index.cjs] port=8080 artifact=artifacts/api-server
+04-10 03:25:48
+artifact process started artifact=artifacts/api-server pid=22
+04-10 03:25:49
+artifact port detected detected=1 expected=1 port=8080
+04-10 03:25:49
+all artifact ports detected
+04-10 03:25:49
+artifact processes running, waiting for signal or process exit
+04-10 03:25:49
+Server listening on port 8080
+04-10 03:25:49
+query: 'select "key_type", "max_accounts", "max_searches", "min_delay_seconds", "background_enabled", "custom_queries_enabled", "daily_set_enabled", "pc_search_enabled" from "feature_config" where "feature_config"."key_type" = $1',
+04-10 03:25:49
+at Jm.queryWithCache (/home/runner/workspace/artifacts/api-server/dist/index.cjs:66:32402)
+04-10 03:25:49
+at async jU (/home/runner/workspace/artifacts/api-server/dist/index.cjs:94:27961) {
+04-10 03:25:49
+at async /home/runner/workspace/artifacts/api-server/dist/index.cjs:66:35643
+04-10 03:25:49
+params: [ 'basic' ],
+04-10 03:25:49
+cause: Error: getaddrinfo EAI_AGAIN helium
+04-10 03:25:49
+params: basic
+
+Wrap
+
+Colors
