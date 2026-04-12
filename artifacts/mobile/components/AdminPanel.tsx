@@ -78,8 +78,6 @@ export function AdminPanel() {
   const [featureConfigs, setFeatureConfigs] = useState<FeatureConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [configLoading, setConfigLoading] = useState(true);
-  const [globalSearchEnabled, setGlobalSearchEnabled] = useState(true);
-  const [globalConfigLoading, setGlobalConfigLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [newLabel, setNewLabel] = useState("");
   const [newMaxAccounts, setNewMaxAccounts] = useState("3");
@@ -90,7 +88,6 @@ export function AdminPanel() {
   const [profileCookies, setProfileCookies] = useState<any[]>([]);
   const [cookieLoading, setCookieLoading] = useState(false);
   const [showQr, setShowQr] = useState(false);
-  const [createFormOpen, setCreateFormOpen] = useState(false);
 
   const [deletePopup, setDeletePopup] = useState(false);
   const [errorPopup, setErrorPopup] = useState<{ visible: boolean; title: string; message: string }>({ visible: false, title: "", message: "" });
@@ -151,26 +148,6 @@ export function AdminPanel() {
     setConfigLoading(false);
   }, [apiCall]);
 
-  const loadGlobalConfig = useCallback(async () => {
-    try {
-      const data = await apiCall("GET", "/global-config");
-      const cfg = data.config || {};
-      setGlobalSearchEnabled(cfg.search_enabled !== "false");
-    } catch {}
-    setGlobalConfigLoading(false);
-  }, [apiCall]);
-
-  const toggleGlobalSearch = useCallback(async (enabled: boolean) => {
-    try {
-      setGlobalSearchEnabled(enabled);
-      await apiCall("PUT", "/admin/global-config", { search_enabled: enabled ? "true" : "false" });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      setGlobalSearchEnabled(!enabled);
-      showError("Update Failed", "Could not update global config. Try again.");
-    }
-  }, [apiCall]);
-
   const updateFeatureConfig = useCallback(async (keyType: string, updates: any) => {
     try {
       await apiCall("PUT", `/admin/feature-config/${keyType}`, updates);
@@ -184,8 +161,7 @@ export function AdminPanel() {
   useEffect(() => {
     loadKeys();
     loadFeatureConfigs();
-    loadGlobalConfig();
-  }, [loadKeys, loadFeatureConfigs, loadGlobalConfig]);
+  }, [loadKeys, loadFeatureConfigs]);
 
   const createKey = async () => {
     if (creating) return;
@@ -406,10 +382,6 @@ export function AdminPanel() {
 
   const profileLoadCookies = async () => {
     if (!selectedKey) return;
-    if (profileCookies.length > 0) {
-      setProfileCookies([]);
-      return;
-    }
     setCookieLoading(true);
     try {
       const data = await apiCall("GET", `/admin/keys/${selectedKey.id}/cookies`);
@@ -623,7 +595,7 @@ export function AdminPanel() {
               <ProfileAction
                 icon={cookieLoading ? <ActivityIndicator size={18} color="#f59e0b" /> : <Cookie size={18} color="#f59e0b" />}
                 label="Synced Cookies"
-                sublabel={profileCookies.length > 0 ? `${profileCookies.length} account${profileCookies.length > 1 ? "s" : ""} — tap to hide` : "View synced accounts"}
+                sublabel={profileCookies.length > 0 ? `${profileCookies.length} account${profileCookies.length > 1 ? "s" : ""}` : "View synced accounts"}
                 colors={colors}
                 onPress={profileLoadCookies}
               />
@@ -753,116 +725,99 @@ export function AdminPanel() {
       {activeTab === "keys" ? (
       <>
       <View style={[styles.createSection, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.createTitle, { color: colors.text }]}>Create New Key</Text>
+        <View style={styles.createRow}>
+          <View style={styles.createField}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Label</Text>
+            <TextInput
+              style={[styles.fieldInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              placeholder="e.g. User name"
+              placeholderTextColor={colors.textSecondary}
+              value={newLabel}
+              onChangeText={setNewLabel}
+            />
+          </View>
+          <View style={styles.createFieldSmall}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Accounts</Text>
+            <TextInput
+              style={[styles.fieldInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              keyboardType="number-pad"
+              value={newMaxAccounts}
+              onChangeText={setNewMaxAccounts}
+            />
+          </View>
+          <View style={styles.createFieldSmall}>
+            <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Duration</Text>
+            <TextInput
+              style={[styles.fieldInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              keyboardType="number-pad"
+              value={newExpAmount}
+              onChangeText={setNewExpAmount}
+            />
+          </View>
+        </View>
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+          {(["days", "months", "years"] as const).map((u) => {
+            const selected = newExpUnit === u;
+            return (
+              <Pressable
+                key={u}
+                onPress={() => setNewExpUnit(u)}
+                style={[
+                  styles.typeChip,
+                  {
+                    backgroundColor: selected ? "#3b82f622" : colors.background,
+                    borderColor: selected ? "#3b82f6" : colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.typeChipText, { color: selected ? "#3b82f6" : colors.textSecondary }]}>
+                  {u.charAt(0).toUpperCase() + u.slice(1)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View style={{ marginBottom: 12 }}>
+          <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Key Type</Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {KEY_TYPES.map((t) => {
+              const tc = KEY_TYPE_COLORS[t];
+              const selected = newKeyType === t;
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => setNewKeyType(t)}
+                  style={[
+                    styles.typeChip,
+                    {
+                      backgroundColor: selected ? tc.bg : colors.background,
+                      borderColor: selected ? tc.color : colors.border,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.typeChipText, { color: selected ? tc.color : colors.textSecondary }]}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
         <Pressable
-          onPress={() => { setCreateFormOpen(!createFormOpen); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-          style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+          onPress={createKey}
+          disabled={creating}
+          style={({ pressed }) => [styles.createBtn, { opacity: creating ? 0.5 : pressed ? 0.85 : 1 }]}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Plus size={18} color="#3b82f6" />
-            <Text style={[styles.createTitle, { color: colors.text, marginBottom: 0 }]}>Create New Key</Text>
-          </View>
-          <ChevronRight
-            size={18}
-            color={colors.textSecondary}
-            style={{ transform: [{ rotate: createFormOpen ? "90deg" : "0deg" }] }}
-          />
+          {creating ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Key size={16} color="#fff" />
+              <Text style={styles.createBtnText}>Generate Key</Text>
+            </>
+          )}
         </Pressable>
-        {createFormOpen && (
-          <View style={{ marginTop: 16 }}>
-            <View style={styles.createRow}>
-              <View style={styles.createField}>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Label</Text>
-                <TextInput
-                  style={[styles.fieldInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  placeholder="e.g. User name"
-                  placeholderTextColor={colors.textSecondary}
-                  value={newLabel}
-                  onChangeText={setNewLabel}
-                />
-              </View>
-              <View style={styles.createFieldSmall}>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Accounts</Text>
-                <TextInput
-                  style={[styles.fieldInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  keyboardType="number-pad"
-                  value={newMaxAccounts}
-                  onChangeText={setNewMaxAccounts}
-                />
-              </View>
-              <View style={styles.createFieldSmall}>
-                <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Duration</Text>
-                <TextInput
-                  style={[styles.fieldInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  keyboardType="number-pad"
-                  value={newExpAmount}
-                  onChangeText={setNewExpAmount}
-                />
-              </View>
-            </View>
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-              {(["days", "months", "years"] as const).map((u) => {
-                const selected = newExpUnit === u;
-                return (
-                  <Pressable
-                    key={u}
-                    onPress={() => setNewExpUnit(u)}
-                    style={[
-                      styles.typeChip,
-                      {
-                        backgroundColor: selected ? "#3b82f622" : colors.background,
-                        borderColor: selected ? "#3b82f6" : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.typeChipText, { color: selected ? "#3b82f6" : colors.textSecondary }]}>
-                      {u.charAt(0).toUpperCase() + u.slice(1)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={{ marginBottom: 12 }}>
-              <Text style={[styles.fieldLabel, { color: colors.textSecondary }]}>Key Type</Text>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                {KEY_TYPES.map((t) => {
-                  const tc = KEY_TYPE_COLORS[t];
-                  const selected = newKeyType === t;
-                  return (
-                    <Pressable
-                      key={t}
-                      onPress={() => setNewKeyType(t)}
-                      style={[
-                        styles.typeChip,
-                        {
-                          backgroundColor: selected ? tc.bg : colors.background,
-                          borderColor: selected ? tc.color : colors.border,
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.typeChipText, { color: selected ? tc.color : colors.textSecondary }]}>
-                        {t.charAt(0).toUpperCase() + t.slice(1)}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-            <Pressable
-              onPress={createKey}
-              disabled={creating}
-              style={({ pressed }) => [styles.createBtn, { opacity: creating ? 0.5 : pressed ? 0.85 : 1 }]}
-            >
-              {creating ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Key size={16} color="#fff" />
-                  <Text style={styles.createBtnText}>Generate Key</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-        )}
       </View>
 
       {loading ? (
@@ -890,37 +845,6 @@ export function AdminPanel() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 20 }}
         >
-          <View style={[styles.keyCard, { backgroundColor: colors.card, borderColor: colors.border, marginBottom: 12 }]}>
-            <Text style={{ fontSize: 16, fontFamily: "Inter_700Bold", color: "#f87171", marginBottom: 4 }}>
-              GLOBAL CONTROLS
-            </Text>
-            <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 12 }}>
-              Kill switch — disables search runner for all users
-            </Text>
-            {globalConfigLoading ? (
-              <ActivityIndicator size="small" color="#3b82f6" />
-            ) : (
-              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  {globalSearchEnabled ? (
-                    <Power size={16} color="#22c55e" />
-                  ) : (
-                    <PowerOff size={16} color="#f87171" />
-                  )}
-                  <Text style={{ fontSize: 14, fontFamily: "Inter_600SemiBold", color: globalSearchEnabled ? "#22c55e" : "#f87171" }}>
-                    {globalSearchEnabled ? "Search Runner Active" : "Search Runner Disabled"}
-                  </Text>
-                </View>
-                <Switch
-                  value={globalSearchEnabled}
-                  onValueChange={toggleGlobalSearch}
-                  trackColor={{ false: "#3e3e3e", true: "#22c55e55" }}
-                  thumbColor={globalSearchEnabled ? "#22c55e" : "#f87171"}
-                />
-              </View>
-            )}
-          </View>
-
           {configLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#3b82f6" />

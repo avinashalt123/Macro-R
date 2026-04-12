@@ -278,7 +278,6 @@ SafeAreaProvider
 | `POST` | `/api/validate-admin` | Validate admin secret |
 | `POST` | `/api/sync-cookies` | Sync account cookies from device (requires bound key + deviceId) |
 | `GET` | `/api/healthz` | Health check (`{ status: "ok" }`) |
-| `GET` | `/api/global-config` | Get global config (includes `search_enabled` kill switch) |
 
 **validate-key request body**:
 ```json
@@ -331,7 +330,6 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 | `GET` | `/api/admin/keys/:id/cookies` | Get synced cookies for a license key |
 | `GET` | `/api/admin/feature-config` | List all feature configs |
 | `PUT` | `/api/admin/feature-config/:keyType` | Update feature config for a key type |
-| `PUT` | `/api/admin/global-config` | Update global config (kill switch, etc.) |
 | `GET` | `/api/admin` | HTML admin panel (web-based, login form) |
 
 **Create key body**:
@@ -404,15 +402,6 @@ Returns `{ "valid": true, "isAdmin": true }` or `{ "valid": false }`.
 
 Unique constraint on `(license_key_id, account_email)`.
 
-#### `global_config` table (`lib/db/src/schema/globalConfig.ts`)
-
-| Column | Type | Default | Description |
-|--------|------|---------|-------------|
-| `key` | TEXT | — | Primary key (config key name) |
-| `value` | TEXT | — | Config value as string |
-
-Seeded on startup with `search_enabled: "true"`. Used as a global kill switch for the search runner across all users.
-
 #### `feature_config` table (`lib/db/src/schema/featureConfig.ts`)
 
 | Column | Type | Default | Description |
@@ -441,9 +430,10 @@ Default seed values are created on server startup if the table is empty. Admin c
 
 ### Current Values
 - **ADMIN_SECRET**: Set via Replit Secrets (do not store in code or docs)
-- **Production URL**: `https://macrorr.replit.app`
-- **Admin Panel (prod)**: `https://macrorr.replit.app/api/admin` (log in with ADMIN_SECRET)
+- **Production URL**: `https://macro-rr.replit.app`
+- **Admin Panel (prod)**: `https://macro-rr.replit.app/api/admin` (log in with ADMIN_SECRET)
 - **Admin Panel (dev)**: `https://<REPLIT_DEV_DOMAIN>/api/admin` (log in with ADMIN_SECRET)
+- **Admin Keys**: `8D34-1426-CA57-B69A` (unbound), `AE26-901F-27B2-671A` (device-bound)
 
 ---
 
@@ -507,70 +497,12 @@ const effectiveSecret = adminSecret || OWNER_ADMIN_SECRET;
 - This ensures the admin panel works whether the user entered the admin secret directly OR used an admin-type license key
 
 ### Production Deployment
-- **Production URL**: `https://macrorr.replit.app`
+- **Production URL**: `https://macro-rr.replit.app`
 - **Build script** (`build.ts`): Automatically runs `drizzle-kit push` to sync the production DB schema before bundling
-- **Auto-migration**: On startup, `ensureTables()` (in `lib/db/src/migrate.ts`) creates all tables with `CREATE TABLE IF NOT EXISTS` + retry logic (5 attempts). This ensures the production DB is ready even on first deploy.
 - **Health check**: `GET /api/healthz`
-- **Mobile APK**: Must set `EXPO_PUBLIC_API_URL` in EAS env to match your production URL (e.g. `https://macrorr.replit.app/api`)
+- **Mobile APK**: Must set `EXPO_PUBLIC_API_URL=https://macro-rr.replit.app/api` in EAS env before building
 
 ### Device Compatibility Notes
 - **Infinix/HiOS**: Requires Autostart enabled for background tasks
 - **Samsung**: May need "Sleeping apps" exception
 - **All Android**: Battery optimization should be set to "Unrestricted" for reliable notifications
-
----
-
-## Fork / First-Time Setup Guide
-
-If you are forking this project and setting it up from scratch, follow these steps:
-
-### 1. Replit Environment Setup
-1. Fork the Replit project
-2. Set the following **Secrets** in Replit (Tools > Secrets):
-   - `ADMIN_SECRET` — any long random string (this is your admin password)
-   - `EXPO_PUBLIC_ADMIN_SECRET` — same value as `ADMIN_SECRET`
-   - `EXPO_PUBLIC_OWNER_MODE` — set to `"true"` if you want to bypass the license screen
-3. The PostgreSQL database is auto-provisioned by Replit — no manual setup needed
-4. Click **Run** to start the API server — it will auto-create all database tables on first boot
-
-### 2. Deploy the API Server
-1. Click **Publish** in Replit to deploy the API server
-2. After publishing, Replit gives you a production URL — find it in the **Deployments** tab. It will look like `https://<your-replit-name>.replit.app`. Copy this URL and save it — you'll need it for the mobile app setup below.
-3. Verify the server is running: visit `https://<your-replit-name>.replit.app/api/healthz` — you should see `{"status":"ok"}`
-4. Create your first admin key via the web admin panel: `https://<your-replit-name>.replit.app/api/admin` (log in with the `ADMIN_SECRET` you set in Step 1)
-
-### 3. EAS / Mobile Build Setup
-1. Install EAS CLI globally if not installed:
-   ```
-   npm install -g eas-cli
-   ```
-2. Log in to your Expo account:
-   ```
-   cd artifacts/mobile && npx eas login
-   ```
-3. Update the EAS project config in `artifacts/mobile/app.json`:
-   - Change `expo.extra.eas.projectId` to your own EAS project ID
-   - Change `expo.owner` to your Expo username
-4. Set the API URL environment variable in EAS — **replace `<your-replit-name>` with the actual name from Step 2**:
-   ```
-   cd artifacts/mobile && npx eas env:create --name EXPO_PUBLIC_API_URL --value "https://<your-replit-name>.replit.app/api" --environment preview --visibility plaintext --non-interactive
-   ```
-   If updating an existing variable:
-   ```
-   cd artifacts/mobile && npx eas env:update --variable-name EXPO_PUBLIC_API_URL --value "https://<your-replit-name>.replit.app/api" --environment preview --non-interactive
-   ```
-5. Build the APK:
-   ```
-   cd artifacts/mobile && eas build --platform android --profile preview --non-interactive
-   ```
-
-### 4. OTA Updates (no rebuild needed)
-After code changes that don't involve native modules:
-```
-pnpm --filter @workspace/mobile run update "description of changes"
-```
-
-### Common Mistakes
-- **"Couldn't connect to server"**: The `EXPO_PUBLIC_API_URL` in EAS must exactly match the production URL from the Deployments tab (check for typos, extra hyphens, missing letters, etc.)
-- **Keys not working on phone**: Dev and production databases are completely separate. Keys you create in development won't exist in production. Always create keys via the production admin panel (`https://<your-replit-name>.replit.app/api/admin`)
-- **Stale build**: After changing `EXPO_PUBLIC_API_URL` in EAS, you must either push an OTA update or do a full rebuild for the change to take effect

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, ensureTables } from "@workspace/db";
-import { licenseKeysTable, featureConfigTable, deviceCookiesTable, globalConfigTable } from "@workspace/db/schema";
+import { db } from "@workspace/db";
+import { licenseKeysTable, featureConfigTable, deviceCookiesTable } from "@workspace/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import crypto from "crypto";
 import { requireAdmin } from "../adminSession";
@@ -45,30 +45,7 @@ async function seedFeatureConfigs(retries = 3) {
   console.error(`seedFeatureConfigs failed after ${retries} attempts`);
   throw lastError;
 }
-async function initDatabase() {
-  await ensureTables();
-  await seedFeatureConfigs();
-  await seedGlobalConfig();
-}
-
-const DEFAULT_GLOBAL_CONFIG: Record<string, string> = {
-  search_enabled: "true",
-};
-
-async function seedGlobalConfig() {
-  try {
-    for (const [key, value] of Object.entries(DEFAULT_GLOBAL_CONFIG)) {
-      const existing = await db.select().from(globalConfigTable).where(eq(globalConfigTable.key, key));
-      if (existing.length === 0) {
-        await db.insert(globalConfigTable).values({ key, value });
-      }
-    }
-  } catch (e) {
-    console.error("seedGlobalConfig failed:", e);
-  }
-}
-
-initDatabase().catch(console.error);
+seedFeatureConfigs().catch(console.error);
 
 const router: IRouter = Router();
 
@@ -289,10 +266,6 @@ router.post("/validate-key", async (req, res) => {
     const [featureConfig] = await db.select().from(featureConfigTable)
       .where(eq(featureConfigTable.keyType, found.keyType));
 
-    const globalRows = await db.select().from(globalConfigTable);
-    const globalConfig: Record<string, string> = {};
-    for (const row of globalRows) globalConfig[row.key] = row.value;
-
     res.json({
       valid: true,
       maxAccounts: found.maxAccounts,
@@ -300,7 +273,6 @@ router.post("/validate-key", async (req, res) => {
       label: found.label,
       keyType: found.keyType,
       featureConfig: featureConfig || null,
-      globalConfig,
     });
   } catch (e: any) {
     console.error("POST /validate-key error:", e);
@@ -379,42 +351,6 @@ router.get("/admin/keys/:id/cookies", requireAdmin, async (req, res) => {
     res.json({ cookies });
   } catch (e: any) {
     console.error("GET /admin/keys/cookies error:", e);
-    res.status(500).json({ error: sanitizeDbError(e) });
-  }
-});
-
-router.get("/global-config", async (_req, res) => {
-  try {
-    const rows = await db.select().from(globalConfigTable);
-    const config: Record<string, string> = {};
-    for (const row of rows) config[row.key] = row.value;
-    res.json({ config });
-  } catch (e: any) {
-    res.json({ config: { search_enabled: "true" } });
-  }
-});
-
-router.put("/admin/global-config", requireAdmin, async (req, res) => {
-  try {
-    const updates = req.body;
-    if (!updates || typeof updates !== "object") {
-      return res.status(400).json({ error: "Invalid body" });
-    }
-    for (const [key, value] of Object.entries(updates)) {
-      if (typeof value !== "string") continue;
-      const existing = await db.select().from(globalConfigTable).where(eq(globalConfigTable.key, key));
-      if (existing.length > 0) {
-        await db.update(globalConfigTable).set({ value }).where(eq(globalConfigTable.key, key));
-      } else {
-        await db.insert(globalConfigTable).values({ key, value });
-      }
-    }
-    const rows = await db.select().from(globalConfigTable);
-    const config: Record<string, string> = {};
-    for (const row of rows) config[row.key] = row.value;
-    res.json({ config });
-  } catch (e: any) {
-    console.error("PUT /admin/global-config error:", e);
     res.status(500).json({ error: sanitizeDbError(e) });
   }
 });

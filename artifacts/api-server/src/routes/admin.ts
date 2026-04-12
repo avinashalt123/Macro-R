@@ -178,24 +178,6 @@ function dashboardPage(): string {
     </div>
   </div>
 
-  <h2 style="margin-top:32px;margin-bottom:16px;color:#fff">Global Controls</h2>
-  <div id="globalConfigPanel" class="card" style="margin-bottom:16px">
-    <div class="row" style="align-items:center;justify-content:space-between">
-      <div>
-        <span style="font-size:16px;font-weight:700;color:#f87171">KILL SWITCH</span>
-        <div style="font-size:12px;color:#94a3b8;margin-top:4px">Disables search runner for all users</div>
-      </div>
-      <div id="globalToggle" style="display:flex;align-items:center;gap:12px">
-        <span id="globalStatusText" style="font-weight:600">Loading...</span>
-        <label style="position:relative;display:inline-block;width:48px;height:24px;cursor:pointer">
-          <input type="checkbox" id="globalSearchToggle" onchange="toggleGlobalSearch(this.checked)" style="opacity:0;width:0;height:0">
-          <span style="position:absolute;cursor:pointer;inset:0;background:#3e3e3e;border-radius:24px;transition:.3s" id="globalToggleTrack"></span>
-          <span style="position:absolute;left:2px;bottom:2px;width:20px;height:20px;background:#f87171;border-radius:50%;transition:.3s" id="globalToggleThumb"></span>
-        </label>
-      </div>
-    </div>
-  </div>
-
   <h2 style="margin-top:32px;margin-bottom:16px;color:#fff">Feature Config (per Key Type)</h2>
   <div id="featureConfigList"></div>
 
@@ -402,36 +384,6 @@ function dashboardPage(): string {
 
     loadKeys();
     loadFeatureConfig();
-    loadGlobalConfig();
-
-    async function loadGlobalConfig() {
-      const { config } = await api('GET', '/global-config');
-      const enabled = !config || config.search_enabled !== 'false';
-      updateGlobalToggleUI(enabled);
-    }
-
-    function updateGlobalToggleUI(enabled) {
-      var cb = document.getElementById('globalSearchToggle');
-      var track = document.getElementById('globalToggleTrack');
-      var thumb = document.getElementById('globalToggleThumb');
-      var text = document.getElementById('globalStatusText');
-      cb.checked = enabled;
-      track.style.background = enabled ? '#22c55e55' : '#3e3e3e';
-      thumb.style.background = enabled ? '#22c55e' : '#f87171';
-      thumb.style.transform = enabled ? 'translateX(24px)' : 'translateX(0)';
-      text.textContent = enabled ? 'Active' : 'Disabled';
-      text.style.color = enabled ? '#22c55e' : '#f87171';
-    }
-
-    async function toggleGlobalSearch(enabled) {
-      updateGlobalToggleUI(enabled);
-      try {
-        await api('PUT', '/admin/global-config', { search_enabled: enabled ? 'true' : 'false' });
-      } catch (e) {
-        updateGlobalToggleUI(!enabled);
-        alert('Failed to update global config');
-      }
-    }
 
     async function loadFeatureConfig() {
       const { configs } = await api('GET', '/admin/feature-config');

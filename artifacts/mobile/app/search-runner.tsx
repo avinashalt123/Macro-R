@@ -374,9 +374,9 @@ export default function SearchRunnerScreen() {
     const t3 = (settings.dsTimeoutCardScan ?? 20) * 1000;
     const t4 = (settings.dsTimeoutPostClick ?? 15) * 1000;
 
-    // ── 1. Load the Rewards dashboard via login redirect (auto-authenticates) ─
-    onStatus("Daily Set: authenticating…");
-    setWebViewUrl("https://login.live.com/login.srf?wa=wsignin1.0&wreply=https://rewards.bing.com/");
+    // ── 1. Load the Rewards dashboard once ──────────────────────────────────
+    onStatus("Daily Set: loading Rewards page…");
+    setWebViewUrl("https://rewards.bing.com/");
     try { await waitForLoad(t1); } catch {}
     await sleep(3000);
 
@@ -434,6 +434,9 @@ export default function SearchRunnerScreen() {
     let cancelled = false;
 
     const run = async () => {
+      // H4: compute target accounts from the live ref so we always have the
+      // freshest cookies — not the stale mount-time snapshot.
+      // Declared here (before try) so the catch block can reference it too.
       let targetAccounts = accountsRef.current.filter((a) =>
         accountIdsRef.current.includes(a.id)
       );
