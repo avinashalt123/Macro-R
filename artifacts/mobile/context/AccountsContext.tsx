@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { AppState, Platform, type AppStateStatus } from "react-native";
+import { fetchRewardsPoints } from "@/utils/bingSearch";
 
 const API_BASE =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -60,6 +61,7 @@ interface AccountsContextType {
   clearLogs: () => void;
   startRun: () => void;
   stopRun: () => void;
+  refreshPoints: () => Promise<void>;
 }
 
 const AccountsContext = createContext<AccountsContextType | null>(null);
@@ -70,8 +72,12 @@ const MAX_LOGS = 200;
 
 export function AccountsProvider({ children }: { children: React.ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const accountsRef = useRef<Account[]>([]);
   const [logs, setLogs] = useState<RunLog[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+
+  // Keep accountsRef always current so callbacks can read latest accounts without stale closures
+  useEffect(() => { accountsRef.current = accounts; }, [accounts]);
 
   const loadFromStorage = useCallback(async () => {
     try {
@@ -248,6 +254,40 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
     });
   }, [saveAccounts]);
 
+  // Fetches live points for every account that has cookies and updates them in storage.
+  // Safe to call at any time — accounts without cookies are skipped silently.
+  const refreshPoints = useCallback(async () => {
+    const withCookies = accountsRef.current.filter(
+      (a) => a.cookies && Object.keys(a.cookies).length > 0
+    );
+    if (withCookies.length === 0) return;
+
+    const results = await Promise.allSettled(
+      withCookies.map((a) =>
+        fetchRewardsPoints(a.cookies).then((pts) => ({ id: a.id, pts }))
+      )
+    );
+
+    const updates: Record<string, { totalPoints: number; todayPoints: number }> = {};
+    for (const r of results) {
+      if (r.status === "fulfilled" && r.value.pts.available > 0) {
+        updates[r.value.id] = {
+          totalPoints: r.value.pts.available,
+          todayPoints: r.value.pts.today,
+        };
+      }
+    }
+    if (Object.keys(updates).length === 0) return;
+
+    setAccounts((current) => {
+      const updated = current.map((a) =>
+        updates[a.id] ? { ...a, ...updates[a.id] } : a
+      );
+      saveAccounts(updated);
+      return updated;
+    });
+  }, [saveAccounts]);
+
   return (
     <AccountsContext.Provider
       value={{
@@ -261,6 +301,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
         clearLogs,
         startRun,
         stopRun,
+        refreshPoints,
       }}
     >
       {children}

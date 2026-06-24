@@ -34,7 +34,7 @@ export default function HomeScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { accounts, isRunning, startRun, stopRun, updateAccount } = useAccounts();
+  const { accounts, isRunning, startRun, stopRun, updateAccount, refreshPoints } = useAccounts();
   const { licenseData, featureConfig } = useLicense();
   const { settings, updateSettings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
@@ -44,12 +44,25 @@ export default function HomeScreen() {
   const maxSearches = featureConfig.maxSearches;
   const minDelay = featureConfig.minDelaySeconds;
   const dailySetAllowed = featureConfig.dailySetEnabled && settings.dailySetEnabled;
+  const lastPointsRefresh = React.useRef(0);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 500));
+    await refreshPoints();
+    lastPointsRefresh.current = Date.now();
     setRefreshing(false);
-  }, []);
+  }, [refreshPoints]);
+
+  // Refresh points on focus if stale (>5 min since last refresh)
+  useFocusEffect(
+    useCallback(() => {
+      const STALE_MS = 5 * 60 * 1000;
+      if (!isRunning && Date.now() - lastPointsRefresh.current > STALE_MS) {
+        refreshPoints();
+        lastPointsRefresh.current = Date.now();
+      }
+    }, [isRunning, refreshPoints])
+  );
 
   // Auto-start run on cold-start: home screen gains focus after app was launched from a notification tap
   useFocusEffect(
