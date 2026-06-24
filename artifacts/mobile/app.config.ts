@@ -58,6 +58,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     "expo-task-manager",
+    "./plugins/withBackgroundActions",
     "expo-updates",
     [
       "expo-camera",
