@@ -34,7 +34,7 @@ export default function HomeScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const insets = useSafeAreaInsets();
-  const { accounts, isRunning, startRun, stopRun } = useAccounts();
+  const { accounts, isRunning, startRun, stopRun, updateAccount } = useAccounts();
   const { licenseData, featureConfig } = useLicense();
   const { settings, updateSettings } = useSettings();
   const [refreshing, setRefreshing] = useState(false);
@@ -56,12 +56,13 @@ export default function HomeScreen() {
     useCallback(() => {
       let active = true;
       consumePendingRun().then((pending) => {
-        if (!active || !pending || isRunning || accounts.length === 0) return;
+        const enabled = accounts.filter((a) => a.enabled ?? true);
+        if (!active || !pending || isRunning || enabled.length === 0) return;
         startRun();
         router.push({
           pathname: "/search-runner",
           params: {
-            accountIds: JSON.stringify(accounts.map((a) => a.id)),
+            accountIds: JSON.stringify(enabled.map((a) => a.id)),
             mode: settings.overnightDailySet ? "both" : "searchonly",
           },
         });
@@ -69,6 +70,8 @@ export default function HomeScreen() {
       return () => { active = false; };
     }, [isRunning, accounts, settings.overnightDailySet, startRun])
   );
+
+  const enabledAccounts = accounts.filter((a) => a.enabled ?? true);
 
   const handleRunAll = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -79,14 +82,14 @@ export default function HomeScreen() {
       ]);
       return;
     }
-    if (accounts.length === 0) {
-      showAlert("No Accounts", "Add an account first to run automation.");
+    if (enabledAccounts.length === 0) {
+      showAlert("No Accounts", accounts.length > 0 ? "All accounts are disabled. Enable at least one first." : "Add an account first to run automation.");
       return;
     }
     startRun();
     router.push({
       pathname: "/search-runner",
-      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)), mode: "searchonly" },
+      params: { accountIds: JSON.stringify(enabledAccounts.map((a) => a.id)), mode: "searchonly" },
     });
   };
 
@@ -108,15 +111,15 @@ export default function HomeScreen() {
       showAlert("Already Running", "Stop the current run before starting another.");
       return;
     }
-    if (accounts.length === 0) {
-      showAlert("No Accounts", "Add an account first.");
+    if (enabledAccounts.length === 0) {
+      showAlert("No Accounts", accounts.length > 0 ? "All accounts are disabled. Enable at least one first." : "Add an account first.");
       return;
     }
     startRun();
     router.push({
       pathname: "/search-runner",
       params: {
-        accountIds: JSON.stringify(accounts.map((a) => a.id)),
+        accountIds: JSON.stringify(enabledAccounts.map((a) => a.id)),
         mode: "dailyset",
       },
     });
@@ -143,15 +146,21 @@ export default function HomeScreen() {
       ]);
       return;
     }
-    if (accounts.length === 0) {
-      showAlert("No Accounts", "Add an account first to run automation.");
+    if (enabledAccounts.length === 0) {
+      showAlert("No Accounts", accounts.length > 0 ? "All accounts are disabled. Enable at least one first." : "Add an account first to run automation.");
       return;
     }
     startRun();
     router.push({
       pathname: "/search-runner",
-      params: { accountIds: JSON.stringify(accounts.map((a) => a.id)) },
+      params: { accountIds: JSON.stringify(enabledAccounts.map((a) => a.id)) },
     });
+  };
+
+  const handleToggleEnabled = (id: string) => {
+    const account = accounts.find((a) => a.id === id);
+    if (!account) return;
+    updateAccount(id, { enabled: !(account.enabled ?? true) });
   };
 
   const renderListItem = useCallback(
@@ -169,11 +178,12 @@ export default function HomeScreen() {
             params: { accountId: item.id },
           })
         }
+        onToggleEnabled={() => handleToggleEnabled(item.id)}
         isRunningGlobal={isRunning}
         showDailySet={dailySetAllowed}
       />
     ),
-    [isRunning, dailySetAllowed],
+    [isRunning, dailySetAllowed, accounts],
   );
 
   const { width: screenWidth } = Dimensions.get("window");
@@ -197,11 +207,12 @@ export default function HomeScreen() {
             params: { accountId: item.id },
           })
         }
+        onToggleEnabled={() => handleToggleEnabled(item.id)}
         isRunningGlobal={isRunning}
         showDailySet={dailySetAllowed}
       />
     ),
-    [isRunning, tileWidth, dailySetAllowed],
+    [isRunning, tileWidth, dailySetAllowed, accounts],
   );
 
   const ListHeader = (

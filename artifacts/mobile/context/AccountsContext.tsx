@@ -30,6 +30,7 @@ export interface Account {
   lastRun: string | null;
   searchCount: number;
   dailySetEnabled: boolean;
+  enabled: boolean;
   cookies: Record<string, string>;
   searchesCompleted: number;
 }
@@ -84,6 +85,7 @@ export function AccountsProvider({ children }: { children: React.ReactNode }) {
           parsed.map((a) => ({
             ...a,
             dailySetEnabled: a.dailySetEnabled ?? true,
+            enabled: a.enabled ?? true,
           }))
         );
       }

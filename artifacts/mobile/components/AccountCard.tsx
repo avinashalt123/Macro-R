@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { AlertCircle, CheckCircle, CheckSquare, Clock, Loader, Play, RefreshCw, Search, Shield, Star, XCircle } from "lucide-react-native";
+import { AlertCircle, CheckCircle, CheckSquare, Clock, Loader, Play, PowerOff, RefreshCw, Search, Shield, Star, XCircle } from "lucide-react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
@@ -21,6 +21,7 @@ interface Props {
   onRun: () => void;
   onDailySet: () => void;
   onRefreshSession: () => void;
+  onToggleEnabled: () => void;
   isRunningGlobal: boolean;
   showDailySet?: boolean;
 }
@@ -78,10 +79,11 @@ function isSessionExpired(account: Account): boolean {
   return hoursSinceRun > 24;
 }
 
-export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSession, isRunningGlobal, showDailySet = true }: Props) {
+export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSession, onToggleEnabled, isRunningGlobal, showDailySet = true }: Props) {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const isEnabled = account.enabled ?? true;
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, { toValue: 0.97, useNativeDriver: true, speed: 30 }).start();
@@ -106,6 +108,11 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
     onRefreshSession();
   };
 
+  const handleToggleEnabled = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onToggleEnabled();
+  };
+
   const progressPercent = account.searchCount > 0
     ? (account.searchesCompleted / account.searchCount) * 100
     : 0;
@@ -116,7 +123,7 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
   const noCookies = Object.keys(account.cookies ?? {}).length === 0;
 
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[{ transform: [{ scale: scaleAnim }] }, !isEnabled && { opacity: 0.45 }]}>
       <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -230,14 +237,31 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
 
           <View style={styles.actionCol}>
             <Pressable
+              onPress={handleToggleEnabled}
+              disabled={account.status === "running"}
+              style={({ pressed }) => [
+                styles.toggleBtn,
+                {
+                  backgroundColor: isEnabled
+                    ? scheme === "dark" ? "#1e3a1e" : "#dcfce7"
+                    : scheme === "dark" ? "#3a1e1e" : "#fee2e2",
+                  borderColor: isEnabled ? "#4ade80" : "#f87171",
+                  opacity: pressed ? 0.75 : 1,
+                },
+              ]}
+            >
+              <PowerOff size={12} color={isEnabled ? "#4ade80" : "#f87171"} />
+            </Pressable>
+
+            <Pressable
               onPress={handleRun}
-              disabled={account.status === "running" || isRunningGlobal}
+              disabled={account.status === "running" || isRunningGlobal || !isEnabled}
               style={({ pressed }) => [
                 styles.runBtn,
                 {
                   backgroundColor:
                     account.status === "running" ? colors.border : pressed ? colors.tintDark : colors.tint,
-                  opacity: account.status === "running" || isRunningGlobal ? 0.5 : 1,
+                  opacity: account.status === "running" || isRunningGlobal || !isEnabled ? 0.5 : 1,
                 },
               ]}
             >
@@ -251,17 +275,17 @@ export function AccountCard({ account, onPress, onRun, onDailySet, onRefreshSess
             {showDailySet && (
               <Pressable
                 onPress={handleDailySet}
-                disabled={account.status === "running" || isRunningGlobal}
+                disabled={account.status === "running" || isRunningGlobal || !isEnabled}
                 style={({ pressed }) => [
                   styles.dsBtn,
                   {
                     backgroundColor:
-                      account.status === "running" || isRunningGlobal
+                      account.status === "running" || isRunningGlobal || !isEnabled
                         ? colors.border
                         : pressed
                         ? "#5B21B6"
                         : "#7C3AED",
-                    opacity: account.status === "running" || isRunningGlobal ? 0.4 : 1,
+                    opacity: account.status === "running" || isRunningGlobal || !isEnabled ? 0.4 : 1,
                   },
                 ]}
               >
@@ -401,6 +425,14 @@ const styles = StyleSheet.create({
     gap: 6,
     flexShrink: 0,
     marginTop: 2,
+  },
+  toggleBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   dsBtn: {
     width: 30,

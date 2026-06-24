@@ -7,6 +7,7 @@ import {
   Clock,
   Loader,
   Play,
+  PowerOff,
   RefreshCw,
   Search,
   Shield,
@@ -33,6 +34,7 @@ interface Props {
   onRun: () => void;
   onDailySet: () => void;
   onRefreshSession: () => void;
+  onToggleEnabled: () => void;
   isRunningGlobal: boolean;
   showDailySet?: boolean;
 }
@@ -63,6 +65,7 @@ export function AccountGridTile({
   onRun,
   onDailySet,
   onRefreshSession,
+  onToggleEnabled,
   isRunningGlobal,
   showDailySet = true,
 }: Props) {
@@ -70,6 +73,7 @@ export function AccountGridTile({
   const colors = Colors[scheme];
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const isEnabled = account.enabled ?? true;
 
   const initial = account.name.charAt(0).toUpperCase();
   const [avatarError, setAvatarError] = useState(false);
@@ -155,7 +159,7 @@ export function AccountGridTile({
       : "rgba(239, 68, 68, 0.15)";
 
   return (
-    <Animated.View style={[{ transform: [{ scale: scaleAnim }], width }]}>
+    <Animated.View style={[{ transform: [{ scale: scaleAnim }], width }, !isEnabled && { opacity: 0.45 }]}>
       <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -309,10 +313,30 @@ export function AccountGridTile({
         <View style={styles.actions}>
           <Pressable
             onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onToggleEnabled();
+            }}
+            disabled={account.status === "running"}
+            style={({ pressed }) => [
+              styles.toggleBtn,
+              {
+                backgroundColor: isEnabled
+                  ? scheme === "dark" ? "#1e3a1e" : "#dcfce7"
+                  : scheme === "dark" ? "#3a1e1e" : "#fee2e2",
+                borderColor: isEnabled ? "#4ade80" : "#f87171",
+                opacity: pressed ? 0.75 : 1,
+              },
+            ]}
+          >
+            <PowerOff size={11} color={isEnabled ? "#4ade80" : "#f87171"} />
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               onRun();
             }}
-            disabled={account.status === "running" || isRunningGlobal}
+            disabled={account.status === "running" || isRunningGlobal || !isEnabled}
             style={({ pressed }) => [
               styles.actionBtn,
               {
@@ -323,7 +347,7 @@ export function AccountGridTile({
                     ? colors.tintDark
                     : colors.tint,
                 opacity:
-                  account.status === "running" || isRunningGlobal ? 0.4 : 1,
+                  account.status === "running" || isRunningGlobal || !isEnabled ? 0.4 : 1,
               },
             ]}
           >
@@ -340,18 +364,18 @@ export function AccountGridTile({
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 onDailySet();
               }}
-              disabled={account.status === "running" || isRunningGlobal}
+              disabled={account.status === "running" || isRunningGlobal || !isEnabled}
               style={({ pressed }) => [
                 styles.actionBtn,
                 {
                   backgroundColor:
-                    account.status === "running" || isRunningGlobal
+                    account.status === "running" || isRunningGlobal || !isEnabled
                       ? colors.border
                       : pressed
                       ? "#5B21B6"
                       : "#7C3AED",
                   opacity:
-                    account.status === "running" || isRunningGlobal ? 0.4 : 1,
+                    account.status === "running" || isRunningGlobal || !isEnabled ? 0.4 : 1,
                 },
               ]}
             >
@@ -504,6 +528,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 6,
     marginTop: 8,
+  },
+  toggleBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   actionBtn: {
     flex: 1,
