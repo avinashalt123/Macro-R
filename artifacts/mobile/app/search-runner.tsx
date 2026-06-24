@@ -104,54 +104,102 @@ function makeClickScript(alreadyClicked: string[]): string {
   try {
     var alreadyClicked = ${JSON.stringify(alreadyClicked)};
 
-    // Build a stable ID for a card element from its href + any data attribute
+    // Build a stable ID for a card element
     function getCardId(el) {
       var href = (el.href || el.getAttribute('href') || '').toLowerCase().trim();
-      var container = el.closest('[data-activity-id], [data-bi-id], [id]');
+      var container = el.closest('[data-activity-id], [data-bi-id], [data-m], [id]');
       var attrId = container
         ? (container.getAttribute('data-activity-id') ||
            container.getAttribute('data-bi-id') ||
+           container.getAttribute('data-m') ||
            container.id || '')
         : '';
       return (attrId + '||' + href);
     }
 
+    // Signals that a card/activity is already completed
     var completedSignals = [
       '[class*="complete"]', '[class*="completed"]',
       '[class*="done"]', '[aria-checked="true"]',
       '[class*="checked"]', '[class*="earned"]',
+      '[class*="finish"]', '[class*="finished"]',
+      '[class*="lockup-disabled"]', '[class*="c-card-disabled"]',
+      '[aria-disabled="true"]',
     ];
 
     function isCompleted(el) {
       for (var s of completedSignals) {
+        if (el.matches && el.matches(s)) return true;
         if (el.closest(s)) return true;
       }
-      // Also check inside the nearest card container
-      var card = el.closest('[class*="card"], [data-activity-id], [class*="ds-"], [class*="punchcard"]');
+      // Check inside nearest card container
+      var card = el.closest(
+        '[class*="card"], [data-activity-id], [class*="ds-"], [class*="punchcard"],' +
+        '[class*="c-card"], [class*="offer"], [class*="lockup"], li[class]'
+      );
       if (card) {
         for (var s of completedSignals) {
           if (card.querySelector(s)) return true;
         }
+        // Check for a visual checkmark svg inside the card (new UI)
+        if (card.querySelector('svg[class*="check"], svg[class*="complete"], [class*="check-icon"]')) return true;
       }
       return false;
     }
 
+    // Helper: find a link that looks like a rewards activity href
+    function isActivityHref(href) {
+      if (!href) return false;
+      var h = href.toLowerCase();
+      return (
+        h.indexOf('bing.com/search') !== -1 ||
+        h.indexOf('bing.com/rewards') !== -1 ||
+        h.indexOf('rewards.bing.com/go') !== -1 ||
+        h.indexOf('rewards.microsoft.com/go') !== -1 ||
+        h.indexOf('rewards.microsoft.com/redeem') !== -1 ||
+        h.indexOf('rewardschallenges') !== -1 ||
+        h.indexOf('microsoft.com/rewards') !== -1 ||
+        h.indexOf('bing.com/quiz') !== -1 ||
+        h.indexOf('bing.com/know') !== -1 ||
+        h.indexOf('go.microsoft.com') !== -1
+      );
+    }
+
+    // ── Selector list: old UI + new 2024-2025 redesign ────────────────────────
     var selectors = [
+      // New 2024-2025 Microsoft Rewards UI
+      'mee-rewards-daily-set-item a[href]',
+      'mee-rewards-punchcard-item a[href]',
+      '[class*="dailySet"] a[href]',
+      '[class*="daily-set"] a[href]',
+      '[class*="DailySet"] a[href]',
+      '[data-bi-an*="DailySet"] a[href]',
+      '[data-bi-an*="dailyset"] a[href]',
+      '[data-m*="DailySet"] a[href]',
+      '[class*="c-card"] a[href]',
+      '[class*="reward-card"] a[href]',
+      '[class*="rewardCard"] a[href]',
+      '[class*="offer-cta"] a[href]',
+      '[class*="offerCta"] a[href]',
+      '[class*="lockup"] a[href]',
+      'section[class*="daily"] a[href]',
+      'div[class*="daily"] a[href]',
+      // Old UI selectors (kept for compatibility)
       '[data-activity-id] a[href]',
       '[data-bi-id*="dailyset"] a[href]',
       '[data-bi-id*="DailySet"] a[href]',
       '.ds-card-sec a[href]',
       '[class*="ds-card"] a[href]',
-      '[class*="daily-set"] a[href]',
-      '[class*="dailyset"] a[href]',
       '.punchcard-row a[href]',
       '[class*="punchcard"] a[href]',
       '[class*="offer-card"] a[href]',
       '[class*="offercard"] a[href]',
       'a[href*="rewardschallenges"]',
       'a[href*="rewards.bing.com/go/"]',
+      'a[href*="rewards.microsoft.com/go/"]',
     ];
 
+    // ── Pass 1: try each selector ─────────────────────────────────────────────
     for (var sel of selectors) {
       var matches = Array.from(document.querySelectorAll(sel));
       for (var i = 0; i < matches.length; i++) {
@@ -161,7 +209,6 @@ function makeClickScript(alreadyClicked: string[]): string {
         var cardId = getCardId(el);
         var href = (el.href || el.getAttribute('href') || '').toLowerCase().trim();
 
-        // Skip if we already clicked this card in a previous iteration
         if (alreadyClicked.indexOf(cardId) !== -1) continue;
         if (href && alreadyClicked.indexOf(href) !== -1) continue;
 
@@ -171,35 +218,77 @@ function makeClickScript(alreadyClicked: string[]): string {
           el.getAttribute('title') || ''
         ).trim().replace(/\\s+/g, ' ').slice(0, 60);
 
-        // Fire a real MouseEvent so Microsoft's click handlers run
-        // (same path as a real user tap — NOT window.location.href navigation)
-        el.dispatchEvent(new MouseEvent('click', {
-          bubbles: true,
-          cancelable: true,
-          view: window,
-        }));
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
 
         window.ReactNativeWebView.postMessage(JSON.stringify({
-          type: 'card_clicked',
-          found: true,
-          text: text || 'Activity',
-          href: href,
-          cardId: cardId,
+          type: 'card_clicked', found: true,
+          text: text || 'Activity', href: href, cardId: cardId,
         }));
         return;
       }
     }
 
-    window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'card_clicked',
-      found: false,
-    }));
+    // ── Pass 2: find "Daily Set" heading, then grab links nearby ─────────────
+    // Handles any renamed/obfuscated class structure in the new UI.
+    var allHeadings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,div,p'));
+    for (var hi = 0; hi < allHeadings.length; hi++) {
+      var hEl = allHeadings[hi];
+      var hText = (hEl.textContent || '').trim().toLowerCase();
+      if (hText.indexOf('daily set') === -1 && hText.indexOf('daily') === -1) continue;
+      if (hText.length > 60) continue; // skip large containers that happen to contain the word
+
+      // Walk up to a section/div that wraps the whole daily set block
+      var section = hEl.parentElement;
+      for (var depth = 0; depth < 6 && section; depth++) {
+        var links = Array.from(section.querySelectorAll('a[href]'));
+        for (var li2 = 0; li2 < links.length; li2++) {
+          var lEl = links[li2];
+          var lHref = (lEl.href || lEl.getAttribute('href') || '').toLowerCase().trim();
+          if (!isActivityHref(lHref)) continue;
+          if (isCompleted(lEl)) continue;
+
+          var lCardId = getCardId(lEl);
+          if (alreadyClicked.indexOf(lCardId) !== -1) continue;
+          if (lHref && alreadyClicked.indexOf(lHref) !== -1) continue;
+
+          var lText = (lEl.textContent || lEl.getAttribute('aria-label') || '').trim().replace(/\\s+/g, ' ').slice(0, 60);
+          lEl.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'card_clicked', found: true,
+            text: lText || 'Activity', href: lHref, cardId: lCardId,
+          }));
+          return;
+        }
+        section = section.parentElement;
+      }
+    }
+
+    // ── Pass 3: last resort — any unclicked rewards activity link on the page ─
+    var allLinks = Array.from(document.querySelectorAll('a[href]'));
+    for (var ali = 0; ali < allLinks.length; ali++) {
+      var aEl = allLinks[ali];
+      var aHref = (aEl.href || aEl.getAttribute('href') || '').toLowerCase().trim();
+      if (!isActivityHref(aHref)) continue;
+      if (isCompleted(aEl)) continue;
+
+      var aCardId = getCardId(aEl);
+      if (alreadyClicked.indexOf(aCardId) !== -1) continue;
+      if (aHref && alreadyClicked.indexOf(aHref) !== -1) continue;
+
+      var aText = (aEl.textContent || aEl.getAttribute('aria-label') || '').trim().replace(/\\s+/g, ' ').slice(0, 60);
+      aEl.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'card_clicked', found: true,
+        text: aText || 'Activity', href: aHref, cardId: aCardId,
+      }));
+      return;
+    }
+
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'card_clicked', found: false }));
   } catch(e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'card_clicked',
-      found: false,
-      error: String(e),
-    }));
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'card_clicked', found: false, error: String(e) }));
   }
 })(); true;
 `;
@@ -375,8 +464,11 @@ export default function SearchRunnerScreen() {
     const t4 = (settings.dsTimeoutPostClick ?? 15) * 1000;
 
     // ── 1. Load the Rewards dashboard once ──────────────────────────────────
+    // Use rewards.microsoft.com — this is the current URL after the 2024 redesign.
+    // rewards.bing.com still works but may redirect, adding latency.
+    const REWARDS_URL = "https://rewards.microsoft.com/";
     onStatus("Daily Set: loading Rewards page…");
-    setWebViewUrl("https://rewards.bing.com/");
+    setWebViewUrl(REWARDS_URL);
     try { await waitForLoad(t1); } catch {}
     await sleep(3000);
 
@@ -385,7 +477,7 @@ export default function SearchRunnerScreen() {
 
       if (attempt > 0) {
         onStatus(`Daily Set: back to Rewards (${completed} done so far)…`);
-        navigateTo("https://rewards.bing.com/");
+        navigateTo(REWARDS_URL);
         try { await waitForLoad(t2); } catch {}
         await sleep(3000);
       }
