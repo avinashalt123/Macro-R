@@ -4,6 +4,12 @@ import { Platform } from "react-native";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import * as Crypto from "expo-crypto";
 
+// ─── Licensing toggle ────────────────────────────────────────────────────────
+// Set to `false` to bypass all license checks and unlock every feature.
+// Set to `true` to re-enable the license gate / key validation flow.
+export const LICENSING_ENABLED = false;
+// ─────────────────────────────────────────────────────────────────────────────
+
 const LICENSE_KEY_STORAGE = "@ms_rewards_license_key";
 const LICENSE_DATA_STORAGE = "@ms_rewards_license_data";
 const ADMIN_SECRET_STORAGE = "@ms_rewards_admin_secret";
@@ -113,6 +119,29 @@ const OWNER_FEATURE_CONFIG: FeatureConfig = {
 };
 
 export function LicenseProvider({ children }: { children: React.ReactNode }) {
+  // When licensing is disabled, short-circuit — always fully licensed & unlocked.
+  if (!LICENSING_ENABLED) {
+    return (
+      <LicenseContext.Provider value={{
+        isLicensed: true,
+        isAdmin: true,
+        isOwnerMode: true,
+        isLoading: false,
+        licenseData: null,
+        featureConfig: OWNER_FEATURE_CONFIG,
+        adminSecret: null,
+        error: null,
+        adminPanelVisible: false,
+        setAdminPanelVisible: async () => {},
+        activateKey: async () => true,
+        removeLicense: async () => {},
+        revalidate: async () => {},
+      }}>
+        {children}
+      </LicenseContext.Provider>
+    );
+  }
+
   const [isLicensed, setIsLicensed] = useState(OWNER_MODE);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(!OWNER_MODE);
