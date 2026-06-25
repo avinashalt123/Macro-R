@@ -34,8 +34,6 @@ import {
 } from "@/utils/bingSearch";
 
 let BackgroundService: any = null;
-// Enabled: foregroundServiceType="dataSync" is declared via plugins/withBackgroundActions.js
-// which is required on Android 14+. Falls back to foreground silently if start() fails.
 if (Platform.OS === "android") {
   try {
     BackgroundService = require("react-native-background-actions").default;
@@ -90,20 +88,12 @@ async function injectAccountCookies(
   }
 }
 
-// ─── JS injected into rewards.bing.com to click the next uncompleted card ─────
-//
-// Accepts a list of already-clicked card IDs so it never repeats the same card.
-// Uses dispatchEvent(MouseEvent) to fire Microsoft's own click handlers — the
-// same path a real user tap takes. Does NOT navigate via href/location.href;
-// the click event itself is what Microsoft registers for rewards credit.
-
 function makeClickScript(alreadyClicked: string[]): string {
   return `
 (function() {
   try {
     var alreadyClicked = ${JSON.stringify(alreadyClicked)};
 
-    // Build a stable ID for a card element
     function getCardId(el) {
       var href = (el.href || el.getAttribute('href') || '').toLowerCase().trim();
       var container = el.closest('[data-activity-id], [data-bi-id], [data-m], [id]');
@@ -116,7 +106,6 @@ function makeClickScript(alreadyClicked: string[]): string {
       return (attrId + '||' + href);
     }
 
-    // Signals that a card/activity is already completed
     var completedSignals = [
       '[class*="complete"]', '[class*="completed"]',
       '[class*="done"]', '[aria-checked="true"]',
@@ -131,7 +120,6 @@ function makeClickScript(alreadyClicked: string[]): string {
         if (el.matches && el.matches(s)) return true;
         if (el.closest(s)) return true;
       }
-      // Check inside nearest card container
       var card = el.closest(
         '[class*="card"], [data-activity-id], [class*="ds-"], [class*="punchcard"],' +
         '[class*="c-card"], [class*="offer"], [class*="lockup"], li[class]'
@@ -140,13 +128,11 @@ function makeClickScript(alreadyClicked: string[]): string {
         for (var s of completedSignals) {
           if (card.querySelector(s)) return true;
         }
-        // Check for a visual checkmark svg inside the card (new UI)
-        if (card.querySelector('svg[class*="check"], svg[class*="complete"], [class*="check-icon"]')) return true;
+          if (card.querySelector('svg[class*="check"], svg[class*="complete"], [class*="check-icon"]')) return true;
       }
       return false;
     }
 
-    // Helper: find a link that looks like a rewards activity href
     function isActivityHref(href) {
       if (!href) return false;
       var h = href.toLowerCase();
@@ -164,12 +150,7 @@ function makeClickScript(alreadyClicked: string[]): string {
       );
     }
 
-    // ── Selector list: Daily Set ONLY ─────────────────────────────────────────
-    // Only selectors that specifically target Daily Set items.
-    // Removed: punchcard, c-card, lockup, offer-card, data-activity-id,
-    // and bare href matchers — they all match non-daily-set activities.
     var selectors = [
-      // New 2024-2025 Microsoft Rewards UI — Daily Set specific
       'mee-rewards-daily-set-item a[href]',
       '[class*="dailySet"] a[href]',
       '[class*="daily-set"] a[href]',
@@ -179,14 +160,12 @@ function makeClickScript(alreadyClicked: string[]): string {
       '[data-m*="DailySet"] a[href]',
       'section[class*="daily-set"] a[href]',
       'div[class*="daily-set"] a[href]',
-      // Old UI selectors — Daily Set specific
       '[data-bi-id*="dailyset"] a[href]',
       '[data-bi-id*="DailySet"] a[href]',
       '.ds-card-sec a[href]',
       '[class*="ds-card"] a[href]',
     ];
 
-    // ── Pass 1: try each selector ─────────────────────────────────────────────
     for (var sel of selectors) {
       var matches = Array.from(document.querySelectorAll(sel));
       for (var i = 0; i < matches.length; i++) {
@@ -215,17 +194,13 @@ function makeClickScript(alreadyClicked: string[]): string {
       }
     }
 
-    // ── Pass 2: find a heading that says exactly "Daily Set", grab links nearby ─
-    // Requires both words together ("daily set") to avoid matching "daily streak",
-    // "daily login bonus", etc. Limits walk-up depth to 4 to stay inside the section.
     var allHeadings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,span,div,p'));
     for (var hi = 0; hi < allHeadings.length; hi++) {
       var hEl = allHeadings[hi];
       var hText = (hEl.textContent || '').trim().toLowerCase();
-      if (hText.indexOf('daily set') === -1) continue; // must contain both words
-      if (hText.length > 60) continue; // skip large containers
+      if (hText.indexOf('daily set') === -1) continue;
+      if (hText.length > 60) continue;
 
-      // Walk up to find the section wrapping the Daily Set block (max 4 levels)
       var section = hEl.parentElement;
       for (var depth = 0; depth < 4 && section; depth++) {
         var links = Array.from(section.querySelectorAll('a[href]'));
@@ -252,11 +227,6 @@ function makeClickScript(alreadyClicked: string[]): string {
       }
     }
 
-    // ── Pass 3 removed ────────────────────────────────────────────────────────
-    // Previously clicked any rewards link on the page as a last resort.
-    // Removed because it clicked punch cards, streak bonuses, and other
-    // non-Daily-Set activities. If passes 1 & 2 found nothing, we stop.
-
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'card_clicked', found: false }));
   } catch(e) {
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'card_clicked', found: false, error: String(e) }));
@@ -264,8 +234,6 @@ function makeClickScript(alreadyClicked: string[]): string {
 })(); true;
 `;
 }
-
-// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function SearchRunnerScreen() {
   const scheme = useColorScheme() ?? "light";
