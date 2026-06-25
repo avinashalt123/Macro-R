@@ -28,7 +28,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://macro-r.onrender.com/api"
+        "EXPO_PUBLIC_API_URL": "https://macro-r.onrender.com/api",
+        "EXPO_PUBLIC_OWNER_MODE": "true"
       }
     },
     "production": {
