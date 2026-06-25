@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import * as Updates from "expo-updates";
-import { ChevronRight, Clock, Download, Moon, Search, Shield } from "lucide-react-native";
+import { CheckSquare, ChevronRight, Clock, Download, Moon, Search, Shield } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
