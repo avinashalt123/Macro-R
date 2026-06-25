@@ -322,9 +322,14 @@ export function AccountGridTile({
               {
                 backgroundColor: isEnabled
                   ? scheme === "dark" ? "#1e3a1e" : "#dcfce7"
-                  : "#dc2626",
-                borderColor: isEnabled ? "#4ade80" : "#991b1b",
-                opacity: pressed ? 0.75 : 1,
+                  : "#ff3b30",
+                borderColor: isEnabled ? "#4ade80" : "#ff3b30",
+                borderWidth: isEnabled ? 1 : 2,
+                elevation: isEnabled ? 0 : 4,
+                shadowColor: "#ff3b30",
+                shadowOpacity: isEnabled ? 0 : 0.6,
+                shadowRadius: 4,
+                opacity: pressed ? 0.8 : 1,
               },
             ]}
           >

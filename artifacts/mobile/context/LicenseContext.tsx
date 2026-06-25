@@ -165,27 +165,50 @@ export function LicenseProvider({ children }: { children: React.ReactNode }) {
   const validateKey = useCallback(async (key: string): Promise<{ valid: boolean; error?: string; maxAccounts?: number; expiresAt?: string; label?: string; keyType?: string; featureConfig?: FeatureConfig; offline?: boolean }> => {
     try {
       const deviceId = await getDeviceId();
-      const resp = await fetch(`${API_BASE}/validate-key`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, deviceId }),
-      });
-      return await resp.json();
-    } catch {
-      return { valid: false, error: "Could not connect to server", offline: true };
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      try {
+        const resp = await fetch(`${API_BASE}/validate-key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, deviceId }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        return await resp.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch (e: any) {
+      const timedOut = e?.name === "AbortError";
+      return {
+        valid: false,
+        error: timedOut
+          ? "Server is starting up — please try again in a moment"
+          : "Could not connect to server",
+        offline: true,
+      };
     }
   }, []);
 
   const validateAdmin = useCallback(async (secret: string): Promise<{ valid: boolean; offline?: boolean }> => {
     try {
-      const resp = await fetch(`${API_BASE}/validate-admin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secret }),
-      });
-      if (!resp.ok) return { valid: false };
-      const data = await resp.json();
-      return { valid: data.valid === true };
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 12000);
+      try {
+        const resp = await fetch(`${API_BASE}/validate-admin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ secret }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!resp.ok) return { valid: false };
+        const data = await resp.json();
+        return { valid: data.valid === true };
+      } finally {
+        clearTimeout(timer);
+      }
     } catch {
       return { valid: false, offline: true };
     }
