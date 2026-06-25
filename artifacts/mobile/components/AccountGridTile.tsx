@@ -322,13 +322,13 @@ export function AccountGridTile({
               {
                 backgroundColor: isEnabled
                   ? scheme === "dark" ? "#1e3a1e" : "#dcfce7"
-                  : scheme === "dark" ? "#3a1e1e" : "#fee2e2",
-                borderColor: isEnabled ? "#4ade80" : "#f87171",
+                  : "#dc2626",
+                borderColor: isEnabled ? "#4ade80" : "#991b1b",
                 opacity: pressed ? 0.75 : 1,
               },
             ]}
           >
-            <PowerOff size={11} color={isEnabled ? "#4ade80" : "#f87171"} />
+            <PowerOff size={11} color={isEnabled ? "#4ade80" : "#fff"} />
           </Pressable>
 
           <Pressable
