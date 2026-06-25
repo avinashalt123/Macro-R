@@ -43,6 +43,13 @@ export async function initSchema(): Promise<void> {
         updated_at       TIMESTAMP NOT NULL DEFAULT NOW(),
         CONSTRAINT uq_key_email UNIQUE (license_key_id, account_email)
       );
+
+      INSERT INTO feature_config (key_type, max_accounts, max_searches, min_delay_seconds, background_enabled, custom_queries_enabled, daily_set_enabled, pc_search_enabled) VALUES
+        ('basic',     2,   20,  5, FALSE, FALSE, TRUE,  FALSE),
+        ('premium',   5,   40,  3, TRUE,  TRUE,  TRUE,  TRUE),
+        ('unlimited', 999, 999, 3, TRUE,  TRUE,  TRUE,  TRUE),
+        ('admin',     999, 999, 1, TRUE,  TRUE,  TRUE,  TRUE)
+      ON CONFLICT (key_type) DO NOTHING;
     `);
     console.log("[db] Schema ready.");
   } finally {
