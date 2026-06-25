@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import * as Updates from "expo-updates";
-import { Calendar, CheckSquare, ChevronRight, Clock, Download, Minus, Moon, Pencil, Plus, RotateCcw, Search, Shield, Zap } from "lucide-react-native";
+import { ChevronRight, Clock, Download, Moon, Search, Shield } from "lucide-react-native";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -21,20 +21,8 @@ import { router } from "expo-router";
 import { useCustomAlert } from "@/components/CustomAlert";
 import Colors from "@/constants/colors";
 import { useLicense } from "@/context/LicenseContext";
-import { DEFAULT_OVERNIGHT_SLOTS, OvernightSlot, useSettings } from "@/context/SettingsContext";
-import {
-  cancelAllScheduledNotifications,
-  isNotificationsAvailable,
-  requestNotificationPermission,
-  scheduleOvernightNotifications,
-} from "@/utils/notifications";
-import { scheduleBackgroundFetch, unscheduleBackgroundFetch } from "@/utils/backgroundSearch";
+import { OvernightSlot, useSettings } from "@/context/SettingsContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-function to24h(hour12: number, isAm: boolean): number {
-  if (isAm) return hour12 === 12 ? 0 : hour12;
-  return hour12 === 12 ? 12 : hour12 + 12;
-}
 
 function from24h(hour24: number): { hour: number; isAm: boolean } {
   return {
@@ -49,14 +37,6 @@ function formatSlot(slot: OvernightSlot): string {
   return `${hour}:${min} ${isAm ? "AM" : "PM"}`;
 }
 
-const MAX_SLOTS = 10;
-
-function initHourTexts(slots: OvernightSlot[]): string[] {
-  return slots.map((s) => String(from24h(s.hour).hour));
-}
-function initMinuteTexts(slots: OvernightSlot[]): string[] {
-  return slots.map((s) => s.minute.toString().padStart(2, "0"));
-}
 
 export default function SettingsScreen() {
   const scheme = useColorScheme() ?? "light";
@@ -65,26 +45,12 @@ export default function SettingsScreen() {
   const { settings, updateSettings } = useSettings();
   const { licenseData, featureConfig, removeLicense, isOwnerMode, adminPanelVisible } = useLicense();
   const { showAlert, AlertComponent } = useCustomAlert();
-  const [scheduling, setScheduling] = useState(false);
-  const [scheduledCount, setScheduledCount] = useState<number | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-
 
   const [searchCountText, setSearchCountText] = useState(
     String(settings.defaultSearchCount)
   );
   const [delayText, setDelayText] = useState(String(settings.searchDelay ?? 5));
-
-  const [slotHourTexts, setSlotHourTexts] = useState<string[]>(() =>
-    initHourTexts(settings.overnightSlots)
-  );
-  const [slotMinuteTexts, setSlotMinuteTexts] = useState<string[]>(() =>
-    initMinuteTexts(settings.overnightSlots)
-  );
-
-  const [previousUserSlots, setPreviousUserSlots] = useState<OvernightSlot[] | null>(null);
-  const isShowingDefaults = previousUserSlots !== null;
-  const [isEditingSchedule, setIsEditingSchedule] = useState(false);
 
 
   const commitSearchCount = () => {
@@ -111,169 +77,8 @@ export default function SettingsScreen() {
     }
   };
 
-  // ── Slot hour ────────────────────────────────────────────────────────────
-  const updateSlotHourText = (index: number, text: string) => {
-    const next = [...slotHourTexts];
-    next[index] = text;
-    setSlotHourTexts(next);
-  };
-
-  const commitSlotHour = (index: number) => {
-    const parsed = parseInt(slotHourTexts[index], 10);
-    const clamped = isNaN(parsed) ? 12 : Math.max(1, Math.min(12, parsed));
-    const next = [...slotHourTexts];
-    next[index] = String(clamped);
-    setSlotHourTexts(next);
-
-    const slot = settings.overnightSlots[index];
-    const { isAm } = from24h(slot.hour);
-    const newHour24 = to24h(clamped, isAm);
-    if (newHour24 !== slot.hour) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const updated = [...settings.overnightSlots];
-      updated[index] = { ...slot, hour: newHour24 };
-      updateSettings({ overnightSlots: updated });
-    }
-  };
-
-  // ── Slot minute ──────────────────────────────────────────────────────────
-  const updateSlotMinuteText = (index: number, text: string) => {
-    const next = [...slotMinuteTexts];
-    next[index] = text;
-    setSlotMinuteTexts(next);
-  };
-
-  const commitSlotMinute = (index: number) => {
-    const parsed = parseInt(slotMinuteTexts[index], 10);
-    const clamped = isNaN(parsed) ? 0 : Math.max(0, Math.min(59, parsed));
-    const next = [...slotMinuteTexts];
-    next[index] = clamped.toString().padStart(2, "0");
-    setSlotMinuteTexts(next);
-
-    const slot = settings.overnightSlots[index];
-    if (clamped !== slot.minute) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const updated = [...settings.overnightSlots];
-      updated[index] = { ...slot, minute: clamped };
-      updateSettings({ overnightSlots: updated });
-    }
-  };
-
-  // ── AM / PM ──────────────────────────────────────────────────────────────
-  const toggleSlotAmPm = (index: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const slot = settings.overnightSlots[index];
-    const { hour, isAm } = from24h(slot.hour);
-    const newHour24 = to24h(hour, !isAm);
-    const updated = [...settings.overnightSlots];
-    updated[index] = { ...slot, hour: newHour24 };
-    updateSettings({ overnightSlots: updated });
-    setScheduledCount(null);
-  };
-
-  // ── Add / Remove slots ────────────────────────────────────────────────────
-  const addSlot = () => {
-    if (settings.overnightSlots.length >= MAX_SLOTS) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const newSlot: OvernightSlot = { hour: 0, minute: 0 };
-    const updated = [...settings.overnightSlots, newSlot];
-    updateSettings({ overnightSlots: updated });
-    setSlotHourTexts((prev) => [...prev, "12"]);
-    setSlotMinuteTexts((prev) => [...prev, "00"]);
-    setScheduledCount(null);
-  };
-
-  const removeSlot = (index: number) => {
-    if (settings.overnightSlots.length <= 1) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const updated = settings.overnightSlots.filter((_, i) => i !== index);
-    updateSettings({ overnightSlots: updated });
-    setSlotHourTexts((prev) => prev.filter((_, i) => i !== index));
-    setSlotMinuteTexts((prev) => prev.filter((_, i) => i !== index));
-    setScheduledCount(null);
-  };
-
-  // ── Default / Restore toggle ─────────────────────────────────────────────
-  const handleDefaultToggle = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!isShowingDefaults) {
-      setPreviousUserSlots([...settings.overnightSlots]);
-      updateSettings({ overnightSlots: DEFAULT_OVERNIGHT_SLOTS });
-      setSlotHourTexts(initHourTexts(DEFAULT_OVERNIGHT_SLOTS));
-      setSlotMinuteTexts(initMinuteTexts(DEFAULT_OVERNIGHT_SLOTS));
-    } else {
-      const restored = previousUserSlots!;
-      updateSettings({ overnightSlots: restored });
-      setSlotHourTexts(initHourTexts(restored));
-      setSlotMinuteTexts(initMinuteTexts(restored));
-      setPreviousUserSlots(null);
-    }
-    setScheduledCount(null);
-  };
-
-  // ── Schedule actions ─────────────────────────────────────────────────────
-  const backgroundEnabled = featureConfig?.backgroundEnabled ?? false;
-
-  const handleApplySchedule = async () => {
-    if (!backgroundEnabled) {
-      showAlert("Feature Locked", "Background automation is not available with your current license. Upgrade to a premium key to use overnight scheduling.");
-      return;
-    }
-    if (Platform.OS === "web") {
-      showAlert("Not Available", "Notifications require a real device.");
-      return;
-    }
-    setScheduling(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    const granted = await requestNotificationPermission();
-    if (!granted) {
-      setScheduling(false);
-      showAlert(
-        "Permission Required",
-        "Please allow notifications in your device settings so the overnight schedule can alert you.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
-
-    const { scheduled } = await scheduleOvernightNotifications(settings.overnightSlots);
-    await scheduleBackgroundFetch().catch(() => {});
-    setScheduledCount(scheduled);
-    setScheduling(false);
-
-    const slotList = settings.overnightSlots
-      .map((s, i) => `  Run ${i + 1}: ${formatSlot(s)}`)
-      .join("\n");
-
-    showAlert(
-      "Overnight Schedule Active",
-      `${scheduled} daily notification${scheduled !== 1 ? "s" : ""} scheduled.\n\n${slotList}\n\nTap the notification when it fires — the app will start automatically.`,
-      [{ text: "Got it" }]
-    );
-  };
-
-  const handleClearSchedule = async () => {
-    await cancelAllScheduledNotifications();
-    await unscheduleBackgroundFetch().catch(() => {});
-    setScheduledCount(0);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    showAlert("Schedule Cleared", "All overnight notifications have been removed.", [
-      { text: "OK" },
-    ]);
-  };
-
   const inputStyle = [
     styles.numberInput,
-    {
-      color: colors.text,
-      backgroundColor: colors.surfaceSecondary,
-      borderColor: colors.border,
-    },
-  ];
-
-  const slotInputStyle = [
-    styles.slotInput,
     {
       color: colors.text,
       backgroundColor: colors.surfaceSecondary,
@@ -443,332 +248,31 @@ export default function SettingsScreen() {
         </Section>
 
         {/* ── OVERNIGHT MODE ────────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textMuted, marginBottom: 0 }]}>
-              OVERNIGHT MODE
-            </Text>
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (isEditingSchedule) {
-                  settings.overnightSlots.forEach((_, i) => {
-                    commitSlotHour(i);
-                    commitSlotMinute(i);
-                  });
-                }
-                setIsEditingSchedule((p) => !p);
-              }}
-              style={({ pressed }) => [
-                styles.editBtn,
-                {
-                  backgroundColor: isEditingSchedule ? colors.tint : colors.surfaceSecondary,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              {isEditingSchedule ? (
-                <Text style={[styles.editBtnText, { color: "#fff" }]}>Done</Text>
-              ) : (
-                <>
-                  <Pencil size={12} color={colors.tint} />
-                  <Text style={[styles.editBtnText, { color: colors.tint }]}>Edit</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-
-          <View style={[styles.card, { backgroundColor: colors.surface }]}>
-
-            {!isEditingSchedule ? (
-              <>
-                {/* ── Clean summary view ──────────────────────────── */}
-                {settings.overnightSlots.map((slot, i) => (
-                  <View key={i}>
-                    {i > 0 && (
-                      <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                    )}
-                    <View style={styles.summaryRow}>
-                      <View style={[styles.summaryDot, { backgroundColor: from24h(slot.hour).isAm ? "#0EA5E9" : "#7C3AED" }]} />
-                      <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
-                        Run {i + 1}
-                      </Text>
-                      <Text style={[styles.summaryTime, { color: colors.text }]}>
-                        {formatSlot(slot)}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-
-                {/* Daily set status line */}
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                <View style={styles.summaryRow}>
-                  <View style={[styles.summaryDot, { backgroundColor: settings.overnightDailySet ? "#7C3AED" : colors.border }]} />
-                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>
-                    Daily Sets
-                  </Text>
-                  <Text style={[styles.summaryTime, { color: colors.textMuted }]}>
-                    {settings.overnightDailySet ? "Enabled" : "Off"}
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <>
-                {/* ── Edit view ──────────────────────────────────── */}
-
-                {/* Info banner */}
-                <View style={[styles.infoBanner, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
-                  <Moon size={14} color={colors.tint} />
-                  <Text style={[styles.infoText, { color: "#1E40AF" }]}>
-                    Microsoft resets search points at midnight. Runs before and after the reset to maximize daily points.
-                  </Text>
-                </View>
-
-                {/* Column header labels */}
-                <View style={[styles.slotRow, { paddingTop: 8, paddingBottom: 0 }]}>
-                  <View style={styles.slotLabelWrap} />
-                  <View style={styles.slotPicker}>
-                    <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Hour</Text>
-                    <Text style={[styles.colonSep, { opacity: 0 }]}>:</Text>
-                    <Text style={[styles.slotHeaderText, { color: colors.textMuted }]}>Min</Text>
-                    <View style={[styles.amPmBtn, { opacity: 0 }]}>
-                      <Text style={styles.amPmText}>PM</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Slot rows */}
-                {settings.overnightSlots.map((slot, i) => {
-                  const { isAm } = from24h(slot.hour);
-                  return (
-                    <View key={i}>
-                      {i > 0 && (
-                        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                      )}
-                      <View style={styles.slotRow}>
-                        <View style={styles.slotLabelWrap}>
-                          {settings.overnightSlots.length > 1 && (
-                            <Pressable
-                              onPress={() => removeSlot(i)}
-                              hitSlop={8}
-                              style={[styles.removeBtn, { backgroundColor: "#FEE2E2" }]}
-                            >
-                              <Minus size={12} color="#DC2626" />
-                            </Pressable>
-                          )}
-                          <View style={[styles.slotBadge, { backgroundColor: colors.surfaceSecondary }]}>
-                            <Text style={[styles.slotBadgeText, { color: colors.textMuted }]}>
-                              {i + 1}
-                            </Text>
-                          </View>
-                          <Text style={[styles.slotLabel, { color: colors.textSecondary }]}>
-                            Run {i + 1}
-                          </Text>
-                        </View>
-
-                        <View style={styles.slotPicker}>
-                          <TextInput
-                            style={slotInputStyle}
-                            value={slotHourTexts[i] ?? "12"}
-                            onChangeText={(t) => updateSlotHourText(i, t)}
-                            onBlur={() => commitSlotHour(i)}
-                            onSubmitEditing={() => commitSlotHour(i)}
-                            keyboardType="number-pad"
-                            returnKeyType="next"
-                            maxLength={2}
-                            selectTextOnFocus
-                          />
-                          <Text style={[styles.colonSep, { color: colors.textMuted }]}>:</Text>
-                          <TextInput
-                            style={slotInputStyle}
-                            value={slotMinuteTexts[i] ?? "00"}
-                            onChangeText={(t) => updateSlotMinuteText(i, t)}
-                            onBlur={() => commitSlotMinute(i)}
-                            onSubmitEditing={() => commitSlotMinute(i)}
-                            keyboardType="number-pad"
-                            returnKeyType="done"
-                            maxLength={2}
-                            selectTextOnFocus
-                          />
-                          <Pressable
-                            onPress={() => toggleSlotAmPm(i)}
-                            style={[
-                              styles.amPmBtn,
-                              { backgroundColor: isAm ? "#0EA5E9" : "#7C3AED" },
-                            ]}
-                          >
-                            <Text style={styles.amPmText}>{isAm ? "AM" : "PM"}</Text>
-                          </Pressable>
-                        </View>
-                      </View>
-                    </View>
-                  );
-                })}
-
-                {/* Add Run */}
-                {settings.overnightSlots.length < MAX_SLOTS && (
-                  <>
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                    <Pressable
-                      onPress={addSlot}
-                      style={({ pressed }) => [
-                        styles.addSlotBtn,
-                        { opacity: pressed ? 0.7 : 1 },
-                      ]}
-                    >
-                      <Plus size={16} color={colors.tint} />
-                      <Text style={[styles.addSlotText, { color: colors.tint }]}>
-                        Add Run ({settings.overnightSlots.length}/{MAX_SLOTS})
-                      </Text>
-                    </Pressable>
-                  </>
-                )}
-
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-                {/* Default / Restore toggle */}
-                <Pressable
-                  onPress={handleDefaultToggle}
-                  style={({ pressed }) => [
-                    styles.defaultBtn,
-                    {
-                      backgroundColor: isShowingDefaults ? "#FFF7ED" : colors.surfaceSecondary,
-                      borderColor: isShowingDefaults ? "#FDE68A" : "transparent",
-                      opacity: pressed ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  {isShowingDefaults ? (
-                    <RotateCcw size={15} color="#D97706" />
-                  ) : (
-                    <Zap size={15} color={colors.tint} />
-                  )}
-                  <Text
-                    style={[
-                      styles.defaultBtnText,
-                      { color: isShowingDefaults ? "#D97706" : colors.tint },
-                    ]}
-                  >
-                    {isShowingDefaults
-                      ? "Restore my schedule"
-                      : "Default  (10 PM · 11 PM · 1 AM · 2 AM)"}
-                  </Text>
-                </Pressable>
-
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-                {/* Daily Sets toggle */}
-                <View style={styles.settingRow}>
-                  <View style={styles.settingLabel}>
-                    <View style={[styles.iconBg, { backgroundColor: "#F5F3FF" }]}>
-                      <CheckSquare size={16} color="#7C3AED" />
-                    </View>
-                    <View style={styles.labelText}>
-                      <Text style={[styles.settingTitle, { color: colors.text }]}>
-                        Daily Sets in overnight runs
-                      </Text>
-                      <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
-                        {settings.overnightDailySet
-                          ? "Daily Set will run after searches"
-                          : "Searches only — Daily Set skipped"}
-                      </Text>
-                    </View>
-                  </View>
-                  <Switch
-                    value={settings.overnightDailySet}
-                    onValueChange={(val) => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      updateSettings({ overnightDailySet: val });
-                    }}
-                    trackColor={{ false: colors.border, true: "#7C3AED" }}
-                    thumbColor="#fff"
-                  />
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-
-        {/* ── SCHEDULE ACTIONS ──────────────────────────────── */}
-        <Section title="SCHEDULE" colors={colors}>
-          {!isNotificationsAvailable() ? (
-            <View
-              style={[
-                styles.unavailableCard,
-                { backgroundColor: colors.surface, borderColor: colors.border },
-              ]}
-            >
-              <Text style={[styles.unavailableTitle, { color: colors.text }]}>
-                Scheduling unavailable in Expo Go
-              </Text>
-              <Text style={[styles.unavailableDesc, { color: colors.textSecondary }]}>
-                Expo Go removed notification scheduling in SDK 53. To use the
-                overnight schedule, you need a development build (EAS Build).
-                Your times above are saved and will be used once you switch to a
-                development build.
-              </Text>
+        <Section title="OVERNIGHT MODE" colors={colors}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push("/overnight");
+            }}
+            style={({ pressed }) => [styles.settingRow, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <View style={styles.settingLabel}>
+              <View style={[styles.iconBg, { backgroundColor: "#EFF6FF" }]}>
+                <Moon size={16} color="#7C3AED" />
+              </View>
+              <View style={styles.labelText}>
+                <Text style={[styles.settingTitle, { color: colors.text }]}>
+                  Overnight Schedule
+                </Text>
+                <Text style={[styles.settingDesc, { color: colors.textSecondary }]}>
+                  {settings.overnightSlots.map((s) => formatSlot(s)).join(" · ")}
+                </Text>
+              </View>
             </View>
-          ) : (
-            <>
-              {scheduledCount !== null && (
-                <View
-                  style={[
-                    styles.statusBanner,
-                    {
-                      backgroundColor: scheduledCount > 0 ? "#F0FDF4" : "#FFF7ED",
-                      borderColor: scheduledCount > 0 ? "#BBF7D0" : "#FDE68A",
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      color: scheduledCount > 0 ? "#166534" : "#92400E",
-                      fontSize: 13,
-                      fontFamily: "Inter_500Medium",
-                    }}
-                  >
-                    {scheduledCount > 0
-                      ? `✓ ${scheduledCount} overnight notification${scheduledCount !== 1 ? "s" : ""} scheduled`
-                      : "No active notifications"}
-                  </Text>
-                </View>
-              )}
-
-              <Pressable
-                onPress={handleApplySchedule}
-                disabled={scheduling}
-                style={({ pressed }) => [
-                  styles.applyBtn,
-                  {
-                    backgroundColor: colors.tint,
-                    opacity: pressed || scheduling ? 0.75 : 1,
-                  },
-                ]}
-              >
-                <Calendar size={18} color="#fff" />
-                <Text style={styles.applyText}>
-                  {scheduling ? "Scheduling…" : "Apply Overnight Schedule"}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleClearSchedule}
-                style={({ pressed }) => [
-                  styles.clearBtn,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: colors.surface,
-                    opacity: pressed ? 0.7 : 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.clearText, { color: colors.textSecondary }]}>
-                  Clear Schedule
-                </Text>
-              </Pressable>
-            </>
-          )}
+            <ChevronRight size={18} color={colors.textMuted} />
+          </Pressable>
         </Section>
+
 
         <Section title="LICENSE" colors={colors}>
           <View style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>

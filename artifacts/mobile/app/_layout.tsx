@@ -121,6 +121,7 @@ function RootLayoutNav() {
         <Stack.Screen name="search-runner" options={{ presentation: "transparentModal", headerShown: false, animation: "slide_from_bottom", gestureEnabled: false }} />
         <Stack.Screen name="admin-panel" options={{ presentation: "fullScreenModal", headerShown: false }} />
         <Stack.Screen name="daily-set-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="overnight" options={{ headerShown: false }} />
       </Stack>
     </>
   );

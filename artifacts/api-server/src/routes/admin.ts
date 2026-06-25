@@ -168,13 +168,16 @@ function dashboardPage(): string {
 
   <div id="keysList"></div>
 
-  <div id="cookieModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:999;overflow-y:auto;padding:40px">
+  <div id="cookieModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:999;overflow-y:auto;padding:40px" onclick="if(event.target===this)closeCookieModal()">
     <div style="max-width:700px;margin:0 auto;background:#1e293b;border-radius:12px;border:1px solid #334155;padding:24px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h3 style="color:#fff;margin:0" id="cookieModalTitle">Synced Cookies</h3>
-        <button class="btn-secondary" onclick="document.getElementById('cookieModal').style.display='none'" style="padding:4px 12px">Close</button>
+        <button class="btn-secondary" onclick="closeCookieModal()" style="padding:4px 12px;cursor:pointer">&#10005; Close</button>
       </div>
       <div id="cookieModalBody"></div>
+      <div style="margin-top:20px;text-align:right">
+        <button class="btn-secondary" onclick="closeCookieModal()" style="padding:6px 16px;cursor:pointer">&#10005; Close</button>
+      </div>
     </div>
   </div>
 
@@ -341,6 +344,10 @@ function dashboardPage(): string {
       } catch(e) {
         alert('Could not parse cookies: ' + e.message);
       }
+    }
+
+    function closeCookieModal() {
+      document.getElementById('cookieModal').style.display = 'none';
     }
 
     async function viewCookies(keyId, keyText) {
