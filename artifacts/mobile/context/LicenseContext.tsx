@@ -7,7 +7,7 @@ import * as Crypto from "expo-crypto";
 // ─── Licensing toggle ────────────────────────────────────────────────────────
 // Set to `false` to bypass all license checks and unlock every feature.
 // Set to `true` to re-enable the license gate / key validation flow.
-export const LICENSING_ENABLED = false;
+export const LICENSING_ENABLED = true;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LICENSE_KEY_STORAGE = "@ms_rewards_license_key";
