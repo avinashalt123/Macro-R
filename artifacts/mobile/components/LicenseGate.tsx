@@ -13,9 +13,10 @@ import {
   Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Lock, KeyRound, ScanLine, Image as ImageIcon, X } from "lucide-react-native";
+import { Lock, KeyRound, ScanLine, Image as ImageIcon, X, RefreshCw } from "lucide-react-native";
 import { CameraView, Camera } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as Updates from "expo-updates";
 import { useLicense } from "@/context/LicenseContext";
 import Colors from "@/constants/colors";
 
@@ -29,6 +30,8 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scanned, setScanned] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateLabel, setUpdateLabel] = useState("Update App");
 
   if (isLoading) {
     return (
@@ -96,6 +99,29 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
       );
     } catch (e) {
       Alert.alert("Error", "Failed to open gallery");
+    }
+  };
+
+  const handleCheckUpdate = async () => {
+    if (checkingUpdate) return;
+    setCheckingUpdate(true);
+    setUpdateLabel("Checking…");
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (result.isAvailable) {
+        setUpdateLabel("Downloading…");
+        await Updates.fetchUpdateAsync();
+        setUpdateLabel("Restarting…");
+        await Updates.reloadAsync();
+      } else {
+        setUpdateLabel("Up to date");
+        setTimeout(() => setUpdateLabel("Update App"), 3000);
+      }
+    } catch {
+      setUpdateLabel("Update failed");
+      setTimeout(() => setUpdateLabel("Update App"), 3000);
+    } finally {
+      setCheckingUpdate(false);
     }
   };
 
@@ -180,6 +206,30 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
                 <Text style={[styles.scanButtonText, { color: colors.text }]}>Gallery</Text>
               </Pressable>
             </View>
+          )}
+
+          {Platform.OS !== "web" && (
+            <Pressable
+              onPress={handleCheckUpdate}
+              disabled={checkingUpdate}
+              style={({ pressed }) => [
+                styles.updateButton,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  opacity: checkingUpdate ? 0.6 : pressed ? 0.85 : 1,
+                },
+              ]}
+            >
+              {checkingUpdate ? (
+                <ActivityIndicator size="small" color={colors.textSecondary} />
+              ) : (
+                <RefreshCw size={15} color={colors.textSecondary} />
+              )}
+              <Text style={[styles.updateButtonText, { color: colors.textSecondary }]}>
+                {updateLabel}
+              </Text>
+            </Pressable>
           )}
         </View>
       </View>
@@ -292,6 +342,20 @@ const styles = StyleSheet.create({
   },
   scanButtonText: {
     fontSize: 14,
+    fontFamily: "Inter_500Medium",
+  },
+  updateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    borderRadius: 12,
+    height: 42,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  updateButtonText: {
+    fontSize: 13,
     fontFamily: "Inter_500Medium",
   },
   scannerContainer: {
